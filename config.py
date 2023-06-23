@@ -26,8 +26,10 @@ S3_ENABLED = eval(os.environ.get('ENABLE_S3', 'True').capitalize())
 SCORE_RESPONSE_LIMIT = int(os.environ.get('SCORE_RESPONSE_LIMIT', 50))
 SCORE_SUBMISSION_KEY = os.environ.get('SCORE_SUBMISSION_KEY')
 
-DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
+MENUICON_IMAGE = os.environ.get('MENUICON_IMAGE')
+MENUICON_URL = os.environ.get('MENUICON_URL')
 
+DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
 DATA_PATH = os.path.abspath('.data')
 
-VERSION = '0.1.0'
+VERSION = 'dev'
