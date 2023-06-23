@@ -1,5 +1,6 @@
 
 import logging
+import utils
 import app
 
 logging.basicConfig(
@@ -8,6 +9,7 @@ logging.basicConfig(
 )
 
 def main():
+    utils.setup()
     app.run()
 
 if __name__ == "__main__":
