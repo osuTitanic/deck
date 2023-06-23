@@ -1,4 +1,5 @@
 
+from . import logging
 from . import session
 from . import routes
 

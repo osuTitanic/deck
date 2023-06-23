@@ -5,7 +5,11 @@ import app
 
 logging.basicConfig(
     format='[%(asctime)s] - <%(name)s> %(levelname)s: %(message)s',
-    level=logging.INFO
+    level=logging.INFO,
+    handlers=[
+        app.logging.Console,
+        app.logging.File
+    ]
 )
 
 def main():
