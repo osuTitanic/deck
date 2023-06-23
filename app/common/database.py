@@ -6,6 +6,8 @@ from typing import Optional, Generator
 from threading import Timer
 
 from .objects import (
+    DBBeatmapset,
+    DBBeatmap,
     DBUser,
     DBLog,
     Base
@@ -53,6 +55,26 @@ class Postgres:
     def user_by_id(self, id: int) -> Optional[DBUser]:
         return self.session.query(DBUser) \
                 .filter(DBUser.id == id) \
+                .first()
+
+    def beatmap_by_id(self, id: int) -> Optional[DBBeatmap]:
+        return self.session.query(DBBeatmap) \
+                .filter(DBBeatmap.id == id) \
+                .first()
+
+    def beatmap_by_file(self, filename: str) -> Optional[DBBeatmap]:
+        return self.session.query(DBBeatmap) \
+                .filter(DBBeatmap.filename == filename) \
+                .first()
+
+    def beatmap_by_checksum(self, md5: str) -> Optional[DBBeatmap]:
+        return self.session.query(DBBeatmap) \
+                .filter(DBBeatmap.md5 == md5) \
+                .first()
+
+    def set_by_id(self, id: int) -> Optional[DBBeatmapset]:
+        return self.session.query(DBBeatmapset) \
+                .filter(DBBeatmapset.id == id) \
                 .first()
     
     def submit_log(self, message: str, level: str, log_type: str):
