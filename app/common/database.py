@@ -7,6 +7,7 @@ from threading import Timer
 
 from .objects import (
     DBBeatmapset,
+    DBFavourite,
     DBBeatmap,
     DBRating,
     DBUser,
@@ -93,7 +94,42 @@ class Postgres:
             .first()
         
         return result[0] if result else None
-    
+
+    def favourites(self, user_id: int) -> List[DBFavourite]:
+        return self.session.query(DBFavourite) \
+                .filter(DBFavourite.user_id == user_id) \
+                .all()
+
+    def submit_favourite(self, user_id: int, set_id: int):
+        instance = self.session
+
+        # Check if favourite was already set
+        if instance.query(DBFavourite.user_id) \
+            .filter(DBFavourite.user_id == user_id) \
+            .filter(DBFavourite.set_id == set_id) \
+            .first():
+            return
+
+        instance.add(
+            DBFavourite(
+                user_id,
+                set_id
+            )
+        )
+        instance.commit()
+
+    def submit_rating(self, user_id: int, beatmap_hash: str, set_id: int, rating: int):
+        instance = self.session
+        instance.add(
+            DBRating(
+                user_id,
+                set_id,
+                beatmap_hash,
+                rating
+            )
+        )
+        instance.commit()
+
     def submit_log(self, message: str, level: str, log_type: str):
         instance = self.session
         instance.add(
