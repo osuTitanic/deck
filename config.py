@@ -29,3 +29,5 @@ SCORE_SUBMISSION_KEY = os.environ.get('SCORE_SUBMISSION_KEY')
 DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
 
 DATA_PATH = os.path.abspath('.data')
+
+VERSION = '0.1.0'
