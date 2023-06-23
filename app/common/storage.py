@@ -32,18 +32,18 @@ class Storage:
     # TODO: Replays, Screenshots, etc...
 
     def get_avatar(self, id: str) -> Optional[bytes]:
-        if (image := self._get_from_cache(f'avatar:{id}')):
+        if (image := self.get_from_cache(f'avatar:{id}')):
             return image
-        
+
         if config.S3_ENABLED:
-            if not (image := self._get_from_s3(str(id), 'avatars')):
+            if not (image := self.get_from_s3(str(id), 'avatars')):
                 return
-            
+
         else:
-            if not (image := self._get_file_content(f'/avatars/{id}')):
+            if not (image := self.get_file_content(f'/avatars/{id}')):
                 return
-        
-        self._save_to_cache(
+
+        self.save_to_cache(
             name=f'avatar:{id}',
             content=image,
             expiry=timedelta(days=1)
@@ -51,10 +51,10 @@ class Storage:
 
         return image
 
-    def _save_to_cache(self, name: str, content: bytes, expiry=timedelta(weeks=1), override=True) -> bool:
+    def save_to_cache(self, name: str, content: bytes, expiry=timedelta(weeks=1), override=True) -> bool:
         return self.cache.set(name, content, expiry, nx=(not override))
 
-    def _save_to_file(self, filepath: str, content: bytes) -> bool:
+    def save_to_file(self, filepath: str, content: bytes) -> bool:
         try:
             with open(f'{config.DATA_PATH}/{filepath}', 'wb') as f:
                 f.write(content)
@@ -64,7 +64,7 @@ class Storage:
 
         return True
 
-    def _save_to_s3(self, content: bytes, key: str, bucket: str) -> bool:
+    def save_to_s3(self, content: bytes, key: str, bucket: str) -> bool:
         try:
             self.s3.upload_fileobj(
                 io.BytesIO(content),
@@ -77,17 +77,17 @@ class Storage:
 
         return True
 
-    def _get_from_cache(self, name: str) -> Optional[bytes]:
+    def get_from_cache(self, name: str) -> Optional[bytes]:
         return self.cache.get(name)
 
-    def _get_file_content(self, filepath: str) -> Optional[bytes]:
+    def get_file_content(self, filepath: str) -> Optional[bytes]:
         try:
             with open(f'{config.DATA_PATH}/{filepath}', 'wb') as f:
                 return f.read()
         except Exception as e:
             self.logger.error(f'Failed to read file "{filepath}": {e}')
 
-    def _get_from_s3(self, key: str, bucket: str) -> Optional[bytes]:
+    def get_from_s3(self, key: str, bucket: str) -> Optional[bytes]:
         buffer = io.BytesIO()
 
         try:
