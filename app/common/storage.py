@@ -28,8 +28,28 @@ class Storage:
             aws_access_key_id=config.S3_ACCESS_KEY,
             aws_secret_access_key=config.S3_SECRET_KEY
         )
-    
-    # TODO: Replays, Avatars, Screenshots, etc...
+
+    # TODO: Replays, Screenshots, etc...
+
+    def get_avatar(self, id: str) -> Optional[bytes]:
+        if (image := self._get_from_cache(f'avatar:{id}')):
+            return image
+        
+        if config.S3_ENABLED:
+            if not (image := self._get_from_s3(str(id), 'avatars')):
+                return
+            
+        else:
+            if not (image := self._get_file_content(f'/avatars/{id}')):
+                return
+        
+        self._save_to_cache(
+            name=f'avatar:{id}',
+            content=image,
+            expiry=timedelta(days=1)
+        )
+
+        return image
 
     def _save_to_cache(self, name: str, content: bytes, expiry=timedelta(weeks=1), override=True) -> bool:
         return self.cache.set(name, content, expiry, nx=(not override))
