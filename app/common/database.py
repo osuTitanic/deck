@@ -2,12 +2,13 @@
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy     import create_engine
 
-from typing import Optional, Generator
+from typing import Optional, Generator, List
 from threading import Timer
 
 from .objects import (
     DBBeatmapset,
     DBBeatmap,
+    DBRating,
     DBUser,
     DBLog,
     Base
@@ -76,6 +77,22 @@ class Postgres:
         return self.session.query(DBBeatmapset) \
                 .filter(DBBeatmapset.id == id) \
                 .first()
+
+    def ratings(self, beatmap_hash) -> List[int]:
+        return [
+            rating[0]
+            for rating in self.session.query(DBRating.rating) \
+                .filter(DBRating.map_checksum == beatmap_hash) \
+                .all()
+        ]
+
+    def rating(self, beatmap_hash: str, user_id: int) -> Optional[DBRating]:
+        result = self.session.query(DBRating.rating) \
+            .filter(DBRating.map_checksum == beatmap_hash) \
+            .filter(DBRating.user_id == user_id) \
+            .first()
+        
+        return result[0] if result else None
     
     def submit_log(self, message: str, level: str, log_type: str):
         instance = self.session
