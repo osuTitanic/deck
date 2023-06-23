@@ -21,7 +21,7 @@ WEB_PORT = int(os.environ.get('WEB_PORT', 80))
 
 FREE_SUPPORTER = eval(os.environ.get('FREE_SUPPORTER', 'True').capitalize())
 ALLOW_RELAX = eval(os.environ.get('ALLOW_RELAX', 'True').capitalize())
-ENABLE_S3 = eval(os.environ.get('ENABLE_S3', 'True').capitalize())
+S3_ENABLED = eval(os.environ.get('ENABLE_S3', 'True').capitalize())
 
 SCORE_RESPONSE_LIMIT = int(os.environ.get('SCORE_RESPONSE_LIMIT', 50))
 SCORE_SUBMISSION_KEY = os.environ.get('SCORE_SUBMISSION_KEY')

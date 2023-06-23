@@ -18,7 +18,7 @@ def setup():
     os.makedirs(config.DATA_PATH, exist_ok=True)
     os.makedirs(f'{config.DATA_PATH}/logs', exist_ok=True)
 
-    if not config.ENABLE_S3:
+    if not config.S3_ENABLED:
         os.makedirs(f'{config.DATA_PATH}/screenshots')
         os.makedirs(f'{config.DATA_PATH}/replays')
         os.makedirs(f'{config.DATA_PATH}/avatars')
