@@ -1,8 +1,8 @@
 
 from .common.database import Postgres
+from .common.storage import Storage
 
 from requests import Session
-from redis import Redis
 
 import logging
 import config
@@ -21,7 +21,4 @@ database = Postgres(
     config.POSTGRES_PORT
 )
 
-redis = Redis(
-    config.REDIS_HOST,
-    config.REDIS_PORT
-)
+storage = Storage()
