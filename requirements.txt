@@ -1,0 +1,8 @@
+python-dotenv
+sqlalchemy
+psycopg2
+requests
+uvicorn
+fastapi
+bcrypt
+boto3
