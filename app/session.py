@@ -1,4 +1,6 @@
 
+from .common.database import Postgres
+
 from requests import Session
 
 import logging
@@ -10,3 +12,10 @@ requests = Session()
 requests.headers = {
     'User-Agent': f'deck-{config.VERSION}'
 }
+
+database = Postgres(
+    config.POSTGRES_USER,
+    config.POSTGRES_PASSWORD,
+    config.POSTGRES_HOST,
+    config.POSTGRES_PORT
+)
