@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter
 
+from . import leaderboards
 from . import screenshots
 from . import favourites
 from . import comments
@@ -10,6 +11,7 @@ from . import error
 from . import title
 
 router = APIRouter()
+router.include_router(leaderboards.router)
 router.include_router(screenshots.router)
 router.include_router(favourites.router)
 router.include_router(comments.router)
