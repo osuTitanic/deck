@@ -1,6 +1,33 @@
 
 from enum import Enum, IntEnum, IntFlag
 
+class SubmissionStatus(Enum):
+    Unknown        = 0
+    NotSubmitted   = 1
+    Pending        = 2
+    EditableCutoff = 3
+    Ranked         = 4
+    Approved       = 5
+
+    @classmethod
+    def from_db(cls, value: int):
+        return {
+            -2: SubmissionStatus.Pending,        # Graveyard
+            -1: SubmissionStatus.EditableCutoff, # WIP
+            0:  SubmissionStatus.Pending,        # Pending
+            1:  SubmissionStatus.Ranked,         # Ranked
+            2:  SubmissionStatus.Approved,       # Approved
+            3:  SubmissionStatus.Ranked,         # Qualified
+            4:  SubmissionStatus.Approved        # Loved
+        }[value]
+
+class RankingType(Enum):
+    Local       = 0
+    Top         = 1
+    SelectedMod = 2
+    Friends     = 3
+    Country     = 4
+
 class CommentTarget(str, Enum):
     Replay = 'replay'
     Song   = 'song'
@@ -19,3 +46,30 @@ class Permissions(IntFlag):
     Subscriber    = 4
     Friend        = 8
     Admin         = 16
+
+class Mod(IntFlag):
+    NoMod          = 0
+    NoFail         = 1
+    Easy           = 2
+    Hidden         = 8
+    HardRock       = 16
+    SuddenDeath    = 32
+    DoubleTime     = 64
+    Relax          = 128
+    HalfTime       = 256
+    Nightcore      = 512
+    Flashlight     = 1024
+    Autoplay       = 2048
+    SpunOut        = 4096
+    Relax2         = 8192
+    Perfect        = 16384
+    Key4           = 32768
+    Key5           = 65536
+    Key6           = 131072
+    Key7           = 262144
+    Key8           = 524288
+    keyMod         = 1015808
+    FadeIn         = 1048576
+    Random         = 2097152
+    LastMod        = 4194304
+    FreeModAllowed = 2077883
