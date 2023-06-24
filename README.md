@@ -11,7 +11,7 @@ Deck is a work in progress api/score server, designed for older osu! clients.
 - [ ] Screenshots
 - [ ] Ratings
 - [ ] Comments
-- [ ] Favourites
+- [x] Favourites
 - [ ] Leaderboards
 - [ ] Replays
 - [ ] Score Submission
