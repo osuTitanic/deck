@@ -1,5 +1,8 @@
 
+from app.common.objects import DBScore
+
 import config
+import time
 import app
 import os
 
@@ -29,3 +32,22 @@ def setup():
 
             download(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
             download(f'{config.DATA_PATH}/avatars/1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
+
+def score_string(score: DBScore, index: int) -> str:
+    return '|'.join([
+        str(score.id),
+        str(score.user.name),
+        str(score.total_score),
+        str(score.max_combo),
+        str(score.n50),
+        str(score.n100),
+        str(score.n300),
+        str(score.nMiss),
+        str(score.nKatu),
+        str(score.nGeki),
+        str(int(score.perfect)),
+        str(score.mods),
+        str(score.user_id),
+        str(index),
+        str(time.mktime(score.submitted_at.timetuple()))
+    ])
