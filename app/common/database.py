@@ -7,6 +7,7 @@ from threading import Timer
 
 from .objects import (
     DBBeatmapset,
+    DBScreenshot,
     DBFavourite,
     DBComment,
     DBBeatmap,
@@ -174,3 +175,19 @@ class Postgres:
             )
         )
         instance.commit()
+    
+    def submit_screenshot(
+        self,
+        user_id: int,
+        hidden: bool
+    ) -> int:
+        instance = self.session
+        instance.add(
+            ss := DBScreenshot(
+                user_id,
+                hidden
+            )
+        )
+        instance.commit()
+
+        return ss.id
