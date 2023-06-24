@@ -174,10 +174,21 @@ class DBComment(Base):
     target_id   = Column('target_id', Integer)
     target_type = Column('target_type', String)
     user_id     = Column('user_id', Integer, ForeignKey('users.id'))
-    time        = Column('time', DateTime, default=datetime.now())
+    time        = Column('time', Integer)
     comment     = Column('comment', String)
     format      = Column('format', String, nullable=True)
     mode        = Column('mode', SmallInteger, default=0)
+    color       = Column('color', String, nullable=True)
+
+    def __init__(self, target_id, target_type, user_id, time, comment, format = None, mode = 0, color = None) -> None:
+        self.target_id   = target_id
+        self.target_type = target_type
+        self.user_id     = user_id
+        self.time        = time
+        self.comment     = comment
+        self.format      = format
+        self.mode        = mode
+        self.color       = color
 
 class DBLog(Base):
     __tablename__ = "logs"
