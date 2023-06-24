@@ -70,6 +70,26 @@ class Storage:
         )
 
         return image
+    
+    def get_replay(self, id: int) -> Optional[bytes]:
+        if (replay := self.get_from_cache(f'osr:{id}')):
+            return replay
+
+        if config.S3_ENABLED:
+            if not (replay := self.get_from_s3(str(id), 'replays')):
+                return
+
+        else:
+            if not (replay := self.get_file_content(f'/replays/{id}')):
+                return
+
+        self.save_to_cache(
+            name=f'osr:{id}',
+            content=replay,
+            expiry=timedelta(hours=1)
+        )
+
+        return replay
 
     def upload_screenshot(self, id: int, content: bytes):
         if config.S3_ENABLED:
@@ -82,6 +102,19 @@ class Storage:
             name=f'ss:{id}',
             content=content,
             expiry=timedelta(hours=1)
+        )
+    
+    def upload_replay(self, id: int, content: bytes):
+        if config.S3_ENABLED:
+            self.save_to_s3(content, str(id), 'replays')
+
+        else:
+            self.save_to_file(f'/replays/{id}', content)
+        
+        self.save_to_cache(
+            name=f'osr:{id}',
+            content=content,
+            expiry=timedelta(days=1)
         )
 
     def save_to_cache(self, name: str, content: bytes, expiry=timedelta(weeks=1), override=True) -> bool:
