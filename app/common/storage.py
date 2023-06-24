@@ -29,7 +29,7 @@ class Storage:
             aws_secret_access_key=config.S3_SECRET_KEY
         )
 
-    # TODO: Replays, Screenshots, etc...
+    # TODO: Replays, Images, etc...
 
     def get_avatar(self, id: str) -> Optional[bytes]:
         if (image := self.get_from_cache(f'avatar:{id}')):
@@ -50,6 +50,39 @@ class Storage:
         )
 
         return image
+    
+    def get_screenshot(self, id: int) -> Optional[bytes]:
+        if (image := self.get_from_cache(f'ss:{id}')):
+            return image
+
+        if config.S3_ENABLED:
+            if not (image := self.get_from_s3(str(id), 'screenshots')):
+                return
+
+        else:
+            if not (image := self.get_file_content(f'/screenshots/{id}')):
+                return
+
+        self.save_to_cache(
+            name=f'ss:{id}',
+            content=image,
+            expiry=timedelta(hours=1)
+        )
+
+        return image
+
+    def upload_screenshot(self, id: int, content: bytes):
+        if config.S3_ENABLED:
+            self.save_to_s3(content, str(id), 'screenshots')
+
+        else:
+            self.save_to_file(f'/screenshots/{id}', content)
+        
+        self.save_to_cache(
+            name=f'ss:{id}',
+            content=content,
+            expiry=timedelta(hours=1)
+        )
 
     def save_to_cache(self, name: str, content: bytes, expiry=timedelta(weeks=1), override=True) -> bool:
         return self.cache.set(name, content, expiry, nx=(not override))
