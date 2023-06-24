@@ -120,6 +120,10 @@ class DBFavourite(Base):
     user       = relationship('DBUser', back_populates='favourites')
     beatmapset = relationship('DBBeatmapset', back_populates='favourites')
 
+    def __init__(self, user_id: int, set_id: int) -> None:
+        self.user_id = user_id
+        self.set_id  = set_id
+
 class DBRating(Base):
     __tablename__ = "ratings"
 
@@ -131,6 +135,12 @@ class DBRating(Base):
     user       = relationship('DBUser', back_populates='ratings')
     beatmap    = relationship('DBBeatmap', back_populates='ratings')
     beatmapset = relationship('DBBeatmapset', back_populates='ratings')
+
+    def __init__(self, user_id: int, set_id: int, map_checksum: str, rating: int) -> None:
+        self.rating  = rating
+        self.set_id  = set_id
+        self.user_id = user_id
+        self.map_checksum = map_checksum
 
 class DBScreenshot(Base):
     __tablename__ = "screenshots"
