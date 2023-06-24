@@ -1,17 +1,19 @@
 
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
-from sqlalchemy     import create_engine
+from sqlalchemy     import create_engine, func, or_
 
 from typing import Optional, Generator, List
 from threading import Timer
 
 from .objects import (
+    DBRelationship,
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
     DBComment,
     DBBeatmap,
     DBRating,
+    DBScore,
     DBUser,
     DBLog,
     Base
@@ -107,6 +109,130 @@ class Postgres:
     def favourites(self, user_id: int) -> List[DBFavourite]:
         return self.session.query(DBFavourite) \
                 .filter(DBFavourite.user_id == user_id) \
+                .all()
+
+    def personal_best(
+        self, 
+        beatmap_id: int, 
+        user_id: int, 
+        mods: Optional[int] = None
+    ) -> Optional[DBScore]:
+        if mods == None:
+            return self.session.query(DBScore) \
+                    .filter(DBScore.beatmap_id == beatmap_id) \
+                    .filter(DBScore.user_id == user_id) \
+                    .filter(DBScore.status == 3) \
+                    .first()
+        
+        return self.session.query(DBScore) \
+                .filter(DBScore.beatmap_id == beatmap_id) \
+                .filter(DBScore.user_id == user_id) \
+                .filter(or_(DBScore.status == 3, DBScore.status == 4)) \
+                .filter(DBScore.mods == mods) \
+                .first()
+
+    def range_scores(
+        self, 
+        beatmap_id: int, 
+        offset: int = 0, 
+        limit: int = 5
+    ) -> List[DBScore]:
+
+        return self.session.query(DBScore) \
+            .filter(DBScore.beatmap_id == beatmap_id) \
+            .filter(DBScore.status == 3) \
+            .order_by(DBScore.total_score.desc()) \
+            .offset(offset) \
+            .limit(limit) \
+            .all()
+
+    def range_scores_country(
+        self,
+        beatmap_id: int,
+        country: str,
+        limit: int = 5
+    ) -> List[DBScore]:
+        return self.session.query(DBScore) \
+                .filter(DBScore.beatmap_id == beatmap_id) \
+                .filter(DBScore.status == 3) \
+                .filter(DBUser.country == country) \
+                .join(DBScore.user) \
+                .limit(limit) \
+                .all()
+
+    def range_scores_friends(
+        self,
+        beatmap_id: int,
+        friends: List[int],
+        limit: int = 5
+    ):
+        return self.session.query(DBScore) \
+                .filter(DBScore.beatmap_id == beatmap_id) \
+                .filter(DBScore.status == 3) \
+                .filter(DBScore.user_id.in_(friends)) \
+                .limit(limit) \
+                .all()
+
+    def range_scores_mods(
+        self,
+        beatmap_id: int,
+        mods: int,
+        limit: int = 5
+    ) -> List[DBScore]:
+        return self.session.query(DBScore) \
+            .filter(DBScore.beatmap_id == beatmap_id) \
+            .filter(or_(DBScore.status == 3, DBScore.status == 4)) \
+            .filter(DBScore.mods == mods) \
+            .order_by(DBScore.total_score.desc()) \
+            .limit(limit) \
+            .all()
+
+    def score_index(
+        self, 
+        user_id: int, 
+        beatmap_id: int,
+        mods: Optional[int] = None,
+        friends: Optional[List[int]] = None,
+        country: Optional[str] = None
+    ) -> int:
+        instance = self.session
+
+        query = instance.query(DBScore.user_id, DBScore.mods, func.rank() \
+                    .over(
+                        order_by=DBScore.total_score.desc()
+                    ).label('rank')
+                ) \
+                .filter(DBScore.beatmap_id == beatmap_id) \
+                .order_by(DBScore.total_score.desc())
+
+        if mods != None:
+            query = query.filter(DBScore.mods == mods) \
+                         .filter(or_(DBScore.status == 3, DBScore.status == 4))
+
+        if country != None:
+            query = query.filter(DBUser.country == country) \
+                         .filter(DBScore.status == 3) \
+                         .join(DBScore.user)
+
+        if friends != None:
+            query = query.filter(DBScore.status == 3) \
+                         .filter(
+                            or_(
+                                DBScore.user_id.in_(friends),
+                                DBScore.user_id == user_id
+                            )
+                         )
+
+        subquery = query.subquery()
+
+        if not (result := instance.query(subquery.c.rank).filter(subquery.c.user_id == user_id).first()):
+            return -1
+
+        return result[-1]
+
+    def relationships(self, user_id: int) -> List[DBRelationship]:
+        return self.session.query(DBRelationship) \
+                .filter(DBRelationship.user_id == user_id) \
                 .all()
 
     def submit_favourite(self, user_id: int, set_id: int):
