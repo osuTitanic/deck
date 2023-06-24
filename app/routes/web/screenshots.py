@@ -25,6 +25,9 @@ async def screenshot(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
+    if not app.session.cache.user_exists(player.id):
+        raise HTTPException(401)
+
     id = app.session.database.submit_screenshot(player.id, False)
 
     app.session.storage.upload_screenshot(id, await screenshot.read())
