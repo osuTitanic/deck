@@ -110,6 +110,11 @@ class Postgres:
         return self.session.query(DBFavourite) \
                 .filter(DBFavourite.user_id == user_id) \
                 .all()
+    
+    def score(self, id: int) -> Optional[DBScore]:
+        return self.session.query(DBScore) \
+                .filter(DBScore.id == id) \
+                .first()
 
     def personal_best(
         self, 
