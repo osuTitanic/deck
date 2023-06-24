@@ -8,6 +8,7 @@ from threading import Timer
 from .objects import (
     DBBeatmapset,
     DBFavourite,
+    DBComment,
     DBBeatmap,
     DBRating,
     DBUser,
@@ -79,6 +80,13 @@ class Postgres:
                 .filter(DBBeatmapset.id == id) \
                 .first()
 
+    def comments(self, id: int, type: str) -> List[DBComment]:
+        return self.session.query(DBComment) \
+                .filter(DBComment.target_id == id) \
+                .filter(DBComment.target_type == type) \
+                .order_by(DBComment.time.asc()) \
+                .all()
+
     def ratings(self, beatmap_hash) -> List[int]:
         return [
             rating[0]
@@ -137,6 +145,32 @@ class Postgres:
                 message,
                 level,
                 log_type
+            )
+        )
+        instance.commit()
+
+    def submit_comment(
+        self,
+        target_id: int,
+        target: str,
+        user_id: int,
+        time: int,
+        content: str,
+        comment_format: str,
+        playmode: int,
+        color: str
+    ):
+        instance = self.session
+        instance.add(
+            DBComment(
+                target_id,
+                target,
+                user_id,
+                time,
+                content,
+                comment_format,
+                playmode,
+                color
             )
         )
         instance.commit()
