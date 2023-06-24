@@ -1,6 +1,7 @@
 
 from .common.database import Postgres
 from .common.storage import Storage
+from .common.users import UserCache
 
 from requests import Session
 
@@ -22,3 +23,5 @@ database = Postgres(
 )
 
 storage = Storage()
+
+cache = UserCache()

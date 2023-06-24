@@ -6,4 +6,5 @@ requests
 uvicorn
 fastapi
 bcrypt
+redis
 boto3
