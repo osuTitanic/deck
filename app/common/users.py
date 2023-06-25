@@ -1,7 +1,7 @@
 
 from .objects import DBStats
 
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 from redis import Redis
 
 import config
@@ -25,7 +25,7 @@ class UserCache:
     def remove_user(self, id: int) -> bool:
         return bool(self.cache.delete(f'users:{id}'))
 
-    def get_user(self, id: int) -> dict:
+    def get_user(self, id: int) -> Dict[bytes, bytes]:
         return self.cache.hgetall(f'users:{id}')
 
     def update_leaderboards(self, stats: DBStats):
