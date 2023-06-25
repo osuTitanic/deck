@@ -61,7 +61,7 @@ class Mod(IntFlag):
     Flashlight     = 1024
     Autoplay       = 2048
     SpunOut        = 4096
-    Relax2         = 8192
+    Autopilot      = 8192
     Perfect        = 16384
     Key4           = 32768
     Key5           = 65536
@@ -73,3 +73,22 @@ class Mod(IntFlag):
     Random         = 2097152
     LastMod        = 4194304
     FreeModAllowed = 2077883
+
+class Grade(str, Enum):
+    XH = 0
+    SH = 1
+    X  = 2
+    S  = 3
+    A  = 4
+    B  = 5
+    C  = 6
+    D  = 7
+    F  = 8
+    N  = 9
+
+class ScoreStatus(Enum):
+    Hidden    = -1
+    Failed    = 0
+    Exited    = 1
+    Submitted = 2
+    Best      = 3
