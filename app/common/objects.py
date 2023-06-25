@@ -95,6 +95,34 @@ class DBScore(Base):
     user    = relationship('DBUser', back_populates='scores')
     beatmap = relationship('DBBeatmap', back_populates='scores')
 
+    def __init__(self, **kwargs) -> None:
+        self.beatmap_id     = kwargs.get('beatmap_id')
+        self.user_id        = kwargs.get('user_id')
+        self.username       = kwargs.get('username')
+        self.client_version = kwargs.get('client_version')
+        self.client_hash    = kwargs.get('client_hash')
+        self.checksum       = kwargs.get('score_checksum')
+        self.mode           = kwargs.get('mode')
+        self.pp             = kwargs.get('pp')
+        self.acc            = kwargs.get('acc')
+        self.total_score    = kwargs.get('total_score')
+        self.max_combo      = kwargs.get('max_combo')
+        self.mods           = kwargs.get('mods')
+        self.perfect        = kwargs.get('perfect')
+        self.n300           = kwargs.get('n300')
+        self.n100           = kwargs.get('n100')
+        self.n50            = kwargs.get('n50')
+        self.nMiss          = kwargs.get('nMiss')
+        self.nGeki          = kwargs.get('nGeki')
+        self.nKatu          = kwargs.get('nKatu')
+        self.grade          = kwargs.get('grade')
+        self.status         = kwargs.get('status')
+        self.replay         = kwargs.get('replay')
+        self.screenshot     = kwargs.get('screenshot')
+        self.processes      = kwargs.get('processes')
+        self.failtime       = kwargs.get('failtime')
+        self.replay_md5     = kwargs.get('replay_md5')
+
 class DBPlay(Base):
     __tablename__ = "plays"
 
