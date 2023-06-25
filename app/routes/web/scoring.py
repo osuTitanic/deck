@@ -88,7 +88,7 @@ async def score_submission(
 
     bancho_hash = app.session.cache.get_user(player.id)[b'client_hash']
 
-    if bancho_hash != client_hash.string:
+    if bancho_hash.decode() != client_hash.string:
         # Score submission client hash mismatch
         # TODO: Restrict player
         return Response('error: no')
