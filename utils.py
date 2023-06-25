@@ -1,7 +1,11 @@
 
+from py3rijndael import RijndaelCbc, Pkcs7Padding
+from typing import Optional
+
 from app.common.objects import DBScore
 
 import config
+import base64
 import time
 import app
 import os
@@ -51,3 +55,16 @@ def score_string(score: DBScore, index: int) -> str:
         str(index),
         str(time.mktime(score.submitted_at.timetuple()))
     ])
+
+def decrypt_string(b64: Optional[str], iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
+    if not b64:
+        return
+
+    rjn = RijndaelCbc(
+        key=key,
+        iv=iv,
+        padding=Pkcs7Padding(32),
+        block_size=32
+    )
+
+    return rjn.decrypt(base64.b64decode(b64)).decode()
