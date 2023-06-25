@@ -215,9 +215,9 @@ class Postgres:
                          .filter(or_(DBScore.status == 3, DBScore.status == 4))
 
         if country != None:
-            query = query.filter(DBUser.country == country) \
+            query = query.join(DBScore.user) \
                          .filter(DBScore.status == 3) \
-                         .join(DBScore.user)
+                         .filter(DBUser.country == country) \
 
         if friends != None:
             query = query.filter(DBScore.status == 3) \
@@ -230,7 +230,9 @@ class Postgres:
 
         subquery = query.subquery()
 
-        if not (result := instance.query(subquery.c.rank).filter(subquery.c.user_id == user_id).first()):
+        if not (result := instance.query(subquery.c.rank) \
+                                  .filter(subquery.c.user_id == user_id) \
+                                  .first()):
             return -1
 
         return result[-1]
