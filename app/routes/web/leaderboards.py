@@ -10,8 +10,7 @@ from fastapi import (
 from app.constants import (
     SubmissionStatus,
     RankingType,
-    Mode,
-    Mod
+    Mode
 )
 
 import config
