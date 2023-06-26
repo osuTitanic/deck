@@ -91,6 +91,19 @@ class Storage:
 
         return replay
 
+    def upload_avatar(self, id: int, content: bytes):
+        if config.S3_ENABLED:
+            self.save_to_s3(content, str(id), 'avatars')
+
+        else:
+            self.save_to_file(f'/avatars/{id}', content)
+        
+        self.save_to_cache(
+            name=f'ss:{id}',
+            content=content,
+            expiry=timedelta(hours=1)
+        )
+
     def upload_screenshot(self, id: int, content: bytes):
         if config.S3_ENABLED:
             self.save_to_s3(content, str(id), 'screenshots')
