@@ -116,6 +116,11 @@ class Postgres:
                 .filter(DBScore.id == id) \
                 .first()
 
+    def score_by_checksum(self, replay_md5: str) -> Optional[DBScore]:
+        return self.session.query(DBScore) \
+                           .filter(DBScore.replay_md5 == replay_md5) \
+                           .first()
+
     def personal_best(
         self, 
         beatmap_id: int, 
