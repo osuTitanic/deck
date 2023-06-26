@@ -14,7 +14,9 @@ from typing import Optional
 from app.objects import Score, ClientHash
 from app.constants import Mod
 
+import hashlib
 import base64
+import config
 import bcrypt
 import utils
 import app
@@ -82,19 +84,36 @@ async def score_submission(
 
     if score.passed:
         if not replay:
-            # Score submission without replay
+            app.session.logger.warning(
+                f'"{score.username}" submitted score without replay.'
+            )
             # TODO: Restrict player
+            return Response('error: no')
+
+        replay_hash = hashlib.md5(replay).hexdigest()
+        duplicate_score = app.session.database.score_by_checksum(replay_hash)
+
+        if duplicate_score:
+            if duplicate_score.user.name != score.username:
+                app.session.logger.warning(
+                    f'"{score.username}" submitted duplicate replay in score submission.'
+                )
+                # TODO: Restrict player
+                return Response('error: no')
+
             return Response('error: no')
 
     bancho_hash = app.session.cache.get_user(player.id)[b'client_hash']
 
     if bancho_hash.decode() != client_hash.string:
-        # Score submission client hash mismatch
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with client hash mismatch.'
+        )
         # TODO: Restrict player
         return Response('error: no')
 
-    # TODO: Check for duplicate replays
     # TODO: Check for invalid mods
+    # TODO: More anticheat stuff
 
     # What is FreeModAllowed?
     if Mod.FreeModAllowed in score.enabled_mods:
