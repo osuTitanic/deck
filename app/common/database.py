@@ -131,7 +131,7 @@ class Postgres:
         return self.session.query(DBScore) \
                            .filter(DBScore.user_id == user_id) \
                            .filter(DBScore.status == 3) \
-                           .filter(DBScore.pp.desc()) \
+                           .order_by(DBScore.pp.desc()) \
                            .limit(100) \
                            .offset(0) \
                            .all()
