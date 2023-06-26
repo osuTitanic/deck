@@ -121,6 +121,21 @@ class Postgres:
                            .filter(DBScore.replay_md5 == replay_md5) \
                            .first()
 
+    def score_count(self, user_id: int) -> int:
+        return self.session.query(DBScore) \
+                           .filter(DBScore.user_id == user_id) \
+                           .filter(DBScore.status == 3) \
+                           .count()
+
+    def top_scores(self, user_id: int) -> List[DBScore]:
+        return self.session.query(DBScore) \
+                           .filter(DBScore.user_id == user_id) \
+                           .filter(DBScore.status == 3) \
+                           .filter(DBScore.pp.desc()) \
+                           .limit(100) \
+                           .offset(0) \
+                           .all()
+
     def personal_best(
         self, 
         beatmap_id: int, 
