@@ -124,7 +124,20 @@ async def score_submission(
     object.screenshot  = screenshot
     object.processes   = processes
 
-    # TODO: Submit to database
-    # TODO: Update stats
+    if not config.ALLOW_RELAX and score.relaxing:
+        object.status = -1
+
+    instance = app.session.database.session
+    instance.add(object)
+    instance.flush()
+
+    if score.passed:
+        # TODO: Only save replays of scores in top 50
+        app.session.storage.upload_replay(object.id, replay)
     
+    # TODO: Update stats
+    # TODO: Client response
+
+    instance.commit()
+
     return RecursionError('error: no')
