@@ -10,8 +10,10 @@ from fastapi import (
 )
 
 from typing import Optional
+from copy import copy
 
-from app.objects import Score, ClientHash
+from app.objects import Score, ClientHash, ScoreStatus
+from app.common.objects import DBStats
 from app.constants import Mod
 
 import hashlib
@@ -134,10 +136,93 @@ async def score_submission(
     if score.passed:
         # TODO: Only save replays of scores in top 50
         app.session.storage.upload_replay(object.id, replay)
-    
-    # TODO: Update stats
-    # TODO: Client response
 
     instance.commit()
+
+    score.beatmap.playcount += 1
+    score.beatmap.passcount += 1 if score.passed else 0
+
+    score.session.commit()
+
+    stats: DBStats = instance.query(DBStats) \
+                .filter(DBStats.user_id == player.id) \
+                .filter(DBStats.mode == score.play_mode.value) \
+                .first()
+
+    old_stats = copy(stats)
+
+    stats.playcount += 1
+    stats.playtime += score.beatmap.total_length  \
+                      if score.passed else \
+                      score.failtime / 1000
+    stats.tscore += score.total_score
+    stats.total_hits += score.total_hits
+
+    instance.flush()
+
+    # TODO: Update plays
+
+    if not config.ALLOW_RELAX and score.relaxing:
+        return Response('error: no')
+
+    previous_grade = None
+    grade = None
+
+    if score.beatmap.is_ranked:
+        score_count = app.session.database.score_count(score.user.id)
+        top_scores = app.session.database.top_scores(score.user.id)
+
+        if score.status == ScoreStatus.Best:
+            if score.personal_best:
+                # Remove old score
+                stats.rscore -= score.personal_best.total_score
+
+                previous_grade = score.personal_best.grade
+                grade = score.grade if score.grade != score.personal_best.grade else None
+            else:
+                grade = score.grade
+
+            stats.rscore += score.total_score
+
+        # Update accuracy
+
+        total_acc = 0
+        divide_total = 0
+
+        for index, s in enumerate(top_scores):
+            add = 0.95 ** index
+            total_acc    += s.acc * add
+            divide_total += add
+
+        if divide_total != 0:
+            stats.acc = total_acc / divide_total
+        else:
+            stats.acc = 0.0
+
+        # Update performance
+
+        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
+        bonus_pp = 416.6667 * (1 - 0.9994**score_count)
+
+        stats.pp = weighted_pp + bonus_pp
+
+        app.session.cache.update_leaderboards(stats)
+
+        stats.rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+
+    # Update grades
+
+    if grade:
+        grade_attribute = getattr(stats, f'{grade.lower()}_count')
+        grade_attribute += 1
+
+        if previous_grade:
+            grade_attribute = getattr(stats, f'{previous_grade.lower()}_count')
+            grade_attribute -= 1
+
+    instance.commit()
+
+    # TODO: Achievements
+    # TODO: Client response
 
     return RecursionError('error: no')
