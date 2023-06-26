@@ -6,9 +6,13 @@ from datetime import timedelta
 from typing import Optional
 from redis import Redis
 
+from .streams import StreamOut
+
 import logging
 import config
 import boto3
+import utils
+import app
 import io
 
 class Storage:
@@ -28,8 +32,6 @@ class Storage:
             aws_access_key_id=config.S3_ACCESS_KEY,
             aws_secret_access_key=config.S3_SECRET_KEY
         )
-
-    # TODO: Replays, Images, etc...
 
     def get_avatar(self, id: str) -> Optional[bytes]:
         if (image := self.get_from_cache(f'avatar:{id}')):
@@ -90,6 +92,36 @@ class Storage:
         )
 
         return replay
+    
+    def get_full_replay(self, id: int) -> Optional[bytes]:
+        if not (replay := self.get_replay(id)):
+            return
+
+        score = app.session.database.score(id)
+
+        stream = StreamOut()
+        stream.u8(score.mode)
+        stream.s32(score.client_version)
+        stream.string(score.beatmap.md5)
+        stream.string(score.user.name)
+        stream.string(utils.compute_score_checksum(score))
+        stream.u16(score.n300)
+        stream.u16(score.n100)
+        stream.u16(score.n50)
+        stream.u16(score.nGeki)
+        stream.u16(score.nKatu)
+        stream.u16(score.nMiss)
+        stream.s32(score.total_score)
+        stream.u16(score.max_combo)
+        stream.bool(score.perfect)
+        stream.s32(score.mods)
+        stream.string('') # TODO: HP Graph
+        stream.s64(utils.get_ticks(score.submitted_at))
+        stream.s32(len(replay))
+        stream.write(replay)
+        stream.s32(score.id)
+
+        return stream.get()
 
     def upload_avatar(self, id: int, content: bytes):
         if config.S3_ENABLED:
