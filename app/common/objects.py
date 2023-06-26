@@ -313,6 +313,10 @@ class DBBeatmap(Base):
     def full_name(self):
         return f'{self.beatmapset.artist} - {self.beatmapset.title} [{self.version}]'
 
+    @property
+    def is_ranked(self) -> bool:
+        return self.status > 0
+
 class DBUser(Base):
     __tablename__ = "users"
 
