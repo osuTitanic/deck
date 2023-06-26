@@ -226,7 +226,6 @@ class Score:
         return DBScore(
             beatmap_id = self.beatmap.id,
             user_id = self.user.id,
-            username = self.user.name,
             client_version = self.version,
             score_checksum = self.score_checksum,
             mode = self.play_mode.value,

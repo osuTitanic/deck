@@ -98,7 +98,6 @@ class DBScore(Base):
     def __init__(self, **kwargs) -> None:
         self.beatmap_id     = kwargs.get('beatmap_id')
         self.user_id        = kwargs.get('user_id')
-        self.username       = kwargs.get('username')
         self.client_version = kwargs.get('client_version')
         self.client_hash    = kwargs.get('client_hash')
         self.checksum       = kwargs.get('score_checksum')
