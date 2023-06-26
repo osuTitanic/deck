@@ -1,5 +1,6 @@
 
 from py3rijndael import RijndaelCbc, Pkcs7Padding
+from datetime import datetime
 from typing import Optional
 
 from app.common.objects import DBScore
@@ -68,3 +69,6 @@ def decrypt_string(b64: Optional[str], iv: bytes, key: str = config.SCORE_SUBMIS
     )
 
     return rjn.decrypt(base64.b64decode(b64)).decode()
+
+def get_ticks(dt) -> int:
+    return int((dt - datetime(1, 1, 1)).total_seconds() * 10000000)
