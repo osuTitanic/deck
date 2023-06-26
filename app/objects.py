@@ -2,8 +2,8 @@
 from typing   import List, Optional
 from datetime import datetime
 
+from .common.objects import DBScore, DBBeatmap, DBUser
 from .constants import Mod, Mode, Grade, ScoreStatus
-from .common.objects import DBScore
 
 import hashlib
 import app
@@ -118,13 +118,20 @@ class Score:
         self.personal_best: Optional[DBScore] = None
         self._pp: Optional[float] = None
 
-        self.beatmap = app.session.database.beatmap_by_checksum(self.file_checksum)
-        self.user    = app.session.database.user_by_name(self.username)
         self.session = app.session.database.session
+        self.beatmap = self.session.query(DBBeatmap) \
+                                   .filter(DBBeatmap.md5 == self.file_checksum) \
+                                   .first()
+
+        self.user = self.session.query(DBUser) \
+                                .filter(DBUser.name == self.username) \
+                                .first()
 
         if self.beatmap:
             self.personal_best = app.session.database.personal_best(self.beatmap.id, self.user.id)
     
+        self.status = self.get_status()
+
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
 
@@ -172,7 +179,10 @@ class Score:
         return (Mod.Relax in self.enabled_mods) or (Mod.Autopilot in self.enabled_mods)
 
     @property
-    def status(self) -> ScoreStatus:
+    def pp(self) -> float:
+        return 0.0 # TODO
+
+    def get_status(self) -> ScoreStatus:
         if not self.passed:
             return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
 
@@ -214,10 +224,6 @@ class Score:
         self.session.commit()
 
         return ScoreStatus.Best
-
-    @property
-    def pp(self) -> float:
-        return 0.0 # TODO
 
     @classmethod
     def parse(
