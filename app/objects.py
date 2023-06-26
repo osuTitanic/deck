@@ -162,30 +162,51 @@ class Score:
 
     @property
     def status(self) -> ScoreStatus:
-        if self.passed:
-            if not self.personal_best:
-                # No pb has been set
-                return ScoreStatus.Best
+        if not self.passed:
+            return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
 
-            if self.total_score > self.personal_best.total_score:
-                # Change status of old pb
-                self.personal_best.status = ScoreStatus.Submitted.value
-                self.session.query(DBScore).filter(DBScore.id == self.personal_best.id) \
-                    .update(
-                        {'status': ScoreStatus.Submitted.value}
-                    )
-                self.session.commit()
+        if not self.personal_best:
+            return ScoreStatus.Best
 
-                return ScoreStatus.Best
+        if self.total_score < self.personal_best.total_score:
+            if self.enabled_mods.value == self.personal_best.mods:
+                return ScoreStatus.Submitted
 
-            return ScoreStatus.Submitted
+            # Check pb with mods
+            mods_pb = app.session.database.personal_best(self.beatmap.id, self.user.id, self.enabled_mods.value)
 
-        return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
+            if not mods_pb:
+                return ScoreStatus.Mods
+
+            if self.total_score < mods_pb.total_score:
+                return ScoreStatus.Submitted
+
+            self.session.query(DBScore) \
+                        .filter(DBScore.id == mods_pb.id) \
+                        .update(
+                            {'status': ScoreStatus.Submitted.value}
+                        )
+            self.session.commit()
+
+            return ScoreStatus.Mods
+
+        # New pb was set
+
+        status = {'status': ScoreStatus.Submitted} \
+                 if self.enabled_mods.value == self.personal_best.mods else \
+                 {'status': ScoreStatus.Mods}
+
+        self.session.query(DBScore) \
+                    .filter(DBScore.id == self.personal_best.id) \
+                    .update(status)
+
+        self.session.commit()
+
+        return ScoreStatus.Best
 
     @property
     def pp(self) -> float:
         return 0.0 # TODO
-
 
     @classmethod
     def parse(

@@ -92,3 +92,4 @@ class ScoreStatus(Enum):
     Exited    = 1
     Submitted = 2
     Best      = 3
+    Mods      = 4
