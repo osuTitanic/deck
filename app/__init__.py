@@ -4,6 +4,8 @@ from . import logging
 from . import session
 from . import routes
 
+from fastapi.exceptions import RequestValidationError
+
 from fastapi import (
     HTTPException,
     Response,
@@ -23,13 +25,20 @@ api = FastAPI(
 )
 
 @api.exception_handler(HTTPException)
-async def unicorn_exception_handler(request: Request, exc: HTTPException):
+async def exception_handler(request: Request, exc: HTTPException):
     headers = exc.headers if exc.headers else {}
     headers.update({'detail': exc.detail})
 
     return Response(
         status_code=exc.status_code,
         headers=headers
+    )
+
+@api.exception_handler(RequestValidationError)
+def validation_error(request: Request, exc: HTTPException):
+    return Response(
+        status_code=400,
+        content='no'
     )
 
 api.include_router(routes.router)
