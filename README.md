@@ -2,19 +2,31 @@
 
 Deck is a work in progress api/score server, designed for older osu! clients.
 
-## Progress
+## What works?
+
+A lot of the features are pretty much done for the most part:
 
 - [x] Avatars
 - [x] Error Handling
 - [x] Menu Icon
-- [x] Storage API (S3, Cache, ...)
 - [x] Screenshots
 - [x] Ratings
 - [x] Comments
 - [x] Favourites
 - [x] Leaderboards
 - [x] Replays
-- [ ] Score Submission
+- [x] Score Submission
+
+## What is left to do?
+
 - [ ] Direct
-- [ ] Updates
+- [ ] Client Updates
+- [ ] Some commands (e.g. !report)
+- [ ] Bot messages on #highlight
+- [ ] Better anti-cheat
+- [ ] Improve logging
+- [ ] Beatmap imports
+- [ ] (Monthly Charts)
 - [ ] (Beatmap Submission)
+
+... and probably a lot more stuff.
