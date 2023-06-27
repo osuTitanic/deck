@@ -1,6 +1,8 @@
 git+https://github.com/MaxOhn/rosu-pp-py
 boto3_type_annotations_with_docs
+python-multipart
 python-dotenv
+py3rijndael
 sqlalchemy
 psycopg2
 requests
