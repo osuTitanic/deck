@@ -13,7 +13,7 @@ from typing import Optional, List
 from asyncio import run
 from copy import copy
 
-from app.objects import Score, ClientHash, ScoreStatus
+from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app.common.objects import DBStats, DBScore
 from app.constants import Mod, Grade
 
@@ -244,5 +244,57 @@ def score_submission(
 
     instance.commit()
 
+    # TODO: Send bot message on #highlight
 
-    return RecursionError('error: no')
+    achievements = [] # TODO
+
+    response: List[Chart] = []
+
+    beatmapInfo = Chart()
+    beatmapInfo['beatmapId'] = score.beatmap.id
+    beatmapInfo['beatmapSetId'] = score.beatmap.set_id
+    beatmapInfo['beatmapPlaycount'] = score.beatmap.playcount
+    beatmapInfo['beatmapPasscount'] = score.beatmap.passcount
+    beatmapInfo['approvedDate'] = score.beatmap.beatmapset.approved_at
+
+    response.append(beatmapInfo)
+
+    # TODO: Implement monthly charts?
+
+    overallChart = Chart()
+    overallChart['chartId'] = 'overall'
+    overallChart['chartName'] = 'Overall Ranking'
+    overallChart['chartEndDate'] = '' # TODO
+    overallChart['achievements'] = ' '.join(achievements)
+
+    overallChart.entry('rank', old_stats.rank, stats.rank)
+    overallChart.entry('rankedScore', old_stats.rscore, stats.rscore)
+    overallChart.entry('totalScore', old_stats.tscore, stats.tscore)
+    overallChart.entry('accuracy', round(old_stats.acc, 4), round(stats.acc, 4))
+    overallChart.entry('playCount', old_stats.playcount, stats.playcount)
+
+    player_above = app.session.cache.get_above(score.user.id, score.play_mode.value)
+
+    overallChart['toNextRank']     = player_above['difference']
+    overallChart['toNextRankUser'] = player_above['next_user']
+
+    overallChart['onlineScoreId']  = object.id
+
+    if score.beatmap.status > 0:
+        current_rank = app.session.database.score_index_by_id(object.id)
+        old_rank = app.session.database.score_index_by_id(score.personal_best.id) \
+                    if score.personal_best else 0
+
+        overallChart.entry(
+            'beatmapRanking',
+            old_rank,
+            current_rank
+        )
+
+    response.append(overallChart)
+
+    app.session.logger.info(
+        f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+    )
+
+    return Response('\n'.join([chart.get() for chart in response]))
