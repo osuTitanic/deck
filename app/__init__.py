@@ -24,10 +24,8 @@ api = FastAPI(
 
 @api.exception_handler(HTTPException)
 async def unicorn_exception_handler(request: Request, exc: HTTPException):
-    headers = getattr(exc, "headers", {})
-    headers.update(
-        {'detail': exc.detail}
-    )
+    headers = exc.headers if exc.headers else {}
+    headers.update({'detail': exc.detail})
 
     return Response(
         status_code=exc.status_code,
