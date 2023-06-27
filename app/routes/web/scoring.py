@@ -9,7 +9,8 @@ from fastapi import (
     Form
 )
 
-from typing import Optional
+from typing import Optional, List
+from asyncio import run
 from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Grade
@@ -26,7 +27,7 @@ import app
 router = APIRouter()
 
 @router.post('/osu-submit-modular.php')
-async def score_submission(
+def score_submission(
     request: Request,
     iv: Optional[str] = Form(None),
     password: str = Form(..., alias='pass'),
@@ -38,7 +39,7 @@ async def score_submission(
     screenshot: Optional[bytes] = Form(None, alias='i'),
     replay: Optional[UploadFile] = File(None, alias='score')
 ):
-    form = await request.form()
+    form = run(request.form())
 
     score_data = form.getlist('score')[0]
 
@@ -54,7 +55,7 @@ async def score_submission(
 
     client_hash = ClientHash.from_string(client_hash)
 
-    replay = (await replay.read()) if replay else None
+    replay = run(replay.read()) if replay else None
 
     score = Score.parse(
         score_data,
