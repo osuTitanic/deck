@@ -244,6 +244,14 @@ def score_submission(
 
     instance.commit()
 
+    # Reload stats on bancho
+    utils.submit_to_queue(
+        type='user_update',
+        data={
+            'user_id': score.user.id
+        }
+    )
+
     # TODO: Send bot message on #highlight
 
     achievements = [] # TODO
