@@ -257,6 +257,17 @@ class Postgres:
 
         return result[-1]
 
+    def score_index_by_id(self, score_id: int) -> int:
+        result = self.session.query(func.row_number() \
+                             .over(order_by=DBScore.total_score.desc())) \
+                             .filter(DBScore.id == score_id) \
+                             .first()
+
+        if not result:
+            return 0
+
+        return result[0]
+
     def relationships(self, user_id: int) -> List[DBRelationship]:
         return self.session.query(DBRelationship) \
                 .filter(DBRelationship.user_id == user_id) \
