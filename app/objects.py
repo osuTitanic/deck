@@ -226,9 +226,9 @@ class Score:
 
         # New pb was set
 
-        status = {'status': ScoreStatus.Submitted} \
+        status = {'status': ScoreStatus.Submitted.value} \
                  if self.enabled_mods.value == self.personal_best.mods else \
-                 {'status': ScoreStatus.Mods}
+                 {'status': ScoreStatus.Mods.value}
 
         self.session.query(DBScore) \
                     .filter(DBScore.id == self.personal_best.id) \
