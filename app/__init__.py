@@ -4,7 +4,12 @@ from . import logging
 from . import session
 from . import routes
 
-from fastapi import FastAPI
+from fastapi import (
+    HTTPException,
+    Response,
+    Request,
+    FastAPI
+)
 
 import uvicorn
 import config
@@ -16,6 +21,18 @@ api = FastAPI(
     redoc_url=None,
     docs_url=None
 )
+
+@api.exception_handler(HTTPException)
+async def unicorn_exception_handler(request: Request, exc: HTTPException):
+    headers = getattr(exc, "headers", {})
+    headers.update(
+        {'detail': exc.detail}
+    )
+
+    return Response(
+        status_code=exc.status_code,
+        headers=headers
+    )
 
 api.include_router(routes.router)
 
