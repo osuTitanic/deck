@@ -139,6 +139,8 @@ class Storage:
             expiry=timedelta(hours=1)
         )
 
+        return osu
+
     def upload_avatar(self, id: int, content: bytes):
         if config.S3_ENABLED:
             self.save_to_s3(content, str(id), 'avatars')
