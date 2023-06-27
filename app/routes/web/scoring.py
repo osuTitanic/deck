@@ -13,9 +13,9 @@ from typing import Optional, List
 from asyncio import run
 from copy import copy
 
-from app.objects import Score, ClientHash, ScoreStatus, Grade
-from app.common.objects import DBStats
-from app.constants import Mod
+from app.objects import Score, ClientHash, ScoreStatus
+from app.common.objects import DBStats, DBScore
+from app.constants import Mod, Grade
 
 import hashlib
 import base64
@@ -184,6 +184,17 @@ def score_submission(
                 grade = score.grade
 
             stats.rscore += score.total_score
+
+        # Update max combo
+
+        max_combo_score = instance.query(DBScore) \
+                .filter(DBScore.user_id == score.user.id) \
+                .order_by(DBScore.max_combo.desc()) \
+                .first()
+
+        if max_combo_score:
+            if score.max_combo > max_combo_score.max_combo:
+                stats.max_combo = score.max_combo
 
         # Update accuracy
 
