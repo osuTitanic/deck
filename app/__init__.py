@@ -12,6 +12,8 @@ import config
 api = FastAPI(
     title='Deck',
     description='API for osu! clients',
+    version=config.VERSION,
+    redoc_url=None,
     docs_url=None
 )
 
