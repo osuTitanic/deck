@@ -9,6 +9,10 @@ import app
 
 router = APIRouter()
 
+@router.get('/')
+def index():
+    raise HTTPException(404)
+
 @router.get('/{id}')
 def get_screenshot(id: int):
     if not (image := app.session.storage.get_screenshot(id)):
