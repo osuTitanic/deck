@@ -8,6 +8,7 @@ from app.common.objects import DBScore
 import hashlib
 import config
 import base64
+import json
 import time
 import app
 import os
@@ -93,3 +94,9 @@ def compute_score_checksum(score: DBScore) -> str:
             (not score.failtime) # (passed)
         ).encode()
     ).hexdigest()
+
+def submit_to_queue(type: str, data: dict):
+    app.session.cache.redis.lpush(
+        'bancho:queue',
+        json.dumps({'type': type, 'data': data})
+    )
