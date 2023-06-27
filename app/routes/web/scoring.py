@@ -178,7 +178,7 @@ def score_submission(
                 # Remove old score
                 stats.rscore -= score.personal_best.total_score
 
-                previous_grade = score.personal_best.grade
+                previous_grade = Grade[score.personal_best.grade]
                 grade = score.grade if score.grade != score.personal_best.grade else None
             else:
                 grade = score.grade
@@ -224,24 +224,25 @@ def score_submission(
 
     # Update grades
 
-    try:
-        if grade:
-            grade = Grade(grade).name.lower()
+    if grade:
+        if grade != previous_grade:
+            grade_name = f'{grade.name.lower()}_count'
 
-            grade_attribute = getattr(stats, f'{grade}_count')
-            grade_attribute += 1
+            updates = {grade_name: getattr(DBStats, grade_name) + 1}
 
             if previous_grade:
-                previous_grade = Grade(previous_grade).name.lower()
+                grade_name = f'{previous_grade.name.lower()}_count'
 
-                grade_attribute = getattr(stats, f'{previous_grade.lower()}_count')
-                grade_attribute -= 1
-    except AttributeError:
-        pass
+                updates.update(
+                    {grade_name: getattr(DBStats, grade_name) - 1}
+                )
+
+            instance.query(DBStats) \
+                    .filter(DBStats.user_id == score.user.id) \
+                    .filter(DBStats.mode == score.play_mode.value) \
+                    .update(updates)
 
     instance.commit()
 
-    # TODO: Achievements
-    # TODO: Client response
 
     return RecursionError('error: no')
