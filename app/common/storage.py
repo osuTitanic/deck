@@ -7,6 +7,7 @@ from typing import Optional
 from redis import Redis
 
 from .streams import StreamOut
+from .api import Beatmaps
 
 import logging
 import config
@@ -32,6 +33,8 @@ class Storage:
             aws_access_key_id=config.S3_ACCESS_KEY,
             aws_secret_access_key=config.S3_SECRET_KEY
         )
+
+        self.api = Beatmaps()
 
     def get_avatar(self, id: str) -> Optional[bytes]:
         if (image := self.get_from_cache(f'avatar:{id}')):
@@ -122,6 +125,19 @@ class Storage:
         stream.s32(score.id)
 
         return stream.get()
+
+    def get_beatmap(self, id: int) -> Optional[bytes]:
+        if (osu := self.get_from_cache(f'osu:{id}')):
+            return osu
+
+        if not (osu := self.api.osu(id)):
+            return
+
+        self.save_to_cache(
+            name=f'osu:{id}',
+            content=osu,
+            expiry=timedelta(hours=1)
+        )
 
     def upload_avatar(self, id: int, content: bytes):
         if config.S3_ENABLED:
