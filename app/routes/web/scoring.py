@@ -12,7 +12,7 @@ from fastapi import (
 from typing import Optional
 from copy import copy
 
-from app.objects import Score, ClientHash, ScoreStatus
+from app.objects import Score, ClientHash, ScoreStatus, Grade
 from app.common.objects import DBStats
 from app.constants import Mod
 
@@ -212,13 +212,20 @@ async def score_submission(
 
     # Update grades
 
-    if grade:
-        grade_attribute = getattr(stats, f'{grade.lower()}_count')
-        grade_attribute += 1
+    try:
+        if grade:
+            grade = Grade(grade).name.lower()
 
-        if previous_grade:
-            grade_attribute = getattr(stats, f'{previous_grade.lower()}_count')
-            grade_attribute -= 1
+            grade_attribute = getattr(stats, f'{grade}_count')
+            grade_attribute += 1
+
+            if previous_grade:
+                previous_grade = Grade(previous_grade).name.lower()
+
+                grade_attribute = getattr(stats, f'{previous_grade.lower()}_count')
+                grade_attribute -= 1
+    except AttributeError:
+        pass
 
     instance.commit()
 
