@@ -11,8 +11,8 @@ class Beatmaps:
     def __init__(self) -> None:
         self.logger = logging.getLogger('beatmap-api')
 
-        requests = Session()
-        requests.headers = {
+        self.session = Session()
+        self.session.headers = {
             'User-Agent': f'deck-{config.VERSION}'
         }
 
