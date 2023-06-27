@@ -28,6 +28,9 @@ def calculate_ppv2(score: DBScore) -> Optional[PerformanceAttributes]:
     beatmap_file = app.session.storage.get_beatmap(score.beatmap_id)
 
     if not beatmap_file:
+        app.session.logger.error(
+            f'pp calculation failed: Beatmap file was not found! ({score.user_id})'
+        )
         return None
 
     bm = Beatmap(bytes=beatmap_file)
