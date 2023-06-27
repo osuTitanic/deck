@@ -50,7 +50,7 @@ async def score_submission(
             score_data  = utils.decrypt_string(score_data, iv)
             processes   = utils.decrypt_string(processes, iv)
         except UnicodeDecodeError:
-            raise HTTPException(400, 'error: invalid submission key')
+            raise HTTPException(400, 'invalid submission key')
 
     client_hash = ClientHash.from_string(client_hash)
 
@@ -82,15 +82,18 @@ async def score_submission(
         return Response('error: beatmap')
 
     if not app.session.cache.user_exists(player.id):
-        return Response('error: no')
+        return Response('')
 
     if score.passed:
         if not replay:
             app.session.logger.warning(
                 f'"{score.username}" submitted score without replay.'
             )
-            # TODO: Restrict player
-            return Response('error: no')
+            utils.submit_to_queue(
+                type='restrict',
+                data={'user_id': score.user.id}
+            )
+            return Response('error: ban')
 
         replay_hash = hashlib.md5(replay).hexdigest()
         duplicate_score = app.session.database.score_by_checksum(replay_hash)
@@ -100,8 +103,11 @@ async def score_submission(
                 app.session.logger.warning(
                     f'"{score.username}" submitted duplicate replay in score submission.'
                 )
-                # TODO: Restrict player
-                return Response('error: no')
+                utils.submit_to_queue(
+                    type='restrict',
+                    data={'user_id': score.user.id}
+                )
+                return Response('error: ban')
 
             return Response('error: no')
 
@@ -111,8 +117,11 @@ async def score_submission(
         app.session.logger.warning(
             f'"{score.username}" submitted score with client hash mismatch.'
         )
-        # TODO: Restrict player
-        return Response('error: no')
+        utils.submit_to_queue(
+            type='restrict',
+            data={'user_id': score.user.id}
+        )
+        return Response('error: ban')
 
     # TODO: Check for invalid mods
     # TODO: More anticheat stuff
