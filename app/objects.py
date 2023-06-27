@@ -180,7 +180,20 @@ class Score:
 
     @property
     def pp(self) -> float:
-        return 0.0 # TODO
+        if self._pp is not None:
+            return self._pp
+
+        self._pp = 0.0
+
+        score = self.to_database()
+        performance = app.performance.calculate_ppv2(score)
+
+        if performance is None:
+            return 0.0
+
+        self._pp = performance.pp
+
+        return self._pp
 
     def get_status(self) -> ScoreStatus:
         if not self.passed:
