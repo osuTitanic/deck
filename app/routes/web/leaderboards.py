@@ -2,8 +2,8 @@
 from typing import Optional
 from fastapi import (
     HTTPException,
-    APIRouter, 
-    Response, 
+    APIRouter,
+    Response,
     Query
 )
 
@@ -22,7 +22,7 @@ router = APIRouter()
 
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
-    ranking_type: Optional[int] = Query(..., alias='v'),
+    ranking_type: Optional[int] = Query(1, alias='v'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     get_scores: int = Query(..., alias='s'),
@@ -31,7 +31,7 @@ def get_scores(
     osz_hash: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='i'),
     mode: int = Query(..., alias='m'),
-    mods: Optional[int] = Query(...)
+    mods: Optional[int] = Query(0)
 ):
     try:
         ranking_type = RankingType(ranking_type)
@@ -96,14 +96,14 @@ def get_scores(
     )
 
     personal_best = app.session.database.personal_best(
-        beatmap.id, 
+        beatmap.id,
         player.id,
         mods if ranking_type == RankingType.SelectedMod else None
     )
 
     friends = [
         rel.target_id
-        for rel in app.session.database.relationships(player.id) 
+        for rel in app.session.database.relationships(player.id)
         if rel.status == 0
     ]
 
@@ -121,29 +121,29 @@ def get_scores(
         )
     else:
         response.append('')
-    
+
     scores = []
 
     if ranking_type == RankingType.Top:
         scores = app.session.database.range_scores(
-            beatmap.id, 
+            beatmap.id,
             limit=config.SCORE_RESPONSE_LIMIT
         )
-    
+
     elif ranking_type == RankingType.Country:
         scores = app.session.database.range_scores_country(
             beatmap.id,
             country=player.country,
             limit=config.SCORE_RESPONSE_LIMIT
         )
-    
+
     elif ranking_type == RankingType.Friends:
         scores = app.session.database.range_scores_friends(
             beatmap.id,
             friends=friends,
             limit=config.SCORE_RESPONSE_LIMIT
         )
-    
+
     elif ranking_type == RankingType.SelectedMod:
         scores = app.session.database.range_scores_mods(
             beatmap.id,
