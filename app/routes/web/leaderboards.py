@@ -22,12 +22,14 @@ router = APIRouter()
 
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
+    username: Optional[str] = Query(None, alias='us'),
+    password: Optional[str] = Query(None, alias='ha'),
     ranking_type: Optional[int] = Query(1, alias='v'),
+    user_id: Optional[int] = Query(None, alias='u'),
+    page: Optional[int] = Query(None, alias='p'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     get_scores: int = Query(..., alias='s'),
-    username: str = Query(..., alias='us'),
-    password: str = Query(..., alias='ha'),
     osz_hash: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='i'),
     mode: int = Query(..., alias='m'),
@@ -39,11 +41,18 @@ def get_scores(
     except ValueError:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
-    if not (player := app.session.database.user_by_name(username)):
-        raise HTTPException(401)
+    if username:
+        if not (player := app.session.database.user_by_name(username)):
+            raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        raise HTTPException(401)
+        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+            raise HTTPException(401)
+    else:
+        if not user_id:
+            raise HTTPException(401)
+
+        if not (player := app.session.database.user_by_id(user_id)):
+            raise HTTPException(401)
 
     if not app.session.cache.user_exists(player.id):
         raise HTTPException(401)
@@ -127,7 +136,10 @@ def get_scores(
     if ranking_type == RankingType.Top:
         scores = app.session.database.range_scores(
             beatmap.id,
-            limit=config.SCORE_RESPONSE_LIMIT
+            limit=config.SCORE_RESPONSE_LIMIT \
+                  if not page else 5,
+            offset=page \
+                  if page else 0
         )
 
     elif ranking_type == RankingType.Country:
