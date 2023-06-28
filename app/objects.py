@@ -83,7 +83,7 @@ class Score:
         play_mode: Mode,
         date: datetime,
         version: int,
-        flags: int,
+        flags: BadFlags,
         exited: bool,
         failtime: int,
         replay: Optional[bytes]
