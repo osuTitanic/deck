@@ -82,9 +82,12 @@ async def score_submission(
         return Response('error: beatmap')
 
     if not app.session.cache.user_exists(player.id):
+        # Client will resend the request
         return Response('')
 
     if score.passed:
+        # Check for replay
+
         if not replay:
             app.session.logger.warning(
                 f'"{score.username}" submitted score without replay.'
@@ -94,6 +97,8 @@ async def score_submission(
                 data={'user_id': score.user.id}
             )
             return Response('error: ban')
+
+        # Check for duplicate score
 
         replay_hash = hashlib.md5(replay).hexdigest()
         duplicate_score = app.session.database.score_by_checksum(replay_hash)
@@ -110,6 +115,8 @@ async def score_submission(
                 return Response('error: ban')
 
             return Response('error: no')
+
+    # Validate client hash
 
     bancho_hash = app.session.cache.get_user(player.id)[b'client_hash']
 
@@ -130,6 +137,8 @@ async def score_submission(
     if Mod.FreeModAllowed in score.enabled_mods:
         score.enabled_mods = score.enabled_mods & ~Mod.FreeModAllowed
 
+    # Submit to database
+
     object = score.to_database()
     object.client_hash = str(client_hash)
     object.screenshot  = screenshot
@@ -142,9 +151,19 @@ async def score_submission(
     instance.add(object)
     instance.flush()
 
+    # Upload replay
+
     if score.passed:
-        # TODO: Only save replays of scores in top 50
-        app.session.storage.upload_replay(object.id, replay)
+        if score.status.value > ScoreStatus.Submitted.value:
+            score_rank = app.session.database.score_index_by_id(
+                mods=score.enabled_mods.value,
+                beatmap_id=score.beatmap.id,
+                score_id=object.id
+            )
+
+            # Check if score is inside the leaderboards
+            if score_rank <= config.SCORE_RESPONSE_LIMIT:
+                app.session.storage.upload_replay(object.id, replay)
 
     instance.commit()
 
@@ -297,8 +316,8 @@ async def score_submission(
     overallChart['onlineScoreId']  = object.id
 
     if score.beatmap.status > 0:
-        current_rank = app.session.database.score_index_by_id(object.id)
-        old_rank = app.session.database.score_index_by_id(score.personal_best.id) \
+        current_rank = app.session.database.score_index_by_id(object.id, score.beatmap.id)
+        old_rank = app.session.database.score_index_by_id(score.personal_best.id, score.beatmap.id) \
                     if score.personal_best else 0
 
         overallChart.entry(
