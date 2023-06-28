@@ -76,7 +76,7 @@ def get_scores(
     # Offset
     response.append('0')
 
-    # Online Title
+    # Title
     # Example: https://i.imgur.com/BofeZ2z.png
     # TODO: Title Configuration?
     response.append(
@@ -153,6 +153,82 @@ def get_scores(
 
     else:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
+
+    for index, score in enumerate(scores):
+        response.append(
+            utils.score_string(score, index)
+        )
+
+    return Response('\n'.join(response))
+
+@router.get('/osu-getscores6.php')
+def legacy_scores(
+    beatmap_hash: str = Query(..., alias='c'),
+    beatmap_file: str = Query(..., alias='f'),
+    get_scores: int = Query(..., alias='s'),
+    user_id: int = Query(..., alias='u'),
+    mode: int = Query(..., alias='m')
+):
+    if not app.session.cache.user_exists(user_id):
+        raise HTTPException(401)
+
+    if not (player := app.session.database.user_by_id(user_id)):
+        raise HTTPException(401)
+
+    if not (beatmap := app.session.database.beatmap_by_file(beatmap_file)):
+        return Response('-1')
+
+    if beatmap.md5 != beatmap_hash:
+        return Response('1')
+
+    response = []
+
+    submission_status = SubmissionStatus.from_db(beatmap.status)
+
+    # Status
+    response.append(str(submission_status.value))
+
+    # Offset
+    response.append('0')
+
+    # Title
+    # Example: https://i.imgur.com/BofeZ2z.png
+    # TODO: Title Configuration?
+    response.append(
+        '|'.join([
+            '[bold:0,size:20]' +
+            beatmap.beatmapset.artist,
+            '[]' +
+            beatmap.beatmapset.title
+        ])
+    )
+
+    ratings = app.session.database.ratings(beatmap.md5)
+    response.append(
+        str(sum(ratings) / len(ratings)) if ratings else '0'
+    )
+
+    personal_best = app.session.database.personal_best(
+        beatmap.id,
+        player.id
+    )
+
+    if personal_best:
+        index = app.session.database.score_index(
+            player.id,
+            beatmap.id
+        )
+
+        response.append(
+            utils.score_string(personal_best, index)
+        )
+    else:
+        response.append('')
+
+    scores = app.session.database.range_scores(
+        beatmap.id,
+        limit=5
+    )
 
     for index, score in enumerate(scores):
         response.append(
