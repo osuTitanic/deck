@@ -26,6 +26,7 @@ A lot of the features are pretty much done for the most part:
 - [ ] Better anti-cheat
 - [ ] Improve logging
 - [ ] Beatmap imports
+- [ ] Customized .osu files
 - [ ] (Monthly Charts)
 - [ ] (Beatmap Submission)
 
