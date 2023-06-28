@@ -94,7 +94,10 @@ async def score_submission(
             )
             utils.submit_to_queue(
                 type='restrict',
-                data={'user_id': score.user.id}
+                data={
+                    'user_id': score.user.id,
+                    'reason': 'Score submission without replay.'
+                }
             )
             return Response('error: ban')
 
@@ -110,7 +113,10 @@ async def score_submission(
                 )
                 utils.submit_to_queue(
                     type='restrict',
-                    data={'user_id': score.user.id}
+                    data={
+                        'user_id': score.user.id,
+                        'reason': 'Duplicate replay in score submission'
+                    }
                 )
                 return Response('error: ban')
 
@@ -126,7 +132,10 @@ async def score_submission(
         )
         utils.submit_to_queue(
             type='restrict',
-            data={'user_id': score.user.id}
+            data={
+                'user_id': score.user.id,
+                'reason': 'Score submission with client hash mismatch'
+            }
         )
         return Response('error: ban')
 
@@ -136,7 +145,10 @@ async def score_submission(
         )
         utils.submit_to_queue(
             type='restrict',
-            data={'user_id': score.user.id}
+            data={
+                'user_id': score.user.id,
+                'reason': 'Invalid mods on score submission'
+            }
         )
         return Response('error: ban')
 
