@@ -35,7 +35,7 @@ async def exception_handler(request: Request, exc: HTTPException):
     )
 
 @api.exception_handler(RequestValidationError)
-def validation_error(request: Request, exc: HTTPException):
+def validation_error(request: Request, exc: RequestValidationError):
     return Response(
         status_code=400,
         content='no'
