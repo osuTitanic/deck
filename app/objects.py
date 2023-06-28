@@ -129,7 +129,7 @@ class Score:
 
         if self.beatmap:
             self.personal_best = app.session.database.personal_best(self.beatmap.id, self.user.id)
-    
+
         self.status = self.get_status()
 
     def __repr__(self) -> str:
@@ -137,7 +137,7 @@ class Score:
 
     @property
     def total_hits(self) -> int:
-        if self.play_mode == Mode.CatchTheBeat: 
+        if self.play_mode == Mode.CatchTheBeat:
             return self.c50 + self.c100 + self.c300 + self.cMiss + self.cKatu
 
         elif self.play_mode == Mode.OsuMania:
@@ -194,6 +194,37 @@ class Score:
         self._pp = performance.pp
 
         return self._pp
+
+    @property
+    def has_invalid_mods(self) -> bool:
+        if self.check_mods(Mod.Easy|Mod.HardRock):
+            return True
+        if self.check_mods(Mod.HalfTime|Mod.DoubleTime):
+            return True
+        if self.check_mods(Mod.HalfTime|Mod.Nightcore):
+            return True
+        if self.check_mods(Mod.DoubleTime|Mod.Nightcore):
+            return True
+        if self.check_mods(Mod.NoFail|Mod.SuddenDeath):
+            return True
+        if self.check_mods(Mod.NoFail|Mod.Perfect):
+            return True
+        if self.check_mods(Mod.Perfect|Mod.SuddenDeath):
+            return True
+        if self.check_mods(Mod.Relax|Mod.Autopilot):
+            return True
+        if self.check_mods(Mod.SpunOut|Mod.Autopilot):
+            return True
+        if self.check_mods(Mod.Autoplay):
+            return True
+
+        return False
+
+    def check_mods(self, mods: Mod) -> bool:
+        if not self.enabled_mods:
+            return False
+
+        return True if mods in self.enabled_mods else False
 
     def get_status(self) -> ScoreStatus:
         if not self.passed:
@@ -272,7 +303,7 @@ class Score:
             failtime = failtime,
             replay = replay
         )
-    
+
     def to_database(self) -> DBScore:
         return DBScore(
             beatmap_id = self.beatmap.id,

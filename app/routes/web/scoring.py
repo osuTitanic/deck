@@ -130,7 +130,16 @@ async def score_submission(
         )
         return Response('error: ban')
 
-    # TODO: Check for invalid mods
+    if score.has_invalid_mods:
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with invalid mods.'
+        )
+        utils.submit_to_queue(
+            type='restrict',
+            data={'user_id': score.user.id}
+        )
+        return Response('error: ban')
+
     # TODO: More anticheat stuff
 
     # What is FreeModAllowed?
