@@ -257,16 +257,29 @@ class Postgres:
 
         return result[-1]
 
-    def score_index_by_id(self, score_id: int) -> int:
-        result = self.session.query(func.row_number() \
-                             .over(order_by=DBScore.total_score.desc())) \
-                             .filter(DBScore.id == score_id) \
-                             .first()
+    def score_index_by_id(self, score_id: int, beatmap_id: int, mods: Optional[int] = None) -> int:
+        instance = self.session
 
-        if not result:
-            return 0
+        query = instance.query(DBScore.id, DBScore.mods, func.rank() \
+                    .over(
+                        order_by=DBScore.total_score.desc()
+                    ).label('rank')
+                ) \
+                .filter(DBScore.beatmap_id == beatmap_id) \
+                .order_by(DBScore.total_score.desc())
 
-        return result[0]
+        if mods != None:
+            query = query.filter(DBScore.mods == mods) \
+                         .filter(or_(DBScore.status == 3, DBScore.status == 4))
+
+        subquery = query.subquery()
+
+        if not (result := instance.query(subquery.c.rank) \
+                                  .filter(subquery.c.id == score_id) \
+                                  .first()):
+            return -1
+
+        return result[-1]
 
     def relationships(self, user_id: int) -> List[DBRelationship]:
         return self.session.query(DBRelationship) \
