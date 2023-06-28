@@ -11,6 +11,7 @@ from . import ratings
 from . import direct
 from . import error
 from . import title
+from . import maps
 
 router = APIRouter()
 router.include_router(leaderboards.router)
@@ -23,3 +24,4 @@ router.include_router(replays.router)
 router.include_router(direct.router)
 router.include_router(error.router)
 router.include_router(title.router)
+router.include_router(maps.router)
