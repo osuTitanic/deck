@@ -20,6 +20,7 @@ A lot of the features are pretty much done for the most part:
 ## What is left to do?
 
 - [ ] Direct
+- [ ] Achievements
 - [ ] Client Updates
 - [ ] Some commands (e.g. !report)
 - [ ] Bot messages on #highlight
@@ -27,6 +28,7 @@ A lot of the features are pretty much done for the most part:
 - [ ] Improve logging
 - [ ] Beatmap imports
 - [ ] Customized .osu files
+- [ ] Tourney clients
 - [ ] (Monthly Charts)
 - [ ] (Beatmap Submission)
 
