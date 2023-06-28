@@ -19,6 +19,7 @@ A lot of the features are pretty much done for the most part:
 
 ## What is left to do?
 
+- [ ] Legacy Leaderboards
 - [ ] Direct
 - [ ] Achievements
 - [ ] Client Updates
