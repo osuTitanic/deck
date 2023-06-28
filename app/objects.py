@@ -2,8 +2,8 @@
 from typing   import List, Optional
 from datetime import datetime
 
+from .constants import Mod, Mode, Grade, ScoreStatus, BadFlags
 from .common.objects import DBScore, DBBeatmap, DBUser
-from .constants import Mod, Mode, Grade, ScoreStatus
 
 import hashlib
 import app
@@ -298,7 +298,7 @@ class Score:
             play_mode = Mode(int(items[15])),
             date = items[16],
             version = int(items[17].strip()),
-            flags = items[17].count(' '),
+            flags = BadFlags(items[17].count(' ')),
             exited = exited,
             failtime = failtime,
             replay = replay
