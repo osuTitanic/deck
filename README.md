@@ -24,7 +24,6 @@ A lot of the features are pretty much done for the most part:
 - [ ] Client Updates
 - [ ] Some commands (e.g. !report)
 - [ ] Bot messages on #highlight
-- [ ] Better anti-cheat
 - [ ] Improve logging
 - [ ] Beatmap imports
 - [ ] Customized .osu files
