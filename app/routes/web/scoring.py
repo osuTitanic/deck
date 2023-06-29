@@ -220,8 +220,10 @@ async def score_submission(
     stats.playtime += score.beatmap.total_length  \
                       if score.passed else \
                       score.failtime / 1000
-    stats.tscore += score.total_score
-    stats.total_hits += score.total_hits
+
+    if score.status != ScoreStatus.Failed:
+        stats.tscore += score.total_score
+        stats.total_hits += score.total_hits
 
     instance.flush()
 
