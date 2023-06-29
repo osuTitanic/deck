@@ -19,6 +19,7 @@ REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 WEB_HOST = os.environ.get('WEB_HOST')
 WEB_PORT = int(os.environ.get('WEB_PORT', 80))
 
+APPROVED_MAP_REWARDS = eval(os.environ.get('APPROVED_MAP_REWARDS', 'False').capitalize())
 FREE_SUPPORTER = eval(os.environ.get('FREE_SUPPORTER', 'True').capitalize())
 ALLOW_RELAX = eval(os.environ.get('ALLOW_RELAX', 'True').capitalize())
 S3_ENABLED = eval(os.environ.get('ENABLE_S3', 'True').capitalize())
