@@ -303,6 +303,14 @@ class Postgres:
 
         return result[-1]
 
+    def score_above(self, beatmap_id: int, mode: int, total_score: int) -> Optional[DBScore]:
+        return self.session.query(DBScore) \
+                           .filter(DBScore.beatmap_id == beatmap_id) \
+                           .filter(DBScore.mode == mode) \
+                           .filter(DBScore.total_score > total_score) \
+                           .order_by(DBScore.total_score.asc()) \
+                           .first()
+
     def relationships(self, user_id: int) -> List[DBRelationship]:
         return self.session.query(DBRelationship) \
                 .filter(DBRelationship.user_id == user_id) \
