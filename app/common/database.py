@@ -121,15 +121,17 @@ class Postgres:
                            .filter(DBScore.replay_md5 == replay_md5) \
                            .first()
 
-    def score_count(self, user_id: int) -> int:
+    def score_count(self, user_id: int, mode: int) -> int:
         return self.session.query(DBScore) \
                            .filter(DBScore.user_id == user_id) \
+                           .filter(DBScore.mode == mode) \
                            .filter(DBScore.status == 3) \
                            .count()
 
-    def top_scores(self, user_id: int) -> List[DBScore]:
+    def top_scores(self, user_id: int, mode: int) -> List[DBScore]:
         return self.session.query(DBScore) \
                            .filter(DBScore.user_id == user_id) \
+                           .filter(DBScore.mode == mode) \
                            .filter(DBScore.status == 3) \
                            .order_by(DBScore.pp.desc()) \
                            .limit(100) \
@@ -137,34 +139,39 @@ class Postgres:
                            .all()
 
     def personal_best(
-        self, 
-        beatmap_id: int, 
-        user_id: int, 
+        self,
+        beatmap_id: int,
+        user_id: int,
+        mode: int,
         mods: Optional[int] = None
     ) -> Optional[DBScore]:
         if mods == None:
             return self.session.query(DBScore) \
                     .filter(DBScore.beatmap_id == beatmap_id) \
                     .filter(DBScore.user_id == user_id) \
+                    .filter(DBScore.mode == mode) \
                     .filter(DBScore.status == 3) \
                     .first()
         
         return self.session.query(DBScore) \
                 .filter(DBScore.beatmap_id == beatmap_id) \
                 .filter(DBScore.user_id == user_id) \
+                .filter(DBScore.mode == mode) \
                 .filter(or_(DBScore.status == 3, DBScore.status == 4)) \
                 .filter(DBScore.mods == mods) \
                 .first()
 
     def range_scores(
-        self, 
-        beatmap_id: int, 
-        offset: int = 0, 
+        self,
+        beatmap_id: int,
+        mode: int,
+        offset: int = 0,
         limit: int = 5
     ) -> List[DBScore]:
 
         return self.session.query(DBScore) \
             .filter(DBScore.beatmap_id == beatmap_id) \
+            .filter(DBScore.mode == mode) \
             .filter(DBScore.status == 3) \
             .order_by(DBScore.total_score.desc()) \
             .offset(offset) \
@@ -174,11 +181,13 @@ class Postgres:
     def range_scores_country(
         self,
         beatmap_id: int,
+        mode: int,
         country: str,
         limit: int = 5
     ) -> List[DBScore]:
         return self.session.query(DBScore) \
                 .filter(DBScore.beatmap_id == beatmap_id) \
+                .filter(DBScore.mode == mode) \
                 .filter(DBScore.status == 3) \
                 .filter(DBUser.country == country) \
                 .join(DBScore.user) \
@@ -188,11 +197,13 @@ class Postgres:
     def range_scores_friends(
         self,
         beatmap_id: int,
+        mode: int,
         friends: List[int],
         limit: int = 5
     ):
         return self.session.query(DBScore) \
                 .filter(DBScore.beatmap_id == beatmap_id) \
+                .filter(DBScore.mode == mode) \
                 .filter(DBScore.status == 3) \
                 .filter(DBScore.user_id.in_(friends)) \
                 .limit(limit) \
@@ -201,11 +212,13 @@ class Postgres:
     def range_scores_mods(
         self,
         beatmap_id: int,
+        mode: int,
         mods: int,
         limit: int = 5
     ) -> List[DBScore]:
         return self.session.query(DBScore) \
             .filter(DBScore.beatmap_id == beatmap_id) \
+            .filter(DBScore.mode == mode) \
             .filter(or_(DBScore.status == 3, DBScore.status == 4)) \
             .filter(DBScore.mods == mods) \
             .order_by(DBScore.total_score.desc()) \
@@ -216,6 +229,7 @@ class Postgres:
         self, 
         user_id: int, 
         beatmap_id: int,
+        mode: int,
         mods: Optional[int] = None,
         friends: Optional[List[int]] = None,
         country: Optional[str] = None
@@ -228,6 +242,7 @@ class Postgres:
                     ).label('rank')
                 ) \
                 .filter(DBScore.beatmap_id == beatmap_id) \
+                .filter(DBScore.mode == mode) \
                 .order_by(DBScore.total_score.desc())
 
         if mods != None:
@@ -257,7 +272,13 @@ class Postgres:
 
         return result[-1]
 
-    def score_index_by_id(self, score_id: int, beatmap_id: int, mods: Optional[int] = None) -> int:
+    def score_index_by_id(
+        self,
+        score_id: int,
+        beatmap_id: int,
+        mode: int,
+        mods: Optional[int] = None
+    ) -> int:
         instance = self.session
 
         query = instance.query(DBScore.id, DBScore.mods, func.rank() \
@@ -266,6 +287,7 @@ class Postgres:
                     ).label('rank')
                 ) \
                 .filter(DBScore.beatmap_id == beatmap_id) \
+                .filter(DBScore.mode == mode) \
                 .order_by(DBScore.total_score.desc())
 
         if mods != None:

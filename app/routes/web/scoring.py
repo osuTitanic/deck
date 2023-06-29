@@ -194,6 +194,7 @@ async def score_submission(
             score_rank = app.session.database.score_index_by_id(
                 mods=score.enabled_mods.value,
                 beatmap_id=score.beatmap.id,
+                mode=score.play_mode.value,
                 score_id=object.id
             )
 
@@ -233,8 +234,8 @@ async def score_submission(
     grade = None
 
     if score.beatmap.is_ranked:
-        score_count = app.session.database.score_count(score.user.id)
-        top_scores = app.session.database.top_scores(score.user.id)
+        score_count = app.session.database.score_count(score.user.id, score.play_mode.value)
+        top_scores = app.session.database.top_scores(score.user.id, score.play_mode.value)
 
         if score.status == ScoreStatus.Best:
             if score.personal_best:
@@ -352,8 +353,8 @@ async def score_submission(
     overallChart['onlineScoreId']  = object.id
 
     if score.beatmap.status > 0:
-        current_rank = app.session.database.score_index_by_id(object.id, score.beatmap.id)
-        old_rank = app.session.database.score_index_by_id(score.personal_best.id, score.beatmap.id) \
+        current_rank = app.session.database.score_index_by_id(object.id, score.beatmap.id, mode=score.play_mode.value)
+        old_rank = app.session.database.score_index_by_id(score.personal_best.id, score.beatmap.id, mode=score.play_mode.value) \
                     if score.personal_best else 0
 
         overallChart.entry(

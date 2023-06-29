@@ -106,6 +106,7 @@ def get_scores(
     personal_best = app.session.database.personal_best(
         beatmap.id,
         player.id,
+        mode.value,
         mods if ranking_type == RankingType.SelectedMod else None
     )
 
@@ -119,6 +120,7 @@ def get_scores(
         index = app.session.database.score_index(
             player.id,
             beatmap.id,
+            mode.value,
             mods           if ranking_type == RankingType.SelectedMod else None,
             friends        if ranking_type == RankingType.Friends     else None,
             player.country if ranking_type == RankingType.Country     else None
@@ -135,12 +137,14 @@ def get_scores(
     if ranking_type == RankingType.Top:
         scores = app.session.database.range_scores(
             beatmap.id,
+            mode=mode.value,
             limit=config.SCORE_RESPONSE_LIMIT
         )
 
     elif ranking_type == RankingType.Country:
         scores = app.session.database.range_scores_country(
             beatmap.id,
+            mode=mode.value,
             country=player.country,
             limit=config.SCORE_RESPONSE_LIMIT
         )
@@ -148,6 +152,7 @@ def get_scores(
     elif ranking_type == RankingType.Friends:
         scores = app.session.database.range_scores_friends(
             beatmap.id,
+            mode=mode.value,
             friends=friends,
             limit=config.SCORE_RESPONSE_LIMIT
         )
@@ -155,6 +160,7 @@ def get_scores(
     elif ranking_type == RankingType.SelectedMod:
         scores = app.session.database.range_scores_mods(
             beatmap.id,
+            mode=mode.value,
             mods=mods,
             limit=config.SCORE_RESPONSE_LIMIT
         )
@@ -177,6 +183,11 @@ def legacy_scores(
     user_id: int = Query(..., alias='u'),
     mode: int = Query(..., alias='m')
 ):
+    try:
+        mode = Mode(mode)
+    except ValueError:
+        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
+
     if not app.session.cache.user_exists(user_id):
         raise HTTPException(401)
 
@@ -218,13 +229,15 @@ def legacy_scores(
 
     personal_best = app.session.database.personal_best(
         beatmap.id,
-        player.id
+        player.id,
+        mode.value
     )
 
     if personal_best:
         index = app.session.database.score_index(
             player.id,
-            beatmap.id
+            beatmap.id,
+            mode.value
         )
 
         response.append(
@@ -235,6 +248,7 @@ def legacy_scores(
 
     scores = app.session.database.range_scores(
         beatmap.id,
+        mode=mode.value,
         limit=config.SCORE_RESPONSE_LIMIT
     )
 

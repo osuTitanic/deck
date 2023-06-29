@@ -128,7 +128,11 @@ class Score:
                                 .first()
 
         if self.beatmap:
-            self.personal_best = app.session.database.personal_best(self.beatmap.id, self.user.id)
+            self.personal_best = app.session.database.personal_best(
+                self.beatmap.id,
+                self.user.id,
+                self.play_mode.value
+            )
 
         self.status = self.get_status()
 
@@ -238,7 +242,12 @@ class Score:
                 return ScoreStatus.Submitted
 
             # Check pb with mods
-            mods_pb = app.session.database.personal_best(self.beatmap.id, self.user.id, self.enabled_mods.value)
+            mods_pb = app.session.database.personal_best(
+                self.beatmap.id,
+                self.user.id,
+                self.play_mode.value,
+                self.enabled_mods.value
+            )
 
             if not mods_pb:
                 return ScoreStatus.Mods
