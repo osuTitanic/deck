@@ -26,7 +26,6 @@ def get_scores(
     password: Optional[str] = Query(None, alias='ha'),
     ranking_type: Optional[int] = Query(1, alias='v'),
     user_id: Optional[int] = Query(None, alias='u'),
-    page: Optional[int] = Query(None, alias='p'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     get_scores: int = Query(..., alias='s'),
@@ -136,10 +135,7 @@ def get_scores(
     if ranking_type == RankingType.Top:
         scores = app.session.database.range_scores(
             beatmap.id,
-            limit=config.SCORE_RESPONSE_LIMIT \
-                  if not page else 5,
-            offset=page \
-                  if page else 0
+            limit=config.SCORE_RESPONSE_LIMIT
         )
 
     elif ranking_type == RankingType.Country:
@@ -239,7 +235,7 @@ def legacy_scores(
 
     scores = app.session.database.range_scores(
         beatmap.id,
-        limit=5
+        limit=config.SCORE_RESPONSE_LIMIT
     )
 
     for index, score in enumerate(scores):
