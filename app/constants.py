@@ -2,12 +2,12 @@
 from enum import Enum, IntEnum, IntFlag
 
 class SubmissionStatus(Enum):
-    Unknown        = 0
-    NotSubmitted   = 1
-    Pending        = 2
-    EditableCutoff = 3
+    NotSubmitted   = -1
+    Pending        = 0
+    Unknown        = 1
+    EditableCutoff = 2
+    Approved       = 3
     Ranked         = 4
-    Approved       = 5
 
     @classmethod
     def from_db(cls, value: int):
@@ -86,7 +86,7 @@ class Grade(str, Enum):
     F  = 8
     N  = 9
 
-class ScoreStatus(Enum):
+class ScoreStatus(IntEnum):
     Hidden    = -1
     Failed    = 0
     Exited    = 1
