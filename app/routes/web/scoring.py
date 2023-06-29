@@ -78,9 +78,6 @@ async def score_submission(
     if not score.beatmap:
         return Response('error: beatmap')
 
-    if score.beatmap.status < 0:
-        return Response('error: beatmap')
-
     if not app.session.cache.user_exists(player.id):
         # Client will resend the request
         return Response('')
@@ -198,9 +195,10 @@ async def score_submission(
                 score_id=object.id
             )
 
-            # Check if score is inside the leaderboards
-            if score_rank <= config.SCORE_RESPONSE_LIMIT:
-                app.session.storage.upload_replay(object.id, replay)
+            if score.beatmap.is_ranked:
+                # Check if score is inside the leaderboards
+                if score_rank <= config.SCORE_RESPONSE_LIMIT:
+                    app.session.storage.upload_replay(object.id, replay)
 
     instance.commit()
 
@@ -225,9 +223,12 @@ async def score_submission(
         stats.tscore += score.total_score
         stats.total_hits += score.total_hits
 
-    instance.flush()
+    instance.commit()
 
     # TODO: Update plays
+
+    if score.beatmap.status < 0:
+        return Response('error: beatmap')
 
     if not config.ALLOW_RELAX and score.relaxing:
         return Response('error: no')
