@@ -346,6 +346,8 @@ async def score_submission(
     overallChart.entry('playCount', old_stats.playcount, stats.playcount)
 
     overallChart['onlineScoreId']  = object.id
+    overallChart['toNextRankUser'] = ''
+    overallChart['toNextRank'] = '0'
 
     if score.beatmap.status > 0:
         current_rank = app.session.database.score_index_by_id(object.id, score.beatmap.id, mode=score.play_mode.value)
