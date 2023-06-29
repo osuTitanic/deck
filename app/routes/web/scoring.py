@@ -207,6 +207,8 @@ async def score_submission(
 
     score.session.commit()
 
+    # Update user stats
+
     stats: DBStats = instance.query(DBStats) \
                 .filter(DBStats.user_id == player.id) \
                 .filter(DBStats.mode == score.play_mode.value) \
@@ -236,7 +238,7 @@ async def score_submission(
     previous_grade = None
     grade = None
 
-    if score.beatmap.is_ranked:
+    if score.beatmap.awards_pp:
         score_count = app.session.database.score_count(score.user.id, score.play_mode.value)
         top_scores = app.session.database.top_scores(score.user.id, score.play_mode.value)
 
