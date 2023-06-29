@@ -317,6 +317,10 @@ class DBBeatmap(Base):
     def is_ranked(self) -> bool:
         return self.status > 0
 
+    @property
+    def awards_pp(self) -> bool:
+        return self.status == 1
+
 class DBUser(Base):
     __tablename__ = "users"
 
