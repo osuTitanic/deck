@@ -17,6 +17,8 @@ from sqlalchemy import (
     Float,
 )
 
+import config
+
 Base = declarative_base()
 
 class DBAchievement(Base):
@@ -319,6 +321,8 @@ class DBBeatmap(Base):
 
     @property
     def awards_pp(self) -> bool:
+        if config.APPROVED_MAP_REWARDS:
+            return self.status > 0
         return self.status == 1
 
 class DBUser(Base):

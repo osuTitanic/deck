@@ -240,7 +240,13 @@ async def score_submission(
 
     if score.beatmap.awards_pp:
         score_count = app.session.database.score_count(score.user.id, score.play_mode.value)
-        top_scores = app.session.database.top_scores(score.user.id, score.play_mode.value)
+        top_scores = app.session.database.top_scores(
+            user_id=score.user.id,
+            mode=score.play_mode.value,
+            exclude_approved=False
+                             if config.APPROVED_MAP_REWARDS else
+                             True
+        )
 
         if score.status == ScoreStatus.Best:
             if score.personal_best:

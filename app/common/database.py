@@ -128,13 +128,13 @@ class Postgres:
                            .filter(DBScore.status == 3) \
                            .count()
 
-    def top_scores(self, user_id: int, mode: int, include_approved: bool = False) -> List[DBScore]:
+    def top_scores(self, user_id: int, mode: int, exclude_approved: bool = False) -> List[DBScore]:
         query = self.session.query(DBScore) \
                         .filter(DBScore.user_id == user_id) \
                         .filter(DBScore.mode == mode) \
                         .filter(DBScore.status == 3)
 
-        if not include_approved:
+        if exclude_approved:
             query = query.filter(DBBeatmap.status == 1) \
                          .join(DBScore.beatmap)
 
