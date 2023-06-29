@@ -128,15 +128,20 @@ class Postgres:
                            .filter(DBScore.status == 3) \
                            .count()
 
-    def top_scores(self, user_id: int, mode: int) -> List[DBScore]:
-        return self.session.query(DBScore) \
-                           .filter(DBScore.user_id == user_id) \
-                           .filter(DBScore.mode == mode) \
-                           .filter(DBScore.status == 3) \
-                           .order_by(DBScore.pp.desc()) \
-                           .limit(100) \
-                           .offset(0) \
-                           .all()
+    def top_scores(self, user_id: int, mode: int, include_approved: bool = False) -> List[DBScore]:
+        query = self.session.query(DBScore) \
+                        .filter(DBScore.user_id == user_id) \
+                        .filter(DBScore.mode == mode) \
+                        .filter(DBScore.status == 3)
+
+        if not include_approved:
+            query = query.filter(DBBeatmap.status == 1) \
+                         .join(DBScore.beatmap)
+
+        return query.order_by(DBScore.pp.desc()) \
+                    .limit(100) \
+                    .offset(0) \
+                    .all()
 
     def personal_best(
         self,
