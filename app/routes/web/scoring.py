@@ -345,23 +345,28 @@ async def score_submission(
     overallChart.entry('accuracy', round(old_stats.acc, 4), round(stats.acc, 4))
     overallChart.entry('playCount', old_stats.playcount, stats.playcount)
 
-    player_above = app.session.cache.get_above(score.user.id, score.play_mode.value)
-
-    overallChart['toNextRank']     = player_above['difference']
-    overallChart['toNextRankUser'] = player_above['next_user']
-
     overallChart['onlineScoreId']  = object.id
 
     if score.beatmap.status > 0:
         current_rank = app.session.database.score_index_by_id(object.id, score.beatmap.id, mode=score.play_mode.value)
-        old_rank = app.session.database.score_index_by_id(score.personal_best.id, score.beatmap.id, mode=score.play_mode.value) \
-                    if score.personal_best else 0
+        old_rank     = app.session.database.score_index_by_id(score.personal_best.id, score.beatmap.id, mode=score.play_mode.value) \
+                       if score.personal_best else 0
 
         overallChart.entry(
             'beatmapRanking',
             old_rank,
             current_rank
         )
+
+        score_above = app.session.database.score_above(
+            score.beatmap.id,
+            score.play_mode.value,
+            score.total_score
+        )
+
+        if score_above:
+            overallChart['toNextRankUser'] = score_above.user.name
+            overallChart['toNextRank'] = score_above.total_score - score.total_score
 
     response.append(overallChart)
 
