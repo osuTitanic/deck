@@ -254,7 +254,11 @@ async def score_submission(
                 stats.rscore -= score.personal_best.total_score
 
                 previous_grade = Grade[score.personal_best.grade]
-                grade = score.grade if score.grade != score.personal_best.grade else None
+                grade = score.grade
+
+                if previous_grade == grade:
+                    previous_grade = None
+                    grade = None
             else:
                 grade = score.grade
 
