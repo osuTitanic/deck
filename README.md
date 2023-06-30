@@ -2,6 +2,8 @@
 
 Deck is a work in progress api/score server, designed for older osu! clients.
 
+Please view [this repository](https://github.com/Lekuruu/titanic) for setup instructions!
+
 ## What works?
 
 A lot of the features are pretty much done for the most part:
@@ -24,11 +26,12 @@ A lot of the features are pretty much done for the most part:
 - [ ] Client Updates
 - [ ] Some commands (e.g. !report)
 - [ ] Bot messages on #highlight
-- [ ] Improve logging
+- [ ] [Circleguard](https://github.com/circleguard) investigation reports
+- [ ] Improved logging
 - [ ] Beatmap imports
 - [ ] Customized .osu files
 - [ ] Tourney clients
 - [ ] (Monthly Charts)
 - [ ] (Beatmap Submission)
 
-... and probably a lot more stuff.
+and probably a lot more stuff.
