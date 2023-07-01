@@ -24,13 +24,12 @@ A lot of the features are pretty much done for the most part:
 - [ ] Direct
 - [ ] Achievements
 - [ ] Client Updates
-- [ ] Some commands (e.g. !report)
 - [ ] Bot messages on #highlight
 - [ ] [Circleguard](https://github.com/circleguard) investigation reports
 - [ ] Improved logging
 - [ ] Beatmap imports
 - [ ] Customized .osu files
-- [ ] Tourney clients
+- [ ] API for frontend use
 - [ ] (Monthly Charts)
 - [ ] (Beatmap Submission)
 
