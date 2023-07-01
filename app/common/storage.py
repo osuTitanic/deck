@@ -149,7 +149,7 @@ class Storage:
             self.save_to_file(f'/avatars/{id}', content)
         
         self.save_to_cache(
-            name=f'ss:{id}',
+            name=f'avatar:{id}',
             content=content,
             expiry=timedelta(hours=1)
         )
