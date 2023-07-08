@@ -243,27 +243,29 @@ async def score_submission(
     previous_grade = None
     grade = None
 
-    if score.beatmap.awards_pp:
-        score_count = app.session.database.score_count(score.user.id, score.play_mode.value)
-        top_scores = app.session.database.top_scores(
-            user_id=score.user.id,
-            mode=score.play_mode.value,
-            exclude_approved=False
-                             if config.APPROVED_MAP_REWARDS else
-                             True
-        )
+    score_count = app.session.database.score_count(score.user.id, score.play_mode.value)
+    top_scores = app.session.database.top_scores(
+        user_id=score.user.id,
+        mode=score.play_mode.value,
+        exclude_approved=False
+                         if config.APPROVED_MAP_REWARDS else
+                         True
+    )
 
+    if score.beatmap.is_ranked:
         if score.status == ScoreStatus.Best:
+            # Update grades
             if score.personal_best:
-                # Remove old score
-                stats.rscore -= score.personal_best.total_score
-
                 previous_grade = Grade[score.personal_best.grade]
                 grade = score.grade
 
                 if previous_grade == grade:
                     previous_grade = None
                     grade = None
+
+                # Remove old score
+                if score.beatmap.awards_pp:
+                    stats.rscore -= score.personal_best.total_score
             else:
                 grade = score.grade
 
@@ -272,39 +274,41 @@ async def score_submission(
         # Update max combo
 
         max_combo_score = instance.query(DBScore) \
-                .filter(DBScore.user_id == score.user.id) \
-                .order_by(DBScore.max_combo.desc()) \
-                .first()
+            .filter(DBScore.user_id == score.user.id) \
+            .order_by(DBScore.max_combo.desc()) \
+            .first()
 
         if max_combo_score:
             if score.max_combo > max_combo_score.max_combo:
                 stats.max_combo = score.max_combo
 
-        # Update accuracy
+    # Update accuracy
 
-        total_acc = 0
-        divide_total = 0
+    total_acc = 0
+    divide_total = 0
 
-        for index, s in enumerate(top_scores):
-            add = 0.95 ** index
-            total_acc    += s.acc * add
-            divide_total += add
+    for index, s in enumerate(top_scores):
+        add = 0.95 ** index
+        total_acc    += s.acc * add
+        divide_total += add
 
-        if divide_total != 0:
-            stats.acc = total_acc / divide_total
-        else:
-            stats.acc = 0.0
+    if divide_total != 0:
+        stats.acc = total_acc / divide_total
+    else:
+        stats.acc = 0.0
 
-        # Update performance
+    # Update performance
 
-        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
-        bonus_pp = 416.6667 * (1 - 0.9994**score_count)
+    weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
+    bonus_pp = 416.6667 * (1 - 0.9994**score_count)
 
-        stats.pp = weighted_pp + bonus_pp
+    stats.pp = weighted_pp + bonus_pp
 
-        app.session.cache.update_leaderboards(stats)
+    app.session.cache.update_leaderboards(stats)
 
-        stats.rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+    stats.rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+
+    instance.commit()
 
     # Update grades
 
