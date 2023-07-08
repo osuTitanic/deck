@@ -4,6 +4,7 @@ from . import logging
 from . import session
 from . import routes
 
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 
 from fastapi import (
@@ -25,6 +26,16 @@ api = FastAPI(
 )
 
 @api.exception_handler(HTTPException)
+async def exception_handler(request: Request, exc: HTTPException):
+    headers = exc.headers if exc.headers else {}
+    headers.update({'detail': exc.detail})
+
+    return Response(
+        status_code=exc.status_code,
+        headers=headers
+    )
+
+@api.exception_handler(StarletteHTTPException)
 async def exception_handler(request: Request, exc: HTTPException):
     headers = exc.headers if exc.headers else {}
     headers.update({'detail': exc.detail})
