@@ -211,7 +211,7 @@ class Storage:
 
     def get_file_content(self, filepath: str) -> Optional[bytes]:
         try:
-            with open(f'{config.DATA_PATH}/{filepath}', 'wb') as f:
+            with open(f'{config.DATA_PATH}/{filepath}', 'rb') as f:
                 return f.read()
         except Exception as e:
             self.logger.error(f'Failed to read file "{filepath}": {e}')
