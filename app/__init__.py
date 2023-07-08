@@ -36,13 +36,10 @@ async def exception_handler(request: Request, exc: HTTPException):
     )
 
 @api.exception_handler(StarletteHTTPException)
-async def exception_handler(request: Request, exc: HTTPException):
-    headers = exc.headers if exc.headers else {}
-    headers.update({'detail': exc.detail})
-
+async def exception_handler(request: Request, exc: StarletteHTTPException):
     return Response(
         status_code=exc.status_code,
-        headers=headers
+        headers={'detail': exc.detail}
     )
 
 @api.exception_handler(RequestValidationError)
