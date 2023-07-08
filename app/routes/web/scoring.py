@@ -227,7 +227,12 @@ async def score_submission(
 
     instance.commit()
 
-    # TODO: Update plays
+    app.session.database.update_plays(
+        score.beatmap.id,
+        score.beatmap.filename,
+        score.beatmap.set_id,
+        score.user.id
+    )
 
     if score.beatmap.status < 0:
         return Response('error: beatmap')
