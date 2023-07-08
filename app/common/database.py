@@ -15,6 +15,7 @@ from .objects import (
     DBRating,
     DBScore,
     DBUser,
+    DBPlay,
     DBLog,
     Base
 )
@@ -403,3 +404,36 @@ class Postgres:
         instance.commit()
 
         return ss.id
+
+    def create_plays(self, user_id: int, beatmap_id: int, beatmap_file: str, set_id: int) -> DBPlay:
+        instance = self.session
+        instance.add(
+            plays := DBPlay(
+                user_id,
+                beatmap_id,
+                set_id,
+                beatmap_file
+            )
+        )
+        instance.commit()
+
+        return plays
+
+    def update_plays(self, beatmap_id: int, beatmap_file: str, set_id: int, user_id: int):
+        instance = self.session
+        updated = instance.query(DBPlay) \
+                .filter(DBPlay.beatmap_id == beatmap_id) \
+                .filter(DBPlay.user_id == user_id) \
+                .update({
+                    'count': DBPlay.count + 1
+                })
+
+        if not updated:
+            self.create_plays(
+                user_id,
+                beatmap_id,
+                beatmap_file,
+                set_id
+            )
+
+        instance.commit()
