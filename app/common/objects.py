@@ -137,6 +137,13 @@ class DBPlay(Base):
     beatmap    = relationship('DBBeatmap', back_populates='plays')
     beatmapset = relationship('DBBeatmapset', back_populates='plays')
 
+    def __init__(self, user_id: int, beatmap_id: int, set_id: int, beatmap_file: str, count: int = 1) -> None:
+        self.beatmap_file = beatmap_file
+        self.beatmap_id = beatmap_id
+        self.user_id = user_id
+        self.set_id = set_id
+        self.count = count
+
 class DBFavourite(Base):
     __tablename__ = "favourites"
 
