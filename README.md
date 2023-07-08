@@ -18,6 +18,7 @@ A lot of the features are pretty much done for the most part:
 - [x] Leaderboards
 - [x] Replays
 - [x] Score Submission
+- [ ] [Circleguard](https://github.com/circleguard) anticheat reports
 
 ## What is left to do?
 
@@ -25,7 +26,6 @@ A lot of the features are pretty much done for the most part:
 - [ ] Achievements
 - [ ] Client Updates
 - [ ] Bot messages on #highlight
-- [ ] [Circleguard](https://github.com/circleguard) investigation reports
 - [ ] Improved logging
 - [ ] Beatmap imports
 - [ ] Customized .osu files
