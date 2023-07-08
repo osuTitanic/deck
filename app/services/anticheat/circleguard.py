@@ -6,14 +6,9 @@ from app.objects import Score
 from .replay import Replay
 from .loader import Loader
 
+import config
 import utils
 import app
-
-# TODO: Move to config
-MIN_SNAP_DISTANCE = 8
-MAX_SNAP_ANGLE = 10
-MAX_FRAMETIME = 13
-MAX_UR = 50
 
 class Anticheat:
     def __init__(self) -> None:
@@ -28,14 +23,18 @@ class Anticheat:
 
         details = []
 
-        snaps = self.cg.snaps(replay, MAX_SNAP_ANGLE, MIN_SNAP_DISTANCE)
-        frametime = self.cg.frametime(replay)
         ur = self.cg.ur(replay)
+        frametime = self.cg.frametime(replay)
+        snaps = self.cg.snaps(
+            replay,
+            config.MAX_SNAP_ANGLE,
+            config.MIN_SNAP_DISTANCE
+        )
 
-        if ur <= MAX_UR:
+        if ur <= config.MAX_UR:
             details.append(f'{ur} ur.')
 
-        if frametime <= MAX_FRAMETIME:
+        if frametime <= config.MAX_FRAMETIME:
             details.append(f'{frametime} avg frametime')
 
         if snaps:
