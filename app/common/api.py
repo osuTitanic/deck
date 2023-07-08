@@ -40,14 +40,24 @@ class Beatmaps:
     def osu(self, beatmap_id: int) -> Optional[bytes]:
         self.logger.debug(f'Downloading beatmap... ({beatmap_id})')
 
-        response = self.session.get(f'https://osu.direct/api/osu/{beatmap_id}')
+        try:
+            response = self.session.get(f'https://osu.direct/api/osu/{beatmap_id}')
 
-        if not response.ok:
-            self.log_error(response.url, response.status_code)
-            return
+            if not response.ok:
+                self.log_error(response.url, response.status_code)
+                raise ValueError
 
-        if 'application/json' in response.headers['Content-Type']:
-            self.log_error(response.url, response.json()['code'])
+            if 'application/json' in response.headers['Content-Type']:
+                self.log_error(response.url, response.json()['code'])
+                return
+        except ValueError:
+            response = self.session.get(f'https://old.ppy.sh/osu/{beatmap_id}')
+
+            if not response.ok:
+                self.log_error(response.url, response.status_code)
+                raise ValueError
+
+        if not response.content:
             return
 
         return response.content
