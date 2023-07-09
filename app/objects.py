@@ -190,7 +190,7 @@ class Score:
         self._pp = 0.0
 
         score = self.to_database()
-        performance = app.performance.calculate_ppv2(score)
+        performance = app.services.performance.calculate_ppv2(score)
 
         if performance is None:
             return 0.0

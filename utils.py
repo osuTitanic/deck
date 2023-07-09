@@ -29,10 +29,10 @@ def setup():
     os.makedirs(f'{config.DATA_PATH}/logs', exist_ok=True)
 
     if not config.S3_ENABLED:
-        os.makedirs(f'{config.DATA_PATH}/screenshots')
-        os.makedirs(f'{config.DATA_PATH}/replays')
-        os.makedirs(f'{config.DATA_PATH}/avatars')
-        os.makedirs(f'{config.DATA_PATH}/images')
+        os.makedirs(f'{config.DATA_PATH}/screenshots', exist_ok=True)
+        os.makedirs(f'{config.DATA_PATH}/replays', exist_ok=True)
+        os.makedirs(f'{config.DATA_PATH}/avatars', exist_ok=True)
+        os.makedirs(f'{config.DATA_PATH}/images', exist_ok=True)
 
         if not os.listdir(f'{config.DATA_PATH}/avatars'):
             app.session.logger.info('Downloading avatars...')

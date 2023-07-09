@@ -33,4 +33,9 @@ MENUICON_URL = os.environ.get('MENUICON_URL')
 DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
 DATA_PATH = os.path.abspath('.data')
 
+MIN_SNAP_DISTANCE = int(os.environ.get('MIN_SNAP_DISTANCE', 8))
+MAX_SNAP_ANGLE = int(os.environ.get('MAX_SNAP_ANGLE', 10))
+MAX_FRAMETIME = int(os.environ.get('MAX_FRAMETIME', 13))
+MAX_UR = int(os.environ.get('MAX_UR', 50))
+
 VERSION = 'dev'

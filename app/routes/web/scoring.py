@@ -14,8 +14,10 @@ from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app.common.objects import DBStats, DBScore
+from app.services.anticheat import Anticheat
 from app.constants import Mod, Grade
 
+import threading
 import hashlib
 import base64
 import config
@@ -399,5 +401,13 @@ async def score_submission(
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
+
+    ac = Anticheat()
+
+    threading.Thread(
+        target=ac.perform_checks,
+        args=[score],
+        daemon=True
+    ).start()
 
     return Response('\n'.join([chart.get() for chart in response]))
