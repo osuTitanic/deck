@@ -410,7 +410,7 @@ async def score_submission(
 
     threading.Thread(
         target=ac.perform_checks,
-        args=[score],
+        args=[score, object.id],
         daemon=True
     ).start()
 
