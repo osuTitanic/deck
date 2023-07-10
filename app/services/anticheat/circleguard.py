@@ -15,7 +15,7 @@ class Anticheat:
         self.loader = Loader(None, write_to_cache=False)
         self.cg = Circleguard(None, loader=self.loader)
 
-    def perform_checks(self, score: Score, id: int):
+    def perform_checks(self, score: Score, score_id: int):
         replay = Replay(score)
 
         if not score.replay:
@@ -40,10 +40,12 @@ class Anticheat:
         if snaps:
             details.append(f'{len(snaps)} snaps')
 
+        # TODO: Autobans?
+
         if details:
             self.send_report(
                 player_id=score.user.id,
-                score_id=id,
+                score_id=score_id,
                 details='\n    '.join(details)
             )
 

@@ -201,24 +201,46 @@ class Score:
 
     @property
     def has_invalid_mods(self) -> bool:
+        if not self.enabled_mods:
+            # No mods are enabled
+            return False
+
+        # NOTE: There is a bug, where DT/NC, PF/SD are enabled at the same time.
+        # The same applies to Hidden/FadeIn
+
+        if self.check_mods(Mod.DoubleTime|Mod.Nightcore):
+            self.enabled_mods = self.enabled_mods & ~Mod.DoubleTime
+            return False
+
+        if self.check_mods(Mod.Perfect|Mod.SuddenDeath):
+            self.enabled_mods = self.enabled_mods & ~Mod.SuddenDeath
+            return False
+
+        if self.check_mods(Mod.FadeIn|Mod.Hidden):
+            self.enabled_mods = self.enabled_mods & ~Mod.FadeIn
+            return False
+
         if self.check_mods(Mod.Easy|Mod.HardRock):
             return True
+
         if self.check_mods(Mod.HalfTime|Mod.DoubleTime):
             return True
+
         if self.check_mods(Mod.HalfTime|Mod.Nightcore):
             return True
-        if self.check_mods(Mod.DoubleTime|Mod.Nightcore):
-            return True
+
         if self.check_mods(Mod.NoFail|Mod.SuddenDeath):
             return True
+
         if self.check_mods(Mod.NoFail|Mod.Perfect):
             return True
-        if self.check_mods(Mod.Perfect|Mod.SuddenDeath):
-            return True
+
         if self.check_mods(Mod.Relax|Mod.Autopilot):
             return True
+
         if self.check_mods(Mod.SpunOut|Mod.Autopilot):
             return True
+
         if self.check_mods(Mod.Autoplay):
             return True
 

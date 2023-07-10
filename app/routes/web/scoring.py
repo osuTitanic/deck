@@ -172,6 +172,10 @@ async def score_submission(
     if Mod.FreeModAllowed in score.enabled_mods:
         score.enabled_mods = score.enabled_mods & ~Mod.FreeModAllowed
 
+    # This fixes the keymods
+    if Mod.keyMod in score.enabled_mods:
+        score.enabled_mods = score.enabled_mods & ~Mod.keyMod
+
     # Submit to database
 
     object = score.to_database()
