@@ -32,14 +32,15 @@ class Anticheat:
         )
 
         if ur <= config.MAX_UR:
-            details.append(f'{ur} ur.')
+            details.append(f'{ur} unstable rate')
 
         if frametime <= config.MAX_FRAMETIME:
-            details.append(f'{frametime} avg frametime')
+            details.append(f'{frametime} average frametime')
 
         if snaps:
             details.append(f'{len(snaps)} snaps')
 
+        # TODO: Tscore check/comparison
         # TODO: Autobans?
 
         if details:

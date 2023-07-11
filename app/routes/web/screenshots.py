@@ -34,7 +34,7 @@ async def screenshot(
 
     return Response(str(id))
 
-@router.get('/osu-ss.php')
+@router.post('/osu-ss.php')
 async def monitor(
     screenshot: UploadFile = File(..., alias='ss'),
     user_id: int = Query(..., alias='u'),
