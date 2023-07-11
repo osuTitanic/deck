@@ -163,7 +163,7 @@ async def score_submission(
             type='restrict',
             data={
                 'user_id': score.user.id,
-                'reason': f'Submitted score with bad flags: {score.flags}'
+                'reason': f'Submitted score with bad flags ({score.flags.value})'
             }
         )
         return Response('error: ban')
