@@ -40,6 +40,7 @@ class Anticheat:
         if snaps:
             details.append(f'{len(snaps)} snaps')
 
+        # TODO: Tscore check/comparison
         # TODO: Autobans?
 
         if details:
