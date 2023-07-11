@@ -6,6 +6,7 @@ from .constants import Mod, Mode, Grade, ScoreStatus, BadFlags
 from .common.objects import DBScore, DBBeatmap, DBUser
 
 import hashlib
+import config
 import app
 
 class Chart(dict):
@@ -190,7 +191,11 @@ class Score:
         self._pp = 0.0
 
         score = self.to_database()
-        performance = app.services.performance.calculate_ppv2(score)
+
+        if config.USING_AKATSUKI_PP_SYSTEM:
+            performance = app.services.performance.ppv2_akatsuki.calculate_ppv2(score)
+        else:
+            performance = app.services.performance.calculate_ppv2(score)
 
         if performance is None:
             return 0.0
