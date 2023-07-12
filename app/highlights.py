@@ -45,7 +45,7 @@ def check_beatmap(
     player: DBUser,
     mode_name: str
 ):
-    if beatmap_rank < config.SCORE_RESPONSE_LIMIT:
+    if beatmap_rank > config.SCORE_RESPONSE_LIMIT:
         return
 
     send_message(
