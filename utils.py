@@ -3,7 +3,7 @@ from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime
 from typing import Optional
 
-from app.common.objects import DBScore
+from app.common.objects import DBScore, DBBeatmapset
 
 import hashlib
 import config
@@ -100,3 +100,35 @@ def submit_to_queue(type: str, data: dict):
         'bancho:queue',
         json.dumps({'type': type, 'data': data})
     )
+
+def online_beatmap(set: DBBeatmapset) -> str:
+    ratings = [r.rating for r in set.ratings]
+    avg_rating = sum(ratings) / len(ratings)
+
+    versions = ",".join(
+        [beatmap.version for beatmap in set.beatmaps]
+    )
+
+    return "|".join([
+        str(set.id), # .osz filename
+        set.artist,
+        set.title,
+        set.creator,
+        {
+            -2: "3",
+            -1: "3",
+            0: "3",
+            1: "1",
+            2: "2",
+            3: "1",
+            4: "2"
+        }[set.status],
+        avg_rating,
+        str(set.last_update),
+        str(set.id),
+        str(int(False)), # TODO: hasVideo
+        str(int(False)), # TODO: hasStoryboard,
+        str(0), # TODO: Filesize
+        versions,
+        str(set.id), # TODO: postId
+    ])
