@@ -49,7 +49,7 @@ def check_beatmap(
         return
 
     send_message(
-        f"{player.name} achieved rank #{beatmap_rank} on ({score.beatmap.full_name})[http://{config.DOMAIN_NAME}/b/{score.beatmap_id}] ({mode_name})"
+        f"{player.name} achieved rank #{beatmap_rank} on {score.beatmap.link} ({mode_name})"
     )
 
 def check(
