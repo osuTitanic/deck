@@ -103,7 +103,8 @@ def submit_to_queue(type: str, data: dict):
 
 def online_beatmap(set: DBBeatmapset) -> str:
     ratings = [r.rating for r in set.ratings]
-    avg_rating = sum(ratings) / len(ratings)
+    avg_rating = (sum(ratings) / len(ratings)) \
+                 if ratings else 0
 
     versions = ",".join(
         [beatmap.version for beatmap in set.beatmaps]
