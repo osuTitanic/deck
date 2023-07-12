@@ -388,7 +388,7 @@ async def score_submission(
     overallChart.entry('accuracy', round(old_stats.acc, 4), round(stats.acc, 4))
     overallChart.entry('playCount', old_stats.playcount, stats.playcount)
 
-    overallChart['onlineScoreId']  = object.id
+    overallChart['onlineScoreId']  = score_object.id
     overallChart['toNextRankUser'] = ''
     overallChart['toNextRank'] = '0'
 
@@ -426,7 +426,7 @@ async def score_submission(
 
     threading.Thread(
         target=ac.perform_checks,
-        args=[score, object.id],
+        args=[score, score_object.id],
         daemon=True
     ).start()
 
