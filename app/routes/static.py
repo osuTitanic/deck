@@ -17,7 +17,7 @@ def direct_cover(id: str):
     if not (image := app.session.storage.get_background(id)):
         return
 
-    return image
+    return Response(image)
 
 @router.get('/mp3/preview/{filename}')
 def mp3(filename: str):
@@ -26,7 +26,7 @@ def mp3(filename: str):
     if not (mp3 := app.session.storage.get_mp3(set_id)):
         return
 
-    return mp3
+    return Response(mp3)
 
 @router.get('/d/{id}')
 def osz(
