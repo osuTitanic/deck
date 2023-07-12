@@ -1,5 +1,6 @@
 
 from circleguard import Circleguard
+from sqlite3 import ProgrammingError
 
 from app.objects import Score
 
@@ -12,8 +13,11 @@ import app
 
 class Anticheat:
     def __init__(self) -> None:
-        self.loader = Loader(None, write_to_cache=False)
-        self.cg = Circleguard(None, loader=self.loader)
+        try:
+            self.loader = Loader(None, write_to_cache=False)
+            self.cg = Circleguard(None, loader=self.loader)
+        except ProgrammingError:
+            pass
 
     def perform_checks(self, score: Score, score_id: int):
         replay = Replay(score)
