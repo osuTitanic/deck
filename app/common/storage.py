@@ -141,6 +141,24 @@ class Storage:
 
         return osu
 
+    def get_background(self, id: str) -> Optional[bytes]:
+        if (image := self.get_from_cache(f'mt:{id}')):
+            return image
+
+        set_id = int(id.replace('l', ''))
+        large = 'l' in id
+
+        if not (image := self.api.background(set_id, large)):
+            return
+
+        self.save_to_cache(
+            name=f'mt:{id}',
+            content=image,
+            expiry=timedelta(hours=1)
+        )
+
+        return image
+
     def upload_avatar(self, id: int, content: bytes):
         if config.S3_ENABLED:
             self.save_to_s3(content, str(id), 'avatars')
