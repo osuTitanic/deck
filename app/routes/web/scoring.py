@@ -178,16 +178,16 @@ async def score_submission(
 
     # Submit to database
 
-    object = score.to_database()
-    object.client_hash = str(client_hash)
-    object.screenshot  = screenshot
-    object.processes   = processes
+    score_object = score.to_database()
+    score_object.client_hash = str(client_hash)
+    score_object.screenshot  = screenshot
+    score_object.processes   = processes
 
     if not config.ALLOW_RELAX and score.relaxing:
-        object.status = -1
+        score_object.status = -1
 
     instance = app.session.database.session
-    instance.add(object)
+    instance.add(score_object)
     instance.flush()
 
     # Upload replay
@@ -198,13 +198,13 @@ async def score_submission(
                 mods=score.enabled_mods.value,
                 beatmap_id=score.beatmap.id,
                 mode=score.play_mode.value,
-                score_id=object.id
+                score_id=score_object.id
             )
 
             if score.beatmap.is_ranked:
                 # Check if score is inside the leaderboards
                 if score_rank <= config.SCORE_RESPONSE_LIMIT:
-                    app.session.storage.upload_replay(object.id, replay)
+                    app.session.storage.upload_replay(score_object.id, replay)
 
     instance.commit()
 
@@ -346,7 +346,20 @@ async def score_submission(
         }
     )
 
-    # TODO: Send bot message on #highlight
+    beatmap_rank = app.session.database.score_index_by_id(
+        score_object.id,
+        score.beatmap.id,
+        mode=score.play_mode.value
+    )
+
+    if score.status == ScoreStatus.Best:
+        app.highlights.check(
+            score.user,
+            stats,
+            old_stats,
+            score_object,
+            beatmap_rank
+        )
 
     achievements = [] # TODO
 
@@ -366,7 +379,7 @@ async def score_submission(
     overallChart = Chart()
     overallChart['chartId'] = 'overall'
     overallChart['chartName'] = 'Overall Ranking'
-    overallChart['chartEndDate'] = '' # TODO
+    overallChart['chartEndDate'] = ''
     overallChart['achievements'] = ' '.join(achievements)
 
     overallChart.entry('rank', old_stats.rank, stats.rank)
@@ -380,14 +393,17 @@ async def score_submission(
     overallChart['toNextRank'] = '0'
 
     if score.beatmap.status > 0:
-        current_rank = app.session.database.score_index_by_id(object.id, score.beatmap.id, mode=score.play_mode.value)
-        old_rank     = app.session.database.score_index_by_id(score.personal_best.id, score.beatmap.id, mode=score.play_mode.value) \
-                       if score.personal_best else 0
+        old_rank = app.session.database.score_index_by_id(
+                    score.personal_best.id,
+                    score.beatmap.id,
+                    mode=score.play_mode.value
+                   ) \
+                if score.personal_best else 0
 
         overallChart.entry(
             'beatmapRanking',
             old_rank,
-            current_rank
+            beatmap_rank
         )
 
         score_above = app.session.database.score_above(
