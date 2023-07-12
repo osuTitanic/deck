@@ -19,13 +19,13 @@ A lot of the features are pretty much done for the most part:
 - [x] Replays
 - [x] Score Submission
 - [x] [Circleguard](https://github.com/circleguard) anticheat reports
+- [x] Bot messages on #highlight
 
 ## What is left to do?
 
 - [ ] Direct
 - [ ] Achievements
 - [ ] Client Updates
-- [ ] Bot messages on #highlight
 - [ ] Improved logging
 - [ ] Beatmap imports
 - [ ] Customized .osu files
