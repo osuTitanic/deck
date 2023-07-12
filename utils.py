@@ -127,6 +127,7 @@ def online_beatmap(set: DBBeatmapset) -> str:
         str(avg_rating),
         str(set.last_update),
         str(set.id),
+        str(set.id), # TODO: threadId
         str(int(False)), # TODO: hasVideo
         str(int(False)), # TODO: hasStoryboard,
         str(0), # TODO: Filesize
