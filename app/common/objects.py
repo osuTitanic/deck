@@ -323,6 +323,14 @@ class DBBeatmap(Base):
         return f'{self.beatmapset.artist} - {self.beatmapset.title} [{self.version}]'
 
     @property
+    def link(self):
+        name = self.full_name \
+                   .replace('(', '[') \
+                   .replace(')', ']')
+
+        return f'({name})[http://{config.DOMAIN_NAME}/b/{self.id}]'
+
+    @property
     def is_ranked(self) -> bool:
         return self.status > 0
 
