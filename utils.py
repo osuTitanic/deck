@@ -124,7 +124,7 @@ def online_beatmap(set: DBBeatmapset) -> str:
             3: "1",
             4: "2"
         }[set.status],
-        avg_rating,
+        str(avg_rating),
         str(set.last_update),
         str(set.id),
         str(int(False)), # TODO: hasVideo
