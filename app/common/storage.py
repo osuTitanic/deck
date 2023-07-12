@@ -159,6 +159,21 @@ class Storage:
 
         return image
 
+    def get_mp3(self, set_id: int) -> Optional[bytes]:
+        if (mp3 := self.get_from_cache(f'mp3:{set_id}')):
+            return mp3
+
+        if not (mp3 := self.api.preview(set_id)):
+            return
+
+        self.save_to_cache(
+            name=f'mp3:{set_id}',
+            content=mp3,
+            expiry=timedelta(hours=1)
+        )
+
+        return mp3
+
     def upload_avatar(self, id: int, content: bytes):
         if config.S3_ENABLED:
             self.save_to_s3(content, str(id), 'avatars')
