@@ -2,6 +2,10 @@
 from fastapi import APIRouter, Response, HTTPException, Query
 from typing import Optional
 
+import bcrypt
+import utils
+import app
+
 router = APIRouter()
 
 @router.get('/osu-search.php')
@@ -24,5 +28,30 @@ def pickup_info(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
 ):
-    # TODO
-    raise HTTPException(501)
+    if not (player := app.session.database.user_by_name(username)):
+        raise HTTPException(401)
+
+    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        raise HTTPException(401)
+
+    if topic_id:
+        # TODO
+        raise HTTPException(404)
+
+    if post_id:
+        # TODO
+        raise HTTPException(404)
+
+    if beatmap_id:
+        beatmap = app.session.database.beatmap_by_id(beatmap_id)
+        return utils.online_beatmap(beatmap.beatmapset)
+
+    if checksum:
+        beatmap = app.session.database.beatmap_by_checksum(checksum)
+        return utils.online_beatmap(beatmap.beatmapset)
+
+    if set_id:
+        set = app.session.database.set_by_id(set_id)
+        return utils.online_beatmap(set)
+
+    raise HTTPException(404)
