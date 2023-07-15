@@ -30,10 +30,10 @@ async def get_comments(
     target: Optional[str] = Form(None),
 ):
     if not (user := app.session.database.user_by_name(username)):
-        raise HTTPException(401)
+        raise HTTPException(401, detail="Auth")
 
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
-        raise HTTPException(401)
+        raise HTTPException(401, detail="Auth")
 
     if action == 'get':
         comments: List[DBComment] = []
@@ -45,11 +45,13 @@ async def get_comments(
 
         for comment in comments:
             comment_format = comment.format if comment.format != None else ""
+            comment_format = f'{comment_format}{f"|{comment.color}" if comment.color else ""}'
+
             response.append(
                 '\t'.join([
                     str(comment.time),
                     comment.target_type,
-                    f'{comment_format}{f"|{comment.color}" if comment.color else ""}',
+                    comment_format,
                     comment.comment
                 ])
             )
@@ -60,16 +62,16 @@ async def get_comments(
         try:
             target = CommentTarget(target)
         except ValueError:
-            raise HTTPException(400)
+            raise HTTPException(400, detail="Invalid target")
 
         if not (content):
-            raise HTTPException(400)
+            raise HTTPException(400, detail="No content")
 
         if len(content) > 80:
-            raise HTTPException(400)
+            raise HTTPException(400, detail="Content size")
 
         if not (beatmap := app.session.database.beatmap_by_id(beatmap_id)):
-            raise HTTPException(404)
+            raise HTTPException(404, detail="Beatmap not found")
 
         target_id = {
             CommentTarget.Replay: replay_id,
@@ -106,4 +108,4 @@ async def get_comments(
 
         return Response('ok')
 
-    raise HTTPException(400)
+    raise HTTPException(400, detail="Invalid action")
