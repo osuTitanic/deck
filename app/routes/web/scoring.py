@@ -362,6 +362,8 @@ async def score_submission(
             beatmap_rank
         )
 
+    # TODO: Update preferred mode
+
     achievements = [] # TODO
 
     response: List[Chart] = []
