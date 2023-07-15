@@ -118,8 +118,6 @@ class DBScore(Base):
         self.nKatu          = kwargs.get('nKatu')
         self.grade          = kwargs.get('grade')
         self.status         = kwargs.get('status')
-        self.replay         = kwargs.get('replay')
-        self.screenshot     = kwargs.get('screenshot')
         self.processes      = kwargs.get('processes')
         self.failtime       = kwargs.get('failtime')
         self.replay_md5     = kwargs.get('replay_md5')

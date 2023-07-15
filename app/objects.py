@@ -289,7 +289,6 @@ class Score:
             return ScoreStatus.Mods
 
         # New pb was set
-
         status = {'status': ScoreStatus.Submitted.value} \
                  if self.enabled_mods.value == self.personal_best.mods else \
                  {'status': ScoreStatus.Mods.value}
@@ -358,7 +357,6 @@ class Score:
             nKatu = self.cKatu,
             grade = self.grade.name,
             status = self.status.value,
-            replay = self.replay,
             failtime = self.failtime,
             replay_md5 = hashlib.md5(
                 self.replay
