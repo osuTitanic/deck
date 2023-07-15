@@ -30,6 +30,10 @@ A lot of the features are pretty much done for the most part:
 - [ ] Beatmap imports
 - [ ] Customized .osu files
 - [ ] API for frontend use
+- [ ] User Badges
+- [ ] Rank history
+- [ ] Play history
+- [ ] Replays watched history
 - [ ] (Monthly Charts)
 - [ ] (Beatmap Submission)
 
