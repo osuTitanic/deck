@@ -8,6 +8,7 @@ from threading import Timer
 
 from .objects import (
     DBRelationship,
+    DBRankHistory,
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
@@ -15,6 +16,7 @@ from .objects import (
     DBBeatmap,
     DBRating,
     DBScore,
+    DBStats,
     DBUser,
     DBPlay,
     DBLog,
@@ -23,6 +25,7 @@ from .objects import (
 
 import traceback
 import logging
+import app
 
 class Postgres:
     def __init__(self, username: str, password: str, host: str, port: int) -> None:
@@ -446,4 +449,26 @@ class Postgres:
                 .update({
                     'latest_activity': datetime.now()
                 })
+        instance.commit()
+
+    def update_rank_history(self, stats: DBStats):
+        country_rank = app.session.cache.get_country_rank(stats.user_id, stats.mode, stats.user.country)
+        global_rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+        score_rank = app.session.cache.get_score_rank(stats.user_id, stats.mode)
+
+        if global_rank <= 0:
+            return
+
+        instance = self.session
+        instance.add(
+            DBRankHistory(
+                stats.user_id,
+                stats.mode,
+                stats.rscore,
+                stats.pp,
+                global_rank,
+                country_rank,
+                score_rank
+            )
+        )
         instance.commit()
