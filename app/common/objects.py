@@ -441,6 +441,19 @@ class DBReplayHistory(Base):
 
     user = relationship('DBUser', back_populates='replay_history')
 
+    def __init__(
+        self,
+        user_id: int,
+        mode: int,
+        replay_views: int = 0,
+        time = datetime.now()
+    ) -> None:
+        self.replay_views = replay_views
+        self.user_id = user_id
+        self.year  = time.year
+        self.month = time.month
+        self.mode  = mode
+
 class DBUser(Base):
     __tablename__ = "users"
 

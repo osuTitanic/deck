@@ -7,6 +7,7 @@ from datetime import datetime
 from threading import Timer
 
 from .objects import (
+    DBReplayHistory,
     DBRelationship,
     DBRankHistory,
     DBPlayHistory,
@@ -491,6 +492,29 @@ class Postgres:
                     user_id,
                     mode,
                     plays=1,
+                    time=time
+                )
+            )
+
+        instance.commit()
+
+    def update_replay_history(self, user_id: int, mode: int, time = datetime.now()):
+        instance = self.session
+        updated = instance.query(DBReplayHistory) \
+                        .filter(DBReplayHistory.user_id == user_id) \
+                        .filter(DBReplayHistory.mode == mode) \
+                        .filter(DBReplayHistory.year == time.year) \
+                        .filter(DBReplayHistory.month == time.month) \
+                        .update({
+                            'replay_views': DBReplayHistory.replay_views + 1
+                        })
+
+        if not updated:
+            instance.add(
+                DBReplayHistory(
+                    user_id,
+                    mode,
+                    replay_views=1,
                     time=time
                 )
             )
