@@ -35,6 +35,8 @@ async def get_comments(
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
         raise HTTPException(401, detail="Auth")
 
+    app.session.database.update_latest_activity(user.id)
+
     if action == 'get':
         comments: List[DBComment] = []
         comments.extend(app.session.database.comments(replay_id, 'replay'))

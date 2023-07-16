@@ -20,6 +20,8 @@ def ratings(
     
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
         return Response('auth fail')
+
+    app.session.database.update_latest_activity(user.id)
     
     if not (beatmap := app.session.database.beatmap_by_checksum(beatmap_md5)):
         return Response('no exist')

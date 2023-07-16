@@ -29,6 +29,8 @@ def get_replay(
     if not app.session.cache.user_exists(player.id):
         raise HTTPException(401)
 
+    app.session.database.update_latest_activity(player.id)
+
     if not (score := app.session.database.score(score_id)):
         raise HTTPException(404)
 

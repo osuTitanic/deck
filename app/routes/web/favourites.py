@@ -22,7 +22,9 @@ def add_favourite(
     
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
-    
+
+    app.session.database.update_latest_activity(player.id)
+
     if not (beatmap_set := app.session.database.set_by_id(set_id)):
         raise HTTPException(404)
 
@@ -42,6 +44,8 @@ def get_favourites(
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
+
+    app.session.database.update_latest_activity(player.id)
 
     favourites = app.session.database.favourites(player.id)
 

@@ -84,6 +84,8 @@ async def score_submission(
         # Client will resend the request
         return Response('')
 
+    app.session.database.update_latest_activity(player.id)
+
     if score.passed:
         # Check for replay
 
