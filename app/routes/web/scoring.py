@@ -349,6 +349,8 @@ async def score_submission(
         }
     )
 
+    app.session.database.update_rank_history(stats)
+
     beatmap_rank = app.session.database.score_index_by_id(
         score_object.id,
         score.beatmap.id,
