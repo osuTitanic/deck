@@ -404,7 +404,7 @@ class DBRankHistory(Base):
         self.global_rank = global_rank
         self.country_rank = country_rank
         self.score_rank = score_rank
-
+        self.time = datetime.now()
 
 class DBPlayHistory(Base):
     __tablename__ = "profile_play_history"
