@@ -29,17 +29,14 @@ def get_replay(
     if not app.session.cache.user_exists(player.id):
         raise HTTPException(401)
 
+    app.session.database.update_latest_activity(player.id)
+
     if not (score := app.session.database.score(score_id)):
         raise HTTPException(404)
 
-    instance = app.session.database.session
-    instance.query(DBStats) \
-            .filter(DBStats.user_id == player.id) \
-            .filter(DBStats.mode == mode) \
-            .update({
-                'replay_views': DBStats.replay_views + 1
-            })
-    instance.commit()
+    if player.id != score.user.id:
+        app.session.database.update_replay_views(score.user.id, mode)
+        app.session.database.update_replay_history(score.user.id, mode)
 
     if score.status <= 0:
         # Score is hidden

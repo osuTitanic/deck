@@ -56,6 +56,8 @@ def get_scores(
     if not app.session.cache.user_exists(player.id):
         raise HTTPException(401)
 
+    app.session.database.update_latest_activity(player.id)
+
     if not (beatmap := app.session.database.beatmap_by_file(beatmap_file)):
         return Response('-1|false')
 

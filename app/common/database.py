@@ -3,10 +3,14 @@ from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy     import create_engine, func, or_
 
 from typing import Optional, Generator, List
+from datetime import datetime
 from threading import Timer
 
 from .objects import (
+    DBReplayHistory,
     DBRelationship,
+    DBRankHistory,
+    DBPlayHistory,
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
@@ -14,6 +18,7 @@ from .objects import (
     DBBeatmap,
     DBRating,
     DBScore,
+    DBStats,
     DBUser,
     DBPlay,
     DBLog,
@@ -22,6 +27,7 @@ from .objects import (
 
 import traceback
 import logging
+import app
 
 class Postgres:
     def __init__(self, username: str, password: str, host: str, port: int) -> None:
@@ -52,7 +58,7 @@ class Postgres:
             self.logger.critical(f'Transaction failed: "{e}". Performing rollback...')
             session.rollback()
         finally:
-            Timer(10, session.close).start()
+            Timer(15, session.close).start()
 
     def user_by_name(self, name: str) -> Optional[DBUser]:
         return self.session.query(DBUser) \
@@ -434,6 +440,93 @@ class Postgres:
                 beatmap_id,
                 beatmap_file,
                 set_id
+            )
+
+        instance.commit()
+
+    def update_replay_views(self, user_id: int, mode: int):
+        instance = app.session.database.session
+        instance.query(DBStats) \
+                .filter(DBStats.user_id == user_id) \
+                .filter(DBStats.mode == mode) \
+                .update({
+                    'replay_views': DBStats.replay_views + 1
+                })
+        instance.commit()
+
+    def update_latest_activity(self, user_id: int):
+        instance = self.session
+        instance.query(DBUser) \
+                .filter(DBUser.id == user_id) \
+                .update({
+                    'latest_activity': datetime.now()
+                })
+        instance.commit()
+
+    def update_rank_history(self, stats: DBStats):
+        country_rank = app.session.cache.get_country_rank(stats.user_id, stats.mode, stats.user.country)
+        global_rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+        score_rank = app.session.cache.get_score_rank(stats.user_id, stats.mode)
+
+        if global_rank <= 0:
+            return
+
+        instance = self.session
+        instance.add(
+            DBRankHistory(
+                stats.user_id,
+                stats.mode,
+                stats.rscore,
+                stats.pp,
+                global_rank,
+                country_rank,
+                score_rank
+            )
+        )
+        instance.commit()
+
+    def update_plays_history(self, user_id: int, mode: int, time = datetime.now()):
+        instance = self.session
+        updated = instance.query(DBPlayHistory) \
+                        .filter(DBPlayHistory.user_id == user_id) \
+                        .filter(DBPlayHistory.mode == mode) \
+                        .filter(DBPlayHistory.year == time.year) \
+                        .filter(DBPlayHistory.month == time.month) \
+                        .update({
+                            'plays': DBPlayHistory.plays + 1
+                        })
+
+        if not updated:
+            instance.add(
+                DBPlayHistory(
+                    user_id,
+                    mode,
+                    plays=1,
+                    time=time
+                )
+            )
+
+        instance.commit()
+
+    def update_replay_history(self, user_id: int, mode: int, time = datetime.now()):
+        instance = self.session
+        updated = instance.query(DBReplayHistory) \
+                        .filter(DBReplayHistory.user_id == user_id) \
+                        .filter(DBReplayHistory.mode == mode) \
+                        .filter(DBReplayHistory.year == time.year) \
+                        .filter(DBReplayHistory.month == time.month) \
+                        .update({
+                            'replay_views': DBReplayHistory.replay_views + 1
+                        })
+
+        if not updated:
+            instance.add(
+                DBReplayHistory(
+                    user_id,
+                    mode,
+                    replay_views=1,
+                    time=time
+                )
             )
 
         instance.commit()

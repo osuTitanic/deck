@@ -84,6 +84,8 @@ async def score_submission(
         # Client will resend the request
         return Response('')
 
+    app.session.database.update_latest_activity(player.id)
+
     if score.passed:
         # Check for replay
 
@@ -233,6 +235,11 @@ async def score_submission(
 
     instance.commit()
 
+    app.session.database.update_plays_history(
+        stats.user_id,
+        stats.mode
+    )
+
     app.session.database.update_plays(
         score.beatmap.id,
         score.beatmap.filename,
@@ -288,33 +295,37 @@ async def score_submission(
             if score.max_combo > max_combo_score.max_combo:
                 stats.max_combo = score.max_combo
 
-    # Update accuracy
+    if score_count > 0:
+        # Update accuracy
 
-    total_acc = 0
-    divide_total = 0
+        total_acc = 0
+        divide_total = 0
 
-    for index, s in enumerate(top_scores):
-        add = 0.95 ** index
-        total_acc    += s.acc * add
-        divide_total += add
+        for index, s in enumerate(top_scores):
+            add = 0.95 ** index
+            total_acc    += s.acc * add
+            divide_total += add
 
-    if divide_total != 0:
-        stats.acc = total_acc / divide_total
-    else:
-        stats.acc = 0.0
+        if divide_total != 0:
+            stats.acc = total_acc / divide_total
+        else:
+            stats.acc = 0.0
 
-    # Update performance
+        # Update performance
 
-    weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
-    bonus_pp = 416.6667 * (1 - 0.9994**score_count)
+        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
+        bonus_pp = 416.6667 * (1 - 0.9994**score_count)
 
-    stats.pp = weighted_pp + bonus_pp
+        stats.pp = weighted_pp + bonus_pp
 
-    app.session.cache.update_leaderboards(stats)
+        app.session.cache.update_leaderboards(stats)
 
-    stats.rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+        stats.rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
 
-    instance.commit()
+        instance.commit()
+
+        if score.passed:
+            app.session.database.update_rank_history(stats)
 
     # Update grades
 
@@ -360,6 +371,8 @@ async def score_submission(
             score_object,
             beatmap_rank
         )
+
+    # TODO: Update preferred mode
 
     achievements = [] # TODO
 
