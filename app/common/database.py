@@ -1,10 +1,11 @@
 
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy     import create_engine, func, or_
+from sqlalchemy.exc import ResourceClosedError
 
 from typing import Optional, Generator, List
+from threading import Timer, Thread
 from datetime import datetime
-from threading import Timer
 
 from .objects import (
     DBReplayHistory,
@@ -58,7 +59,21 @@ class Postgres:
             self.logger.critical(f'Transaction failed: "{e}". Performing rollback...')
             session.rollback()
         finally:
-            Timer(15, session.close).start()
+            Timer(
+                interval=15,
+                function=self.close_session,
+                args=[session]
+            ).start()
+
+    def close_session(self, session: Session) -> None:
+        try:
+            session.close()
+        except AttributeError:
+            pass
+        except ResourceClosedError:
+            pass
+        except Exception as exc:
+            self.logger.error(f'Failed to close session: {exc}')
 
     def user_by_name(self, name: str) -> Optional[DBUser]:
         return self.session.query(DBUser) \
