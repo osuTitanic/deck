@@ -444,6 +444,16 @@ class Postgres:
 
         instance.commit()
 
+    def update_replay_views(self, user_id: int, mode: int):
+        instance = app.session.database.session
+        instance.query(DBStats) \
+                .filter(DBStats.user_id == user_id) \
+                .filter(DBStats.mode == mode) \
+                .update({
+                    'replay_views': DBStats.replay_views + 1
+                })
+        instance.commit()
+
     def update_latest_activity(self, user_id: int):
         instance = self.session
         instance.query(DBUser) \
