@@ -338,6 +338,16 @@ class DBBeatmap(Base):
             return self.status > 0
         return self.status == 1
 
+class DBName(Base):
+    __tablename__ = "name_history"
+
+    id         = Column('id', Integer, primary_key=True, autoincrement=True)
+    user_id    = Column('user_id', Integer, ForeignKey('users.id'))
+    changed_at = Column('changed_at', DateTime, default=datetime.now())
+    name       = Column('name', String)
+
+    user = relationship('DBUser', back_populates='names')
+
 class DBUser(Base):
     __tablename__ = "users"
 
@@ -366,4 +376,5 @@ class DBUser(Base):
     ratings       = relationship('DBRating', back_populates='user')
     scores        = relationship('DBScore', back_populates='user')
     stats         = relationship('DBStats', back_populates='user')
+    names         = relationship('DBName', back_populates='user')
     plays         = relationship('DBPlay', back_populates='user')
