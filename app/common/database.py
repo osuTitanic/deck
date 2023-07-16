@@ -9,6 +9,7 @@ from threading import Timer
 from .objects import (
     DBRelationship,
     DBRankHistory,
+    DBPlayHistory,
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
@@ -471,4 +472,28 @@ class Postgres:
                 score_rank
             )
         )
+        instance.commit()
+
+    def update_plays_history(self, user_id: int, mode: int):
+        date = datetime.now()
+
+        instance = self.session
+        updated = instance.query(DBPlayHistory) \
+                        .filter(DBPlayHistory.user_id == user_id) \
+                        .filter(DBPlayHistory.mode == mode) \
+                        .filter(DBPlayHistory.year == date.year) \
+                        .filter(DBPlayHistory.month == date.month) \
+                        .update({
+                            'plays': DBPlayHistory.plays + 1
+                        })
+
+        if not updated:
+            instance.add(
+                DBPlayHistory(
+                    user_id,
+                    mode,
+                    plays=1
+                )
+            )
+
         instance.commit()
