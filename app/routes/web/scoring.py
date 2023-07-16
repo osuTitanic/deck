@@ -319,6 +319,9 @@ async def score_submission(
 
         instance.commit()
 
+        if score.passed:
+            app.session.database.update_rank_history(stats)
+
     # Update grades
 
     if grade:
@@ -348,8 +351,6 @@ async def score_submission(
             'user_id': score.user.id
         }
     )
-
-    app.session.database.update_rank_history(stats)
 
     beatmap_rank = app.session.database.score_index_by_id(
         score_object.id,
