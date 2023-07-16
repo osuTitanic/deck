@@ -470,6 +470,13 @@ class Postgres:
         instance.commit()
 
     def update_latest_activity(self, user_id: int):
+        Thread(
+            target=self.__update_latest_activity,
+            args=[user_id],
+            daemon=True
+        ).start()
+
+    def __update_latest_activity(self, user_id: int):
         instance = self.session
         instance.query(DBUser) \
                 .filter(DBUser.id == user_id) \
