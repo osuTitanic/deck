@@ -57,7 +57,7 @@ class Postgres:
             self.logger.critical(f'Transaction failed: "{e}". Performing rollback...')
             session.rollback()
         finally:
-            Timer(10, session.close).start()
+            Timer(15, session.close).start()
 
     def user_by_name(self, name: str) -> Optional[DBUser]:
         return self.session.query(DBUser) \
@@ -474,15 +474,13 @@ class Postgres:
         )
         instance.commit()
 
-    def update_plays_history(self, user_id: int, mode: int):
-        date = datetime.now()
-
+    def update_plays_history(self, user_id: int, mode: int, time = datetime.now()):
         instance = self.session
         updated = instance.query(DBPlayHistory) \
                         .filter(DBPlayHistory.user_id == user_id) \
                         .filter(DBPlayHistory.mode == mode) \
-                        .filter(DBPlayHistory.year == date.year) \
-                        .filter(DBPlayHistory.month == date.month) \
+                        .filter(DBPlayHistory.year == time.year) \
+                        .filter(DBPlayHistory.month == time.month) \
                         .update({
                             'plays': DBPlayHistory.plays + 1
                         })
@@ -492,7 +490,8 @@ class Postgres:
                 DBPlayHistory(
                     user_id,
                     mode,
-                    plays=1
+                    plays=1,
+                    time=time
                 )
             )
 
