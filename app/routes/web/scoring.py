@@ -235,6 +235,11 @@ async def score_submission(
 
     instance.commit()
 
+    app.session.database.update_plays_history(
+        stats.user_id,
+        stats.mode
+    )
+
     app.session.database.update_plays(
         score.beatmap.id,
         score.beatmap.filename,
