@@ -35,7 +35,8 @@ def get_replay(
         raise HTTPException(404)
 
     if player.id != score.user.id:
-        app.session.database.update_replay_views(player.id, mode)
+        app.session.database.update_replay_views(score.user.id, mode)
+        app.session.database.update_replay_history(score.user.id, mode)
 
     if score.status <= 0:
         # Score is hidden
