@@ -16,6 +16,7 @@ from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app.common.objects import DBStats, DBScore
 from app.services.anticheat import Anticheat
 from app.constants import Mod, Grade
+from app import achievements
 
 import threading
 import hashlib
@@ -374,9 +375,17 @@ async def score_submission(
 
     # TODO: Update preferred mode
 
-    achievements = [] # TODO
-
+    achievement_response: List[str] = []
     response: List[Chart] = []
+
+    if score.passed and not score.relaxing:
+        unlocked_achievements = app.session.database.achievements(player.id)
+        ignore_list = [a.filename for a in unlocked_achievements]
+
+        new_achievements = achievements.check(score_object, ignore_list)
+        achievement_response = [a.filename for a in new_achievements]
+
+        app.session.database.add_achievements(new_achievements, player.id)
 
     beatmapInfo = Chart()
     beatmapInfo['beatmapId'] = score.beatmap.id
@@ -393,7 +402,7 @@ async def score_submission(
     overallChart['chartId'] = 'overall'
     overallChart['chartName'] = 'Overall Ranking'
     overallChart['chartEndDate'] = ''
-    overallChart['achievements'] = ' '.join(achievements)
+    overallChart['achievements'] = ' '.join(achievement_response)
 
     overallChart.entry('rank', old_stats.rank, stats.rank)
     overallChart.entry('rankedScore', old_stats.rscore, stats.rscore)
