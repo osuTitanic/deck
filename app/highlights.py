@@ -9,7 +9,7 @@ def send_message(message: str):
         type='bot_message',
         data={
             'message': message,
-            'target': '#highlight'
+            'target': '#announce'
         }
     )
 
@@ -80,5 +80,4 @@ def check(
         mode_name
     )
 
-    # TODO: Achievements
     # TODO: PP Record?
