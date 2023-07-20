@@ -29,9 +29,15 @@ class DBAchievement(Base):
     name        = Column('name', String, primary_key=True)
     category    = Column('category', String)
     filename    = Column('filename', String)
-    unlocked_at = Column('unlocked_at', DateTime)
+    unlocked_at = Column('unlocked_at', DateTime, server_default=func.now())
 
     user = relationship('DBUser', back_populates='achievements')
+
+    def __init__(self, user_id: int, name: str, category: str, filename: str) -> None:
+        self.category = category
+        self.filename = filename
+        self.user_id = user_id
+        self.name = name
 
 class DBStats(Base):
     __tablename__ = "stats"
@@ -338,6 +344,10 @@ class DBBeatmap(Base):
         if config.APPROVED_MAP_REWARDS:
             return self.status > 0
         return self.status == 1
+
+    @property
+    def approved(self) -> bool:
+        return self.status == 2
 
 class DBBadge(Base):
     __tablename__ = "profile_badges"
