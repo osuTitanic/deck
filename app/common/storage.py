@@ -141,6 +141,12 @@ class Storage:
 
         return osu
 
+    def get_achievement(self, filename: str) -> Optional[bytes]:
+        if config.S3_ENABLED:
+            return self.get_from_s3(f'images/achievements/{filename}', 'assets')
+
+        return self.get_file_content(f'/images/achievements/{filename}')
+
     def upload_avatar(self, id: int, content: bytes):
         if config.S3_ENABLED:
             self.save_to_s3(content, str(id), 'avatars')
