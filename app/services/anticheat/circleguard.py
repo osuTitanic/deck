@@ -16,7 +16,7 @@ class Anticheat:
         try:
             self.loader = Loader(None, write_to_cache=False)
             self.cg = Circleguard(None, loader=self.loader)
-        except ProgrammingError:
+        except:
             pass
 
     def perform_checks(self, score: Score, score_id: int):
