@@ -491,5 +491,6 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
             new_achievements.append(achievement)
 
             app.session.logger.info(f'Player {score.user} unlocked achievement: {achievement.name}')
+            app.highlights.send_message(f'{score.user.name} unlocked an achievement: {achievement.name}')
 
     return new_achievements
