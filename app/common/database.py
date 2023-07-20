@@ -3,6 +3,8 @@ from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy     import create_engine, func, or_
 from sqlalchemy.exc import ResourceClosedError
 
+from app.achievements import Achievement
+
 from typing import Optional, Generator, List
 from threading import Timer, Thread
 from datetime import datetime
@@ -12,6 +14,7 @@ from .objects import (
     DBRelationship,
     DBRankHistory,
     DBPlayHistory,
+    DBAchievement,
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
@@ -111,6 +114,17 @@ class Postgres:
                 .filter(DBComment.target_type == type) \
                 .order_by(DBComment.time.asc()) \
                 .all()
+
+    def user_stats(self, user_id: int) -> List[DBStats]:
+        return self.session.query(DBStats) \
+                .filter(DBStats.user_id == user_id) \
+                .all()
+
+    def user_stats_by_mode(self, user_id: int, mode: int):
+        return self.session.query(DBStats) \
+                .filter(DBStats.user_id == user_id) \
+                .filter(DBStats.mode == mode) \
+                .first()
 
     def ratings(self, beatmap_hash) -> List[int]:
         return [
@@ -338,10 +352,38 @@ class Postgres:
                            .order_by(DBScore.total_score.asc()) \
                            .first()
 
+    def recent_scores(self, user_id: int, mode: int, limit: int = 3) -> List[DBScore]:
+        return self.session.query(DBScore) \
+                    .filter(DBScore.user_id == user_id) \
+                    .filter(DBScore.mode == mode) \
+                    .order_by(DBScore.id.desc()) \
+                    .limit(limit) \
+                    .all()
+
     def relationships(self, user_id: int) -> List[DBRelationship]:
         return self.session.query(DBRelationship) \
                 .filter(DBRelationship.user_id == user_id) \
                 .all()
+
+    def achievements(self, user_id: int) -> List[DBAchievement]:
+        return self.session.query(DBAchievement) \
+                .filter(DBAchievement.user_id == user_id) \
+                .all()
+
+    def add_achievements(self, achievements: List[Achievement], user_id: int):
+        instance = self.session
+
+        for a in achievements:
+            instance.add(
+                DBAchievement(
+                    user_id,
+                    a.name,
+                    a.category,
+                    a.filename
+                )
+            )
+
+        instance.commit()
 
     def submit_favourite(self, user_id: int, set_id: int):
         instance = self.session
