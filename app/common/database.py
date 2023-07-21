@@ -1,12 +1,20 @@
 
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy     import create_engine, func, or_
+from sqlalchemy.exc import ResourceClosedError
+
+from app.achievements import Achievement
 
 from typing import Optional, Generator, List
-from threading import Timer
+from threading import Timer, Thread
+from datetime import datetime
 
 from .objects import (
+    DBReplayHistory,
     DBRelationship,
+    DBRankHistory,
+    DBPlayHistory,
+    DBAchievement,
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
@@ -14,6 +22,7 @@ from .objects import (
     DBBeatmap,
     DBRating,
     DBScore,
+    DBStats,
     DBUser,
     DBPlay,
     DBLog,
@@ -22,6 +31,7 @@ from .objects import (
 
 import traceback
 import logging
+import app
 
 class Postgres:
     def __init__(self, username: str, password: str, host: str, port: int) -> None:
@@ -52,7 +62,21 @@ class Postgres:
             self.logger.critical(f'Transaction failed: "{e}". Performing rollback...')
             session.rollback()
         finally:
-            Timer(10, session.close).start()
+            Timer(
+                interval=15,
+                function=self.close_session,
+                args=[session]
+            ).start()
+
+    def close_session(self, session: Session) -> None:
+        try:
+            session.close()
+        except AttributeError:
+            pass
+        except ResourceClosedError:
+            pass
+        except Exception as exc:
+            self.logger.error(f'Failed to close session: {exc}')
 
     def user_by_name(self, name: str) -> Optional[DBUser]:
         return self.session.query(DBUser) \
@@ -90,6 +114,17 @@ class Postgres:
                 .filter(DBComment.target_type == type) \
                 .order_by(DBComment.time.asc()) \
                 .all()
+
+    def user_stats(self, user_id: int) -> List[DBStats]:
+        return self.session.query(DBStats) \
+                .filter(DBStats.user_id == user_id) \
+                .all()
+
+    def user_stats_by_mode(self, user_id: int, mode: int):
+        return self.session.query(DBStats) \
+                .filter(DBStats.user_id == user_id) \
+                .filter(DBStats.mode == mode) \
+                .first()
 
     def ratings(self, beatmap_hash) -> List[int]:
         return [
@@ -317,10 +352,38 @@ class Postgres:
                            .order_by(DBScore.total_score.asc()) \
                            .first()
 
+    def recent_scores(self, user_id: int, mode: int, limit: int = 3) -> List[DBScore]:
+        return self.session.query(DBScore) \
+                    .filter(DBScore.user_id == user_id) \
+                    .filter(DBScore.mode == mode) \
+                    .order_by(DBScore.id.desc()) \
+                    .limit(limit) \
+                    .all()
+
     def relationships(self, user_id: int) -> List[DBRelationship]:
         return self.session.query(DBRelationship) \
                 .filter(DBRelationship.user_id == user_id) \
                 .all()
+
+    def achievements(self, user_id: int) -> List[DBAchievement]:
+        return self.session.query(DBAchievement) \
+                .filter(DBAchievement.user_id == user_id) \
+                .all()
+
+    def add_achievements(self, achievements: List[Achievement], user_id: int):
+        instance = self.session
+
+        for a in achievements:
+            instance.add(
+                DBAchievement(
+                    user_id,
+                    a.name,
+                    a.category,
+                    a.filename
+                )
+            )
+
+        instance.commit()
 
     def submit_favourite(self, user_id: int, set_id: int):
         instance = self.session
@@ -434,6 +497,100 @@ class Postgres:
                 beatmap_id,
                 beatmap_file,
                 set_id
+            )
+
+        instance.commit()
+
+    def update_replay_views(self, user_id: int, mode: int):
+        instance = app.session.database.session
+        instance.query(DBStats) \
+                .filter(DBStats.user_id == user_id) \
+                .filter(DBStats.mode == mode) \
+                .update({
+                    'replay_views': DBStats.replay_views + 1
+                })
+        instance.commit()
+
+    def update_latest_activity(self, user_id: int):
+        Thread(
+            target=self.__update_latest_activity,
+            args=[user_id],
+            daemon=True
+        ).start()
+
+    def __update_latest_activity(self, user_id: int):
+        instance = self.session
+        instance.query(DBUser) \
+                .filter(DBUser.id == user_id) \
+                .update({
+                    'latest_activity': datetime.now()
+                })
+        instance.commit()
+
+    def update_rank_history(self, stats: DBStats):
+        country_rank = app.session.cache.get_country_rank(stats.user_id, stats.mode, stats.user.country)
+        global_rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+        score_rank = app.session.cache.get_score_rank(stats.user_id, stats.mode)
+
+        if global_rank <= 0:
+            return
+
+        instance = self.session
+        instance.add(
+            DBRankHistory(
+                stats.user_id,
+                stats.mode,
+                stats.rscore,
+                stats.pp,
+                global_rank,
+                country_rank,
+                score_rank
+            )
+        )
+        instance.commit()
+
+    def update_plays_history(self, user_id: int, mode: int, time = datetime.now()):
+        instance = self.session
+        updated = instance.query(DBPlayHistory) \
+                        .filter(DBPlayHistory.user_id == user_id) \
+                        .filter(DBPlayHistory.mode == mode) \
+                        .filter(DBPlayHistory.year == time.year) \
+                        .filter(DBPlayHistory.month == time.month) \
+                        .update({
+                            'plays': DBPlayHistory.plays + 1
+                        })
+
+        if not updated:
+            instance.add(
+                DBPlayHistory(
+                    user_id,
+                    mode,
+                    plays=1,
+                    time=time
+                )
+            )
+
+        instance.commit()
+
+    def update_replay_history(self, user_id: int, mode: int, time = datetime.now()):
+        instance = self.session
+        updated = instance.query(DBReplayHistory) \
+                        .filter(DBReplayHistory.user_id == user_id) \
+                        .filter(DBReplayHistory.mode == mode) \
+                        .filter(DBReplayHistory.year == time.year) \
+                        .filter(DBReplayHistory.month == time.month) \
+                        .update({
+                            'replay_views': DBReplayHistory.replay_views + 1
+                        })
+
+        if not updated:
+            instance.add(
+                DBReplayHistory(
+                    user_id,
+                    mode,
+                    replay_views=1,
+                    time=time
+                )
             )
 
         instance.commit()

@@ -35,6 +35,8 @@ def osu_error(
         f'  Stacktrace:\n    {stacktrace}'
     ]))
 
-    # TODO: Submit to database?
+    # TODO: Better formatting
+    # TODO: Submit to database
+    # TODO: Exceptions to #admin
 
     return Response('ok')

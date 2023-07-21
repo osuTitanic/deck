@@ -55,7 +55,7 @@ class Beatmaps:
 
             if not response.ok:
                 self.log_error(response.url, response.status_code)
-                raise ValueError
+                return
 
         if not response.content:
             return

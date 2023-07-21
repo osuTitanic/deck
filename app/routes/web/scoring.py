@@ -16,6 +16,7 @@ from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app.common.objects import DBStats, DBScore
 from app.services.anticheat import Anticheat
 from app.constants import Mod, Grade
+from app import achievements
 
 import threading
 import hashlib
@@ -83,6 +84,8 @@ async def score_submission(
     if not app.session.cache.user_exists(player.id):
         # Client will resend the request
         return Response('')
+
+    app.session.database.update_latest_activity(player.id)
 
     if score.passed:
         # Check for replay
@@ -233,6 +236,11 @@ async def score_submission(
 
     instance.commit()
 
+    app.session.database.update_plays_history(
+        stats.user_id,
+        stats.mode
+    )
+
     app.session.database.update_plays(
         score.beatmap.id,
         score.beatmap.filename,
@@ -317,6 +325,9 @@ async def score_submission(
 
         instance.commit()
 
+        if score.passed:
+            app.session.database.update_rank_history(stats)
+
     # Update grades
 
     if grade:
@@ -362,9 +373,19 @@ async def score_submission(
             beatmap_rank
         )
 
-    achievements = [] # TODO
+    # TODO: Update preferred mode
 
+    achievement_response: List[str] = []
     response: List[Chart] = []
+
+    if score.passed and not score.relaxing:
+        unlocked_achievements = app.session.database.achievements(player.id)
+        ignore_list = [a.filename for a in unlocked_achievements]
+
+        new_achievements = achievements.check(score_object, ignore_list)
+        achievement_response = [a.filename for a in new_achievements]
+
+        app.session.database.add_achievements(new_achievements, player.id)
 
     beatmapInfo = Chart()
     beatmapInfo['beatmapId'] = score.beatmap.id
@@ -381,7 +402,7 @@ async def score_submission(
     overallChart['chartId'] = 'overall'
     overallChart['chartName'] = 'Overall Ranking'
     overallChart['chartEndDate'] = ''
-    overallChart['achievements'] = ' '.join(achievements)
+    overallChart['achievements'] = ' '.join(achievement_response)
 
     overallChart.entry('rank', old_stats.rank, stats.rank)
     overallChart.entry('rankedScore', old_stats.rscore, stats.rscore)

@@ -28,6 +28,8 @@ async def screenshot(
     if not app.session.cache.user_exists(player.id):
         raise HTTPException(401)
 
+    app.session.database.update_latest_activity(player.id)
+
     id = app.session.database.submit_screenshot(player.id, False)
 
     app.session.storage.upload_screenshot(id, await screenshot.read())
