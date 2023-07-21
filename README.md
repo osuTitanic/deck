@@ -22,27 +22,4 @@ A lot of the features are pretty much done for the most part:
 - [x] Bot messages on #announce
 - [x] Rank/Plays/Replays history
 
-## What is left to do?
-
-- [ ] Direct
-- [ ] Achievements
-- [ ] Client Updates
-- [ ] Improved logging
-- [ ] Beatmap imports
-- [ ] Customized .osu files
-- [ ] API for frontend use
-- [ ] (Monthly Charts)
-- [ ] (Beatmap Submission)
-
-and probably a lot more stuff.
-
-#### About osu!direct
-
-For osu!direct to work properly, I need to make some changes to the database
-so that beatmaps include attributes like:
-- osz_filesize
-- has_storyboard
-- query_string
-
-The query string will be important for searching, which is maybe not the best practice, but it works.
-I also want to create a beatmap scraper that can automatically add beatmaps to a database.
+You can view the todo's [here](https://github.com/users/Lekuruu/projects/2).
