@@ -45,6 +45,10 @@ def check_beatmap(
     player: DBUser,
     mode_name: str
 ):
+    if score.status != 3:
+        # Score is not on the leaderboards
+        return
+
     if beatmap_rank > config.SCORE_RESPONSE_LIMIT:
         return
 

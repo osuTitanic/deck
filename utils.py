@@ -245,3 +245,11 @@ def online_beatmap(set: DBBeatmapset) -> str:
         versions,
         str(set.id), # TODO: postId
     ])
+def has_jpeg_headers(data_view: memoryview) -> bool:
+    return data_view[:4] == b"\xff\xd8\xff\xe0" and data_view[6:11] == b"JFIF\x00"
+
+def has_png_headers(data_view: memoryview) -> bool:
+    return (
+        data_view[:8] == b"\x89PNG\r\n\x1a\n"
+        and data_view[-8] == b"\x49END\xae\x42\x60\x82"
+    )

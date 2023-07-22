@@ -9,6 +9,7 @@ from fastapi import (
 )
 
 import bcrypt
+import utils
 import app
 
 router = APIRouter()
@@ -28,11 +29,28 @@ async def screenshot(
     if not app.session.cache.user_exists(player.id):
         raise HTTPException(401)
 
-    app.session.database.update_latest_activity(player.id)
+    screenshot_content = await screenshot.read()
 
-    id = app.session.database.submit_screenshot(player.id, False)
+    with memoryview(screenshot_content) as screenshot_view:
+        if len(screenshot_view) > (4 * 1024 * 1024):
+            raise HTTPException(
+                status_code=404,
+                detail="Screenshot file too large"
+            )
 
-    app.session.storage.upload_screenshot(id, await screenshot.read())
+        if not utils.has_jpeg_headers(screenshot_view) \
+        and not utils.has_png_headers(screenshot_view):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type"
+            )
+
+        app.session.database.update_latest_activity(player.id)
+
+        id = app.session.database.submit_screenshot(player.id, hidden=False)
+
+        app.session.storage.upload_screenshot(id, screenshot_content)
+        app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
 
     return Response(str(id))
 
@@ -51,8 +69,27 @@ async def monitor(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
-    id = app.session.database.submit_screenshot(player.id, True)
+    screenshot_content = await screenshot.read()
 
-    app.session.storage.upload_screenshot(id, await screenshot.read())
+    with memoryview(screenshot_content) as screenshot_view:
+        if len(screenshot_view) > (4 * 1024 * 1024):
+            raise HTTPException(
+                status_code=404,
+                detail="Screenshot file too large."
+            )
+
+        if not utils.has_jpeg_headers(screenshot_view) \
+        and not utils.has_png_headers(screenshot_view):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type"
+            )
+
+        app.session.database.update_latest_activity(player.id)
+
+        id = app.session.database.submit_screenshot(player.id, hidden=True)
+
+        app.session.storage.upload_screenshot(id, screenshot_content)
+        app.session.logger.info(f'{player.name} uploaded a hidden screenshot ({id})')
 
     return Response('ok')
