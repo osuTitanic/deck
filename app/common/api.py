@@ -19,10 +19,10 @@ class Beatmaps:
     def log_error(self, url: str, status_code: int) -> None:
         self.logger.error(f'Error while sending request to "{url}" ({status_code})')
 
-    def osz(self, set_id: int) -> Optional[Iterator[bytes]]:
+    def osz(self, set_id: int, no_video: bool = False) -> Optional[Iterator[bytes]]:
         self.logger.debug(f'Downloading osz... ({set_id})')
 
-        response = self.session.get(f'https://osu.direct/api/d/{set_id}', stream=True)
+        response = self.session.get(f'https://osu.direct/d/{set_id}{"?noVideo" if no_video else ""}', stream=True)
 
         if not response.ok:
             self.log_error(response.url, response.status_code)

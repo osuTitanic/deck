@@ -43,7 +43,7 @@ def osz(
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
-    if not (osz := app.session.storage.api.osz(set_id)):
+    if not (osz := app.session.storage.api.osz(set_id, no_video)):
         return
 
     return StreamingResponse(osz)
