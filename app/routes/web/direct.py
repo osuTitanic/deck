@@ -34,6 +34,9 @@ def pickup_info(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
+    if not player.is_supporter:
+        raise HTTPException(401)
+
     if topic_id:
         # TODO
         raise HTTPException(404)
