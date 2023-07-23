@@ -254,3 +254,40 @@ def has_png_headers(data_view: memoryview) -> bool:
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8] == b"\x49END\xae\x42\x60\x82"
     )
+
+def get_osz_size(set_id: int, no_video: bool = False) -> int:
+    r = app.session.requests.head(f'https://osu.direct/d/{set_id}{"noVideo" if no_video else ""}')
+
+    if not r.ok:
+        app.session.logger.error(
+            f"Failed to get osz size: {r.status_code}"
+        )
+        return 0
+
+    if not (filesize := r.headers.get('content-length')):
+        app.session.logger.error(
+            "Failed to get osz size: content-length header missing"
+        )
+        return 0
+
+    return int(filesize)
+
+def update_osz_filesize(set_id: int, has_video: bool = False):
+    updates = {}
+
+    if has_video:
+        updates['osz_filesize_novideo'] = get_osz_size(
+            set_id,
+            no_video=True
+        )
+
+    updates['osz_filesize'] = get_osz_size(
+        set_id,
+        no_video=False
+    )
+
+    instance = app.session.database.session
+    instance.query(DBBeatmapset) \
+            .filter(DBBeatmapset.id == set_id) \
+            .update(updates)
+    instance.commit()
