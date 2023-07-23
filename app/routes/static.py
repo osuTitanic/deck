@@ -57,6 +57,7 @@ def osz(
             .update({
                 f'osz_filesize{"_novideo" if no_video else ""}': filesize
             })
+        instance.commit()
 
     return StreamingResponse(osz)
 
