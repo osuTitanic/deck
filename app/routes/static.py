@@ -48,4 +48,11 @@ def osz(
 
     return StreamingResponse(osz)
 
+@router.get('/images/achievements/{filename}')
+def achievement_image(filename: str):
+    if not (image := app.session.storage.get_achievement(filename)):
+        raise HTTPException(404)
+
+    return Response(image)
+
 # TODO: Move to seperate server
