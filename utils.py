@@ -239,12 +239,13 @@ def online_beatmap(set: DBBeatmapset) -> str:
         str(set.last_update),
         str(set.id),
         str(set.id), # TODO: threadId
-        str(int(False)), # TODO: hasVideo
-        str(int(False)), # TODO: hasStoryboard,
-        str(0), # TODO: Filesize
+        str(int(set.has_video)),
+        str(int(set.has_storyboard)),
+        f"{set.osz_filesize}{f'|{set.osz_filesize_novideo}' if set.has_video else ''}",
         versions,
         str(set.id), # TODO: postId
     ])
+
 def has_jpeg_headers(data_view: memoryview) -> bool:
     return data_view[:4] == b"\xff\xd8\xff\xe0" and data_view[6:11] == b"JFIF\x00"
 
