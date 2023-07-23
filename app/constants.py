@@ -107,3 +107,10 @@ class BadFlags(IntFlag):
 	SpinnerHack                 = 512
 	TransparentWindow           = 1024
 	FastPress                   = 2048
+
+class DisplayMode(Enum):
+    Ranked    = 0
+    Pending   = 2
+    All       = 4
+    Graveyard = 5
+    Played    = 7
