@@ -36,6 +36,8 @@ def search(
     response = []
 
     try:
+        # This searching algorythm is really bad, but
+        # it works for now at least...
         results = app.session.database.search(
             query,
             player.id,
