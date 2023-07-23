@@ -43,15 +43,22 @@ def pickup_info(
         raise HTTPException(404)
 
     if beatmap_id:
-        beatmap = app.session.database.beatmap_by_id(beatmap_id)
-        return utils.online_beatmap(beatmap.beatmapset)
+        beatmapset = app.session.database.beatmap_by_id(beatmap_id).beatmapset
 
     if checksum:
-        beatmap = app.session.database.beatmap_by_checksum(checksum)
-        return utils.online_beatmap(beatmap.beatmapset)
+        beatmapset = app.session.database.beatmap_by_checksum(checksum).beatmapset
 
     if set_id:
-        set = app.session.database.set_by_id(set_id)
-        return utils.online_beatmap(set)
+        beatmapset = app.session.database.set_by_id(set_id)
 
-    raise HTTPException(404)
+    if not beatmapset:
+        raise HTTPException(404)
+
+    if not beatmapset.osz_filesize:
+        utils.update_osz_filesize(
+            beatmapset.id, 
+            beatmapset.has_video
+        )
+
+    return utils.online_beatmap(beatmapset)
+
