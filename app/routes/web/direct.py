@@ -49,7 +49,6 @@ def search(
         ))
 
         for set in results:
-            utils.update_osz_filesize(set.id, set.has_video)
             response.append(utils.online_beatmap(set))
     except Exception as e:
         app.session.logger.error(f'Failed to execute search: {e}')
