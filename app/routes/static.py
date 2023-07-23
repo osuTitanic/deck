@@ -55,7 +55,8 @@ def osz(
         instance.query(DBBeatmapset) \
             .filter(DBBeatmapset.id == set_id) \
             .update({
-                f'osz_filesize{"_novideo" if no_video else ""}': filesize
+                f'osz_filesize{"_novideo" if no_video else ""}': filesize,
+                'available': True
             })
         instance.commit()
 
