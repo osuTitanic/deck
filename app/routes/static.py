@@ -7,6 +7,8 @@ from fastapi import (
     Query
 )
 
+from app.common.objects import DBBeatmapset
+
 import bcrypt
 import app
 
@@ -43,8 +45,18 @@ def osz(
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
-    if not (osz := app.session.storage.api.osz(set_id, no_video)):
+    if not (response := app.session.storage.api.osz(set_id, no_video)):
         return
+
+    osz = response.iter_content(1024)
+
+    if filesize := response.headers.get('Content-Length'):
+        instance = app.session.database.session
+        instance.query(DBBeatmapset) \
+            .filter(DBBeatmapset.id == set_id) \
+            .update({
+                f'osz_filesize{"_novideo" if no_video else ""}': filesize
+            })
 
     return StreamingResponse(osz)
 
