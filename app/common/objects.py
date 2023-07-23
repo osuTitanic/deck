@@ -19,6 +19,7 @@ from sqlalchemy import (
 )
 
 import config
+import app
 
 Base = declarative_base()
 
@@ -505,3 +506,33 @@ class DBUser(Base):
     badges         = relationship('DBBadge', back_populates='user')
     names          = relationship('DBName', back_populates='user')
     plays          = relationship('DBPlay', back_populates='user')
+
+    @property
+    def is_supporter(self) -> bool:
+        if config.FREE_SUPPORTER:
+            return True
+
+        if self.remaining_supporter > 0:
+            return True
+        else:
+            # Remove supporter
+            self.supporter_end = None
+            self.permissions -= 4
+
+            # Update database
+            instance = app.session.database.session
+            instance.query(DBUser) \
+                    .filter(DBUser.id == self.id) \
+                    .update({
+                        'supporter_end': None,
+                        'permissions': self.permissions
+                    })
+            instance.commit()
+
+        return False
+
+    @property
+    def remaining_supporter(self):
+        if self.supporter_end:
+            return self.supporter_end.timestamp() - datetime.now().timestamp()
+        return 0
