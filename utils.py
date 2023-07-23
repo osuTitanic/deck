@@ -218,7 +218,7 @@ def online_beatmap(set: DBBeatmapset) -> str:
                  if ratings else 0
 
     versions = ",".join(
-        [beatmap.version for beatmap in set.beatmaps]
+        [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
     )
 
     status = {
@@ -233,9 +233,9 @@ def online_beatmap(set: DBBeatmapset) -> str:
 
     return "|".join([
         str(set.id), # .osz filename
-        set.artist,
-        set.title,
-        set.creator,
+        set.artist  if set.artist else "",
+        set.title   if set.title else "",
+        set.creator if set.creator else "",
         status,
         str(avg_rating),
         str(set.last_update),
