@@ -163,15 +163,17 @@ async def score_submission(
             f'"{score.username}" submitted score with bad flags: {score.flags}.'
         )
 
-        # This has proven to be not a good idea...
-        # utils.submit_to_queue(
-        #     type='restrict',
-        #     data={
-        #         'user_id': score.user.id,
-        #         'reason': f'Submitted score with bad flags ({score.flags.value})'
-        #     }
-        # )
-        # return Response('error: ban')
+        # The "SpeedHackDetected" flag can be a false positive
+        # especially on pc's with a lot of lag
+        if score.flags > 2:
+            utils.submit_to_queue(
+                type='restrict',
+                data={
+                    'user_id': score.user.id,
+                    'reason': f'Submitted score with bad flags ({score.flags.value})'
+                }
+            )
+            return Response('error: ban')
 
     # What is FreeModAllowed?
     if Mod.FreeModAllowed in score.enabled_mods:
