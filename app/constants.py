@@ -113,3 +113,7 @@ class AnticheatFlags(IntFlag):
     UR        = 1
     Frametime = 2
     Snaps     = 4
+
+    @property
+    def description(self) -> str:
+        return '|'.join([flag.name for flag in self])
