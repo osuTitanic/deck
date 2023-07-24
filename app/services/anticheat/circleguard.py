@@ -78,13 +78,7 @@ class Anticheat:
 
         app.session.logger.warning(message)
 
-        utils.submit_to_queue(
-            type='bot_message',
-            data={
-                'message': message,
-                'target': '#admin'
-            }
-        )
+        utils.bot_message(message, '#admin')
 
         app.session.database.submit_log(
             message,
