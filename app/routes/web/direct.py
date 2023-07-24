@@ -85,10 +85,12 @@ def pickup_info(
         raise HTTPException(404)
 
     if beatmap_id:
-        beatmapset = app.session.database.beatmap_by_id(beatmap_id).beatmapset
+        beatmap = app.session.database.beatmap_by_id(beatmap_id)
+        beatmapset = beatmap.beatmapset if beatmap else None
 
     if checksum:
-        beatmapset = app.session.database.beatmap_by_checksum(checksum).beatmapset
+        beatmap = app.session.database.beatmap_by_checksum(checksum)
+        beatmapset = beatmap.beatmapset if beatmap else None
 
     if set_id:
         beatmapset = app.session.database.set_by_id(set_id)
