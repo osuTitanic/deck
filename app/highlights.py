@@ -1,14 +1,22 @@
 
 from app.common.objects import DBStats, DBUser, DBScore
 
+from typing import List, Tuple
+
 import config
 import utils
 
-def send_message(message: str):
+def submit(message: str, *args: List[Tuple[str, str]]):
+    irc_args = [
+        f'[{a[0].replace("(", "[").replace(")", "]")}]({a[1]})'
+        for a in args
+    ]
+    irc_message = message.format(irc_args)
+
     utils.submit_to_queue(
         type='bot_message',
         data={
-            'message': message,
+            'message': irc_message,
             'target': '#announce'
         }
     )
@@ -29,14 +37,16 @@ def check_rank(
 
     if stats.rank >= 10:
         # Player has risen to the top 10
-        send_message(
-            f"{player.name} has risen {ranks_gained} ranks, now placed #{stats.rank} overall in {mode_name}."
+        submit(
+            '{} ' + f"has risen {ranks_gained} ranks, now placed #{stats.rank} overall in {mode_name}.",
+            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
         )
 
     if stats.rank == 1:
         # Player is now #1
-        send_message(
-            f"{player.name} has taken the lead as the top-ranked {mode_name} player."
+        submit(
+            '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
+            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
         )
 
 def check_beatmap(
@@ -52,8 +62,10 @@ def check_beatmap(
     if beatmap_rank > config.SCORE_RESPONSE_LIMIT:
         return
 
-    send_message(
-        f"{player.name} achieved rank #{beatmap_rank} on {score.beatmap.link} ({mode_name})"
+    submit(
+        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'({mode_name})',
+        (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+        (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
     )
 
 def check(
