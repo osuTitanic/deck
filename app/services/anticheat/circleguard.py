@@ -1,7 +1,8 @@
 
-from circleguard import Circleguard
-from sqlite3 import ProgrammingError
+from circleguard import Circleguard, JudgmentType
 
+from app.constants import AnticheatFlags
+from app.common.objects import DBScore
 from app.objects import Score
 
 from .replay import Replay
@@ -22,48 +23,58 @@ class Anticheat:
     def perform_checks(self, score: Score, score_id: int):
         replay = Replay(score)
 
-        if not score.replay:
-            return
+        flags = AnticheatFlags.Clean
 
-        details = []
-
-        ur = self.cg.ur(replay)
         frametime = self.cg.frametime(replay)
+        judgements = self.cg.judgments(replay)
+        ur = self.cg.ur(replay)
         snaps = self.cg.snaps(
             replay,
             config.MAX_SNAP_ANGLE,
             config.MIN_SNAP_DISTANCE
         )
 
+        hits = [
+            sum([j.type.value for j in judgements if j.type == JudgmentType.Miss]),
+            sum([j.type.value for j in judgements if j.type == JudgmentType.Hit300]),
+            sum([j.type.value for j in judgements if j.type == JudgmentType.Hit100]),
+            sum([j.type.value for j in judgements if j.type == JudgmentType.Hit50])
+        ]
+
+        score_hits = [
+            score.cMiss,
+            score.c300,
+            score.c100,
+            score.c50
+        ]
+
+        if hits != score_hits:
+            flags = flags|AnticheatFlags.ScoreMismatch
+
         if ur <= config.MAX_UR:
-            details.append(f'{ur} unstable rate')
+            flags = flags|AnticheatFlags.UR
 
         if frametime <= config.MAX_FRAMETIME:
-            details.append(f'{frametime} average frametime')
+            flags = flags|AnticheatFlags.Frametime
 
         if snaps:
-            details.append(f'{len(snaps)} snaps')
+            flags = flags|AnticheatFlags.Snaps
 
-        # TODO: Tscore check/comparison
-        # TODO: Autobans?
+        # TODO: total score check
 
-        if details:
+        if flags:
             self.send_report(
                 player_id=score.user.id,
                 score_id=score_id,
-                details='\n    '.join(details)
+                flags=flags
             )
 
-    def send_report(self, player_id: int, score_id: int, details: str):
+    def send_report(self, player_id: int, score_id: int, flags: AnticheatFlags):
         player = app.session.database.user_by_id(player_id)
+        score = app.session.database.score(score_id)
 
-        message = '\n'.join((
-             'Circleguard Anticheat Report:',
-            f'  Player: {player.name if player else None} ({player_id})',
-            f'  Score: {score_id}',
-             '  Details:',
-             '    '
-        )) + details
+        message = f'Player "{player.name}" submitted score on {score.beatmap.link} ({score_id}):\n'
+        message += f'Anticheat detected {flags.description}.'
 
         app.session.logger.warning(message)
 
@@ -80,3 +91,10 @@ class Anticheat:
             'warning',
             'anticheat'
         )
+
+        instance = app.session.database.session
+        instance.query(DBScore) \
+                .filter(DBScore.id == score_id) \
+                .update({
+                    'ac_flags': flags.value
+                })
