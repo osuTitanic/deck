@@ -381,6 +381,13 @@ class DBActivity(Base):
 
     user = relationship('DBUser', back_populates='activity')
 
+    def __init__(self, user_id: int, mode: int, activity_text: str, activity_args: str, activity_links: str) -> None:
+        self.user_id = user_id
+        self.mode = mode
+        self.activity_links = activity_links
+        self.activity_text = activity_text
+        self.activity_args = activity_args
+
 class DBName(Base):
     __tablename__ = "name_history"
 

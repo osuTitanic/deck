@@ -19,6 +19,7 @@ from .objects import (
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
+    DBActivity,
     DBComment,
     DBBeatmap,
     DBRating,
@@ -507,6 +508,19 @@ class Postgres:
         instance.commit()
 
         return ss.id
+
+    def submit_activity(self, user_id: int, mode: int, text: str, args: str, links: str):
+        instance = self.session
+        instance.add(
+            DBActivity(
+                user_id,
+                mode,
+                text,
+                args,
+                links
+            )
+        )
+        instance.commit()
 
     def create_plays(self, user_id: int, beatmap_id: int, beatmap_file: str, set_id: int) -> DBPlay:
         instance = self.session
