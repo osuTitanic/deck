@@ -109,10 +109,11 @@ class BadFlags(IntFlag):
 	FastPress                   = 2048
 
 class AnticheatFlags(IntFlag):
-    Clean     = 0
-    UR        = 1
-    Frametime = 2
-    Snaps     = 4
+    Clean         = 0
+    UR            = 1
+    Frametime     = 2
+    Snaps         = 4
+    ScoreMismatch = 8
 
     @property
     def description(self) -> str:
