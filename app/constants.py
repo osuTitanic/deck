@@ -114,3 +114,13 @@ class DisplayMode(Enum):
     All       = 4
     Graveyard = 5
     Played    = 7
+class AnticheatFlags(IntFlag):
+    Clean         = 0
+    UR            = 1
+    Frametime     = 2
+    Snaps         = 4
+    ScoreMismatch = 8
+
+    @property
+    def description(self) -> str:
+        return '|'.join([flag.name for flag in self])
