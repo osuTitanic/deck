@@ -112,4 +112,4 @@ class AnticheatFlags(IntFlag):
     Clean     = 0
     UR        = 1
     Frametime = 2
-    Snaps     = 3
+    Snaps     = 4
