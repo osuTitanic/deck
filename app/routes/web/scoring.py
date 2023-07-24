@@ -162,14 +162,16 @@ async def score_submission(
         app.session.logger.warning(
             f'"{score.username}" submitted score with bad flags: {score.flags}.'
         )
-        utils.submit_to_queue(
-            type='restrict',
-            data={
-                'user_id': score.user.id,
-                'reason': f'Submitted score with bad flags ({score.flags.value})'
-            }
-        )
-        return Response('error: ban')
+
+        # This has proven to be not a good idea...
+        # utils.submit_to_queue(
+        #     type='restrict',
+        #     data={
+        #         'user_id': score.user.id,
+        #         'reason': f'Submitted score with bad flags ({score.flags.value})'
+        #     }
+        # )
+        # return Response('error: ban')
 
     # What is FreeModAllowed?
     if Mod.FreeModAllowed in score.enabled_mods:
