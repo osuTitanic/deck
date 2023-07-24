@@ -107,3 +107,14 @@ class BadFlags(IntFlag):
 	SpinnerHack                 = 512
 	TransparentWindow           = 1024
 	FastPress                   = 2048
+
+class AnticheatFlags(IntFlag):
+    Clean         = 0
+    UR            = 1
+    Frametime     = 2
+    Snaps         = 4
+    ScoreMismatch = 8
+
+    @property
+    def description(self) -> str:
+        return '|'.join([flag.name for flag in self])

@@ -162,14 +162,18 @@ async def score_submission(
         app.session.logger.warning(
             f'"{score.username}" submitted score with bad flags: {score.flags}.'
         )
-        utils.submit_to_queue(
-            type='restrict',
-            data={
-                'user_id': score.user.id,
-                'reason': f'Submitted score with bad flags ({score.flags.value})'
-            }
-        )
-        return Response('error: ban')
+
+        # The "SpeedHackDetected" flag can be a false positive
+        # especially on pc's with a lot of lag
+        if score.flags > 2:
+            utils.submit_to_queue(
+                type='restrict',
+                data={
+                    'user_id': score.user.id,
+                    'reason': f'Submitted score with bad flags ({score.flags.value})'
+                }
+            )
+            return Response('error: ban')
 
     # What is FreeModAllowed?
     if Mod.FreeModAllowed in score.enabled_mods:
@@ -185,6 +189,7 @@ async def score_submission(
     score_object.client_hash = str(client_hash)
     score_object.screenshot  = screenshot
     score_object.processes   = processes
+    score_object.bad_flags   = score.flags
 
     if not config.ALLOW_RELAX and score.relaxing:
         score_object.status = -1
