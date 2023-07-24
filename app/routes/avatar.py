@@ -22,3 +22,5 @@ def avatar(user_id: int):
         return default_avatar()
 
     return Response(image)
+
+# TODO: Move to seperate server

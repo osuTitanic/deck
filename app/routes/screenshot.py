@@ -19,3 +19,5 @@ def get_screenshot(id: int):
         raise HTTPException(404)
 
     return Response(image)
+
+# TODO: Move to seperate server

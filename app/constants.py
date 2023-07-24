@@ -108,6 +108,12 @@ class BadFlags(IntFlag):
 	TransparentWindow           = 1024
 	FastPress                   = 2048
 
+class DisplayMode(Enum):
+    Ranked    = 0
+    Pending   = 2
+    All       = 4
+    Graveyard = 5
+    Played    = 7
 class AnticheatFlags(IntFlag):
     Clean         = 0
     UR            = 1

@@ -34,19 +34,19 @@ class Anticheat:
             config.MIN_SNAP_DISTANCE
         )
 
-        hits = [
+        hits = sum([
             sum([j.type.value for j in judgements if j.type == JudgmentType.Miss]),
             sum([j.type.value for j in judgements if j.type == JudgmentType.Hit300]),
             sum([j.type.value for j in judgements if j.type == JudgmentType.Hit100]),
             sum([j.type.value for j in judgements if j.type == JudgmentType.Hit50])
-        ]
+        ])
 
-        score_hits = [
+        score_hits = sum([
             score.cMiss,
             score.c300,
             score.c100,
             score.c50
-        ]
+        ])
 
         if hits != score_hits:
             flags = flags|AnticheatFlags.ScoreMismatch

@@ -3,7 +3,7 @@ from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime
 from typing import Optional
 
-from app.common.objects import DBScore
+from app.common.objects import DBScore, DBBeatmapset
 
 import hashlib
 import config
@@ -212,6 +212,42 @@ def submit_to_queue(type: str, data: dict):
         json.dumps({'type': type, 'data': data})
     )
 
+def online_beatmap(set: DBBeatmapset) -> str:
+    ratings = [r.rating for r in set.ratings]
+    avg_rating = (sum(ratings) / len(ratings)) \
+                 if ratings else 0
+
+    versions = ",".join(
+        [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
+    )
+
+    status = {
+        -2: "3",
+        -1: "3",
+        0: "3",
+        1: "1",
+        2: "2",
+        3: "1",
+        4: "2"
+    }[set.status]
+
+    return "|".join([
+        str(set.id), # .osz filename
+        set.artist  if set.artist else "",
+        set.title   if set.title else "",
+        set.creator if set.creator else "",
+        status,
+        str(avg_rating),
+        str(set.last_update),
+        str(set.id),
+        str(set.id), # TODO: threadId
+        str(int(set.has_video)),
+        str(int(set.has_storyboard)),
+        f"{set.osz_filesize}{f'|{set.osz_filesize_novideo}' if set.has_video else ''}",
+        versions,
+        str(set.id), # TODO: postId
+    ])
+
 def bot_message(message: str, target: str):
     submit_to_queue(
         'bot_message',
@@ -229,3 +265,40 @@ def has_png_headers(data_view: memoryview) -> bool:
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8] == b"\x49END\xae\x42\x60\x82"
     )
+
+def get_osz_size(set_id: int, no_video: bool = False) -> int:
+    r = app.session.requests.head(f'https://osu.direct/d/{set_id}{"noVideo=" if no_video else ""}')
+
+    if not r.ok:
+        app.session.logger.error(
+            f"Failed to get osz size: {r.status_code}"
+        )
+        return 0
+
+    if not (filesize := r.headers.get('content-length')):
+        app.session.logger.error(
+            "Failed to get osz size: content-length header missing"
+        )
+        return 0
+
+    return int(filesize)
+
+def update_osz_filesize(set_id: int, has_video: bool = False):
+    updates = {}
+
+    if has_video:
+        updates['osz_filesize_novideo'] = get_osz_size(
+            set_id,
+            no_video=True
+        )
+
+    updates['osz_filesize'] = get_osz_size(
+        set_id,
+        no_video=False
+    )
+
+    instance = app.session.database.session
+    instance.query(DBBeatmapset) \
+            .filter(DBBeatmapset.id == set_id) \
+            .update(updates)
+    instance.commit()
