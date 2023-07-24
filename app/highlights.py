@@ -5,8 +5,9 @@ from typing import List, Tuple
 
 import config
 import utils
+import app
 
-def submit(message: str, *args: List[Tuple[str, str]]):
+def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str, str]]):
     irc_args = [
         f'[{a[0].replace("(", "[").replace(")", "]")}]({a[1]})'
         for a in args
@@ -19,6 +20,14 @@ def submit(message: str, *args: List[Tuple[str, str]]):
             'message': irc_message,
             'target': '#announce'
         }
+    )
+
+    app.session.database.submit_activity(
+        user_id,
+        mode,
+        message,
+        '||'.join([a[0] for a in args]),
+        '||'.join([a[1] for a in args])
     )
 
 def check_rank(
@@ -38,6 +47,8 @@ def check_rank(
     if stats.rank >= 10:
         # Player has risen to the top 10
         submit(
+            player.id,
+            stats.mode,
             '{} ' + f"has risen {ranks_gained} ranks, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
         )
@@ -45,6 +56,8 @@ def check_rank(
     if stats.rank == 1:
         # Player is now #1
         submit(
+            player.id,
+            stats.mode,
             '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
             (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
         )
@@ -63,6 +76,8 @@ def check_beatmap(
         return
 
     submit(
+        player.id,
+        score.mode,
         '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'({mode_name})',
         (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
         (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
