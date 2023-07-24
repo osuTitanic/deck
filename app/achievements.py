@@ -5,6 +5,7 @@ from typing import List, Callable
 from app.common.objects import DBScore
 from app.constants import Mod
 
+import config
 import app
 
 # I found some infos on the old achievements online:
@@ -491,6 +492,11 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
             new_achievements.append(achievement)
 
             app.session.logger.info(f'Player {score.user} unlocked achievement: {achievement.name}')
-            app.highlights.send_message(f'{score.user.name} unlocked an achievement: {achievement.name}')
+            app.highlights.submit(
+                score.user_id,
+                score.mode,
+                '{}' + f' unlocked an achievement: {achievement.name}',
+                (score.user.name, f'http://{config.DOMAIN_NAME}/u/{score.user_id}')
+            )
 
     return new_achievements
