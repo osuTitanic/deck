@@ -189,6 +189,7 @@ async def score_submission(
     score_object.client_hash = str(client_hash)
     score_object.screenshot  = screenshot
     score_object.processes   = processes
+    score_object.bad_flags   = score.flags
 
     if not config.ALLOW_RELAX and score.relaxing:
         score_object.status = -1
