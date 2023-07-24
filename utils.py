@@ -212,6 +212,15 @@ def submit_to_queue(type: str, data: dict):
         json.dumps({'type': type, 'data': data})
     )
 
+def bot_message(message: str, target: str):
+    submit_to_queue(
+        'bot_message',
+        {
+            'message': message,
+            'target': target
+        }
+    )
+
 def has_jpeg_headers(data_view: memoryview) -> bool:
     return data_view[:4] == b"\xff\xd8\xff\xe0" and data_view[6:11] == b"JFIF\x00"
 
