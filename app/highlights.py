@@ -3,24 +3,31 @@ from app.common.objects import DBStats, DBUser, DBScore
 
 from typing import List, Tuple
 
+import traceback
 import config
 import utils
 import app
 
-def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str, str]]):
-    irc_args = [
-        f'[{a[0].replace("(", "[").replace(")", "]")}]({a[1]})'
-        for a in args
-    ]
-    irc_message = message.format(irc_args)
+def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]]):
+    try:
+        irc_args = [
+            f'[{a[0].replace("(", "[").replace(")", "]")}]({a[1]})'
+            for a in args
+        ]
+        irc_message = message.format(*irc_args)
 
-    utils.submit_to_queue(
-        type='bot_message',
-        data={
-            'message': irc_message,
-            'target': '#announce'
-        }
-    )
+        utils.submit_to_queue(
+            type='bot_message',
+            data={
+                'message': irc_message,
+                'target': '#announce'
+            }
+        )
+    except Exception as e:
+        traceback.print_exc()
+        app.session.logger.error(
+            f'Failed to submit highlight message: {e}'
+        )
 
     app.session.database.submit_activity(
         user_id,
