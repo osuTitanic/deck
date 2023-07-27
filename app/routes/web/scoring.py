@@ -449,12 +449,13 @@ async def score_submission(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
 
-    ac = Anticheat()
+    if config.CIRCLEGUARD_ENABLED:
+        ac = Anticheat()
 
-    threading.Thread(
-        target=ac.perform_checks,
-        args=[score, score_object.id],
-        daemon=True
-    ).start()
+        threading.Thread(
+            target=ac.perform_checks,
+            args=[score, score_object.id],
+            daemon=True
+        ).start()
 
     return Response('\n'.join([chart.get() for chart in response]))
