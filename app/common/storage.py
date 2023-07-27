@@ -141,6 +141,38 @@ class Storage:
 
         return osu
 
+    def get_background(self, id: str) -> Optional[bytes]:
+        if (image := self.get_from_cache(f'mt:{id}')):
+            return image
+
+        set_id = int(id.replace('l', ''))
+        large = 'l' in id
+
+        if not (image := self.api.background(set_id, large)):
+            return
+
+        self.save_to_cache(
+            name=f'mt:{id}',
+            content=image,
+            expiry=timedelta(hours=1)
+        )
+
+        return image
+
+    def get_mp3(self, set_id: int) -> Optional[bytes]:
+        if (mp3 := self.get_from_cache(f'mp3:{set_id}')):
+            return mp3
+
+        if not (mp3 := self.api.preview(set_id)):
+            return
+
+        self.save_to_cache(
+            name=f'mp3:{set_id}',
+            content=mp3,
+            expiry=timedelta(hours=1)
+        )
+
+        return mp3
     def get_achievement(self, filename: str) -> Optional[bytes]:
         if config.S3_ENABLED:
             return self.get_from_s3(f'images/achievements/{filename}', 'assets')

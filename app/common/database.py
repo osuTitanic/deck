@@ -4,6 +4,7 @@ from sqlalchemy     import create_engine, func, or_
 from sqlalchemy.exc import ResourceClosedError
 
 from app.achievements import Achievement
+from app.constants import DisplayMode
 
 from typing import Optional, Generator, List
 from threading import Timer, Thread
@@ -18,6 +19,7 @@ from .objects import (
     DBBeatmapset,
     DBScreenshot,
     DBFavourite,
+    DBActivity,
     DBComment,
     DBBeatmap,
     DBRating,
@@ -63,7 +65,7 @@ class Postgres:
             session.rollback()
         finally:
             Timer(
-                interval=15,
+                interval=60,
                 function=self.close_session,
                 args=[session]
             ).start()
@@ -370,6 +372,45 @@ class Postgres:
                 .filter(DBAchievement.user_id == user_id) \
                 .all()
 
+    def search(
+        self, 
+        query_string: str, 
+        user_id: int, 
+        display_mode = DisplayMode.All
+    ) -> List[DBBeatmapset]:
+        query = self.session.query(DBBeatmapset)
+
+        if display_mode == DisplayMode.Ranked:
+            query = query.filter(DBBeatmapset.status == 1)
+        
+        elif display_mode == DisplayMode.Pending:
+            query = query.filter(DBBeatmapset.status == 0)
+
+        elif display_mode == DisplayMode.Graveyard:
+            query = query.filter(DBBeatmapset.status == -1)
+        
+        elif display_mode == DisplayMode.Played:
+            query = query.join(DBPlay) \
+                         .filter(DBPlay.user_id == user_id)
+
+        if query_string == 'Newest':
+            query = query.order_by(DBBeatmapset.created_at.desc())
+        
+        elif query_string == 'Top Rated':
+            query = query.join(DBRating) \
+                         .group_by(DBBeatmapset.id) \
+                         .order_by(func.avg(DBRating.rating).desc())
+
+        elif query_string == 'Most Played':
+            query = query.join(DBBeatmap) \
+                         .group_by(DBBeatmapset.id) \
+                         .order_by(func.sum(DBBeatmap.playcount).desc())
+
+        else:
+            query = query.filter(DBBeatmapset.query_string.like('%' + query_string.lower() + '%'))
+
+        return query.limit(100).all()
+
     def add_achievements(self, achievements: List[Achievement], user_id: int):
         instance = self.session
 
@@ -467,6 +508,19 @@ class Postgres:
         instance.commit()
 
         return ss.id
+
+    def submit_activity(self, user_id: int, mode: int, text: str, args: str, links: str):
+        instance = self.session
+        instance.add(
+            DBActivity(
+                user_id,
+                mode,
+                text,
+                args,
+                links
+            )
+        )
+        instance.commit()
 
     def create_plays(self, user_id: int, beatmap_id: int, beatmap_file: str, set_id: int) -> DBPlay:
         instance = self.session

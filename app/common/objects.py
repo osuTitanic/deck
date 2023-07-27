@@ -19,6 +19,7 @@ from sqlalchemy import (
 )
 
 import config
+import app
 
 Base = declarative_base()
 
@@ -380,6 +381,13 @@ class DBActivity(Base):
 
     user = relationship('DBUser', back_populates='activity')
 
+    def __init__(self, user_id: int, mode: int, activity_text: str, activity_args: str, activity_links: str) -> None:
+        self.user_id = user_id
+        self.mode = mode
+        self.activity_links = activity_links
+        self.activity_text = activity_text
+        self.activity_args = activity_args
+
 class DBName(Base):
     __tablename__ = "name_history"
 
@@ -507,3 +515,33 @@ class DBUser(Base):
     badges         = relationship('DBBadge', back_populates='user')
     names          = relationship('DBName', back_populates='user')
     plays          = relationship('DBPlay', back_populates='user')
+
+    @property
+    def is_supporter(self) -> bool:
+        if config.FREE_SUPPORTER:
+            return True
+
+        if self.remaining_supporter > 0:
+            return True
+        else:
+            # Remove supporter
+            self.supporter_end = None
+            self.permissions -= 4
+
+            # Update database
+            instance = app.session.database.session
+            instance.query(DBUser) \
+                    .filter(DBUser.id == self.id) \
+                    .update({
+                        'supporter_end': None,
+                        'permissions': self.permissions
+                    })
+            instance.commit()
+
+        return False
+
+    @property
+    def remaining_supporter(self):
+        if self.supporter_end:
+            return self.supporter_end.timestamp() - datetime.now().timestamp()
+        return 0

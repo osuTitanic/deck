@@ -1,16 +1,40 @@
 
 from app.common.objects import DBStats, DBUser, DBScore
 
+from typing import List, Tuple
+
+import traceback
 import config
 import utils
+import app
 
-def send_message(message: str):
-    utils.submit_to_queue(
-        type='bot_message',
-        data={
-            'message': message,
-            'target': '#announce'
-        }
+def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]]):
+    try:
+        irc_args = [
+            f'[{a[0].replace("(", "[").replace(")", "]")}]({a[1]})'
+            for a in args
+        ]
+        irc_message = message.format(*irc_args)
+
+        utils.submit_to_queue(
+            type='bot_message',
+            data={
+                'message': irc_message,
+                'target': '#announce'
+            }
+        )
+    except Exception as e:
+        traceback.print_exc()
+        app.session.logger.error(
+            f'Failed to submit highlight message: {e}'
+        )
+
+    app.session.database.submit_activity(
+        user_id,
+        mode,
+        message,
+        '||'.join([a[0] for a in args]),
+        '||'.join([a[1] for a in args])
     )
 
 def check_rank(
@@ -29,14 +53,20 @@ def check_rank(
 
     if stats.rank >= 10:
         # Player has risen to the top 10
-        send_message(
-            f"{player.name} has risen {ranks_gained} ranks, now placed #{stats.rank} overall in {mode_name}."
+        submit(
+            player.id,
+            stats.mode,
+            '{} ' + f"has risen {ranks_gained} ranks, now placed #{stats.rank} overall in {mode_name}.",
+            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
         )
 
     if stats.rank == 1:
         # Player is now #1
-        send_message(
-            f"{player.name} has taken the lead as the top-ranked {mode_name} player."
+        submit(
+            player.id,
+            stats.mode,
+            '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
+            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
         )
 
 def check_beatmap(
@@ -52,8 +82,12 @@ def check_beatmap(
     if beatmap_rank > config.SCORE_RESPONSE_LIMIT:
         return
 
-    send_message(
-        f"{player.name} achieved rank #{beatmap_rank} on {score.beatmap.link} ({mode_name})"
+    submit(
+        player.id,
+        score.mode,
+        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'({mode_name})',
+        (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+        (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
     )
 
 def check(

@@ -1,6 +1,6 @@
 
-from requests import Session
-from typing import Optional
+from requests import Session, Response
+from typing import Optional, Iterator
 
 import logging
 import config
@@ -19,10 +19,10 @@ class Beatmaps:
     def log_error(self, url: str, status_code: int) -> None:
         self.logger.error(f'Error while sending request to "{url}" ({status_code})')
 
-    def osz(self, set_id: int) -> Optional[bytes]:
+    def osz(self, set_id: int, no_video: bool = False) -> Optional[Response]:
         self.logger.debug(f'Downloading osz... ({set_id})')
 
-        response = self.session.get(f'https://osu.direct/api/d/{set_id}')
+        response = self.session.get(f'https://osu.direct/d/{set_id}{"?noVideo=" if no_video else ""}', stream=True)
 
         if not response.ok:
             self.log_error(response.url, response.status_code)
@@ -35,7 +35,7 @@ class Beatmaps:
             self.log_error(response.url, response.json()['code'])
             return
 
-        return response.content
+        return response
     
     def osu(self, beatmap_id: int) -> Optional[bytes]:
         self.logger.debug(f'Downloading beatmap... ({beatmap_id})')
