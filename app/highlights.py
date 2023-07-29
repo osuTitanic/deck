@@ -11,7 +11,7 @@ import app
 def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]]):
     try:
         irc_args = [
-            f'[{a[0].replace("(", "[").replace(")", "]")} {a[1]}]'
+            f'[{a[1]} {a[0].replace("(", "[").replace(")", "]")}]'
             for a in args
         ]
         irc_message = message.format(*irc_args)
