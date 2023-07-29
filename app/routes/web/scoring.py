@@ -111,7 +111,7 @@ async def score_submission(
         if duplicate_score:
             if duplicate_score.user.name != score.username:
                 app.session.logger.warning(
-                    f'"{score.username}" submitted duplicate replay in score submission.'
+                    f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
                 )
                 utils.submit_to_queue(
                     type='restrict',
@@ -123,7 +123,7 @@ async def score_submission(
                 return Response('error: ban')
 
             app.session.logger.warning(
-                f'"{score.username}" submitted duplicate replay (probably just a resend).'
+                f'"{score.username}" submitted duplicate replay from themselves ({duplicate_score.replay_md5}).'
             )
 
             return Response('error: no')
