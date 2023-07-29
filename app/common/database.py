@@ -353,6 +353,7 @@ class Postgres:
                            .filter(DBScore.beatmap_id == beatmap_id) \
                            .filter(DBScore.mode == mode) \
                            .filter(DBScore.total_score > total_score) \
+                           .filter(DBScore.status == 3) \
                            .order_by(DBScore.total_score.asc()) \
                            .first()
 
