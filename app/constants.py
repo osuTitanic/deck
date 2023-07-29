@@ -114,6 +114,7 @@ class DisplayMode(Enum):
     All       = 4
     Graveyard = 5
     Played    = 7
+
 class AnticheatFlags(IntFlag):
     Clean         = 0
     UR            = 1
