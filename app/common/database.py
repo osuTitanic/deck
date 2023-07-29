@@ -336,6 +336,8 @@ class Postgres:
         if mods != None:
             query = query.filter(DBScore.mods == mods) \
                          .filter(or_(DBScore.status == 3, DBScore.status == 4))
+        else:
+            query = query.filter(DBScore.status == 3)
 
         subquery = query.subquery()
 
