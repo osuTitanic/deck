@@ -16,8 +16,14 @@ def default_avatar():
     
     return Response(image)
 
-@router.get('/{user_id}')
-def avatar(user_id: int):
+@router.get('/{filename}')
+def avatar(filename: str):
+    # Workaround for older clients
+    user_id = int(
+        filename.replace('_000.png', '') \
+                .replace('_000.jpg', '')
+    )
+
     if not (image := app.session.storage.get_avatar(user_id)):
         return default_avatar()
 
