@@ -124,4 +124,5 @@ class AnticheatFlags(IntFlag):
 
     @property
     def description(self) -> str:
-        return '|'.join([flag.name for flag in self])
+        flags = str(self).replace('AnticheatFlags.', '').split('|')
+        return ', '.join(flags)
