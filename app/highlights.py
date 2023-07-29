@@ -48,8 +48,9 @@ def check_rank(
 
     ranks_gained = previous_stats.rank - stats.rank
 
-    if ranks_gained <= 0:
-        return
+    if stats.playcount > 1:
+        if ranks_gained <= 0:
+            return
 
     if stats.rank >= 10:
         # Player has risen to the top 10
