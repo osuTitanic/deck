@@ -122,6 +122,10 @@ async def score_submission(
                 )
                 return Response('error: ban')
 
+            app.session.logger.warning(
+                f'"{score.username}" submitted duplicate replay (probably just a resend).'
+            )
+
             return Response('error: no')
 
     # Validate client hash
