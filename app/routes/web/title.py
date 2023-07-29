@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.get('/osu-title-image.php')
 def legacy_menu_icon(
-    image_checksum: Optional[str] = Query('', alias='c'),
+    # image_checksum: Optional[str] = Query('', alias='c'), why does this not work tf
     redirect: Optional[bool] = Query(False, alias='l')
 ):
     if redirect:
