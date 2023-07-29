@@ -92,7 +92,7 @@ def check_beatmap(
     submit(
         player.id,
         score.mode,
-        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'({mode_name})',
+        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'<{mode_name}>',
         (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
         (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
     )
@@ -106,9 +106,9 @@ def check(
 ) -> None:
     mode_name = {
         0: "osu!",
-        1: "taiko",
-        2: "catch the beat",
-        3: "mania"
+        1: "Taiko",
+        2: "CatchTheBeat",
+        3: "osu!mania"
     }[stats.mode]
 
     check_rank(
