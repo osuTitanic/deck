@@ -232,7 +232,7 @@ def online_beatmap(set: DBBeatmapset) -> str:
     }[set.status]
 
     return "|".join([
-        str(set.id), # .osz filename
+        f'{set.id}.osz',
         set.artist  if set.artist else "",
         set.title   if set.title else "",
         set.creator if set.creator else "",
