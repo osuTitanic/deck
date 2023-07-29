@@ -29,13 +29,19 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]]):
             f'Failed to submit highlight message: {e}'
         )
 
-    app.session.database.submit_activity(
-        user_id,
-        mode,
-        message,
-        '||'.join([a[0] for a in args]),
-        '||'.join([a[1] for a in args])
-    )
+    try:
+        app.session.database.submit_activity(
+            user_id,
+            mode,
+            message,
+            '||'.join([a[0] for a in args]),
+            '||'.join([a[1] for a in args])
+        )
+    except Exception as e:
+        traceback.print_exc()
+        app.session.logger.error(
+            f'Failed to submit highlight message to database: {e}'
+        )
 
 def check_rank(
     stats: DBStats,
