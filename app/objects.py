@@ -119,6 +119,8 @@ class Score:
         self.personal_best: Optional[DBScore] = None
         self._pp: Optional[float] = None
 
+        self.status = ScoreStatus.Submitted
+
         self.session = app.session.database.session
         self.beatmap = self.session.query(DBBeatmap) \
                                    .filter(DBBeatmap.md5 == self.file_checksum) \
@@ -135,7 +137,7 @@ class Score:
                 self.play_mode.value
             )
 
-        self.status = self.get_status()
+            self.status = self.get_status()
 
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
