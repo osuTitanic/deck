@@ -43,7 +43,7 @@ class ClientHash:
             args = string.split(':')
 
             md5 = args[0]
-            adapers = args[1]
+            adapters = args[1]
             adapters_md5 = args[2]
 
             diskdrive_signature = hashlib.md5(b'unknown').hexdigest()
