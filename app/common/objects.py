@@ -446,9 +446,10 @@ class DBPlayHistory(Base):
         self,
         user_id: int,
         mode: int,
-        plays: int = 0,
-        time = datetime.now()
+        plays: int = 0
     ) -> None:
+        time = datetime.now()
+
         self.user_id = user_id
         self.mode  = mode
         self.plays = plays
@@ -470,9 +471,10 @@ class DBReplayHistory(Base):
         self,
         user_id: int,
         mode: int,
-        replay_views: int = 0,
-        time = datetime.now()
+        replay_views: int = 0
     ) -> None:
+        time = datetime.now()
+
         self.replay_views = replay_views
         self.user_id = user_id
         self.year  = time.year
