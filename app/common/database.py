@@ -606,7 +606,9 @@ class Postgres:
         )
         instance.commit()
 
-    def update_plays_history(self, user_id: int, mode: int, time = datetime.now()):
+    def update_plays_history(self, user_id: int, mode: int):
+        time = datetime.now()
+
         instance = self.session
         updated = instance.query(DBPlayHistory) \
                         .filter(DBPlayHistory.user_id == user_id) \
@@ -629,7 +631,9 @@ class Postgres:
 
         instance.commit()
 
-    def update_replay_history(self, user_id: int, mode: int, time = datetime.now()):
+    def update_replay_history(self, user_id: int, mode: int):
+        time = datetime.now()
+
         instance = self.session
         updated = instance.query(DBReplayHistory) \
                         .filter(DBReplayHistory.user_id == user_id) \
