@@ -243,7 +243,8 @@ def online_beatmap(set: DBBeatmapset) -> str:
         str(set.id), # TODO: threadId
         str(int(set.has_video)),
         str(int(set.has_storyboard)),
-        f"{set.osz_filesize}{f'|{set.osz_filesize_novideo}' if set.has_video else ''}",
+        str(set.osz_filesize),
+        str(set.osz_filesize_novideo),
         versions,
         str(set.id), # TODO: postId
     ])
