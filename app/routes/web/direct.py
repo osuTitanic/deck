@@ -34,9 +34,10 @@ def search(
         return "-1\nno."
 
     max_retries = 2
-    response = []
 
     for retry in range(max_retries):
+        response = []
+
         try:
             # This searching algorythm is really bad, but
             # it works for now at least...
