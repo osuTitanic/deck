@@ -30,9 +30,9 @@ def mp3(filename: str):
 
     return Response(mp3)
 
-@router.get('/d/{filename}')
+@router.get('/d/{id}')
 def osz(
-    filename: str,
+    id: str,
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
 ):
@@ -42,7 +42,6 @@ def osz(
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
         raise HTTPException(401)
 
-    id = filename.replace('.osz', '')
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
