@@ -33,7 +33,7 @@ def search(
     except ValueError:
         return "-1\nno."
 
-    max_retries = 2
+    max_retries = 4
 
     for retry in range(max_retries):
         response = []
