@@ -2,7 +2,7 @@
 
 Deck is a work in progress api/score server, designed for older osu! clients.
 
-Please view [this repository](https://github.com/Lekuruu/titanic) for setup instructions!
+Please view [this repository](https://github.com/osuTitanic/titanic) for setup instructions!
 
 ## What works?
 
