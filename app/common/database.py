@@ -336,6 +336,8 @@ class Postgres:
         if mods != None:
             query = query.filter(DBScore.mods == mods) \
                          .filter(or_(DBScore.status == 3, DBScore.status == 4))
+        else:
+            query = query.filter(DBScore.status == 3)
 
         subquery = query.subquery()
 
@@ -351,6 +353,7 @@ class Postgres:
                            .filter(DBScore.beatmap_id == beatmap_id) \
                            .filter(DBScore.mode == mode) \
                            .filter(DBScore.total_score > total_score) \
+                           .filter(DBScore.status == 3) \
                            .order_by(DBScore.total_score.asc()) \
                            .first()
 
@@ -603,7 +606,9 @@ class Postgres:
         )
         instance.commit()
 
-    def update_plays_history(self, user_id: int, mode: int, time = datetime.now()):
+    def update_plays_history(self, user_id: int, mode: int):
+        time = datetime.now()
+
         instance = self.session
         updated = instance.query(DBPlayHistory) \
                         .filter(DBPlayHistory.user_id == user_id) \
@@ -619,14 +624,15 @@ class Postgres:
                 DBPlayHistory(
                     user_id,
                     mode,
-                    plays=1,
-                    time=time
+                    plays=1
                 )
             )
 
         instance.commit()
 
-    def update_replay_history(self, user_id: int, mode: int, time = datetime.now()):
+    def update_replay_history(self, user_id: int, mode: int):
+        time = datetime.now()
+
         instance = self.session
         updated = instance.query(DBReplayHistory) \
                         .filter(DBReplayHistory.user_id == user_id) \
@@ -642,8 +648,7 @@ class Postgres:
                 DBReplayHistory(
                     user_id,
                     mode,
-                    replay_views=1,
-                    time=time
+                    replay_views=1
                 )
             )
 

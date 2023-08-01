@@ -11,7 +11,7 @@ import app
 def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]]):
     try:
         irc_args = [
-            f'[{a[0].replace("(", "[").replace(")", "]")}]({a[1]})'
+            f'[{a[1]} {a[0].replace("(", "[").replace(")", "]")}]'
             for a in args
         ]
         irc_message = message.format(*irc_args)
@@ -29,13 +29,19 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]]):
             f'Failed to submit highlight message: {e}'
         )
 
-    app.session.database.submit_activity(
-        user_id,
-        mode,
-        message,
-        '||'.join([a[0] for a in args]),
-        '||'.join([a[1] for a in args])
-    )
+    try:
+        app.session.database.submit_activity(
+            user_id,
+            mode,
+            message,
+            '||'.join([a[0] for a in args]),
+            '||'.join([a[1] for a in args])
+        )
+    except Exception as e:
+        traceback.print_exc()
+        app.session.logger.error(
+            f'Failed to submit highlight message to database: {e}'
+        )
 
 def check_rank(
     stats: DBStats,
@@ -48,8 +54,9 @@ def check_rank(
 
     ranks_gained = previous_stats.rank - stats.rank
 
-    if ranks_gained <= 0:
-        return
+    if stats.playcount > 1:
+        if ranks_gained <= 0:
+            return
 
     if stats.rank >= 10:
         # Player has risen to the top 10
@@ -85,7 +92,7 @@ def check_beatmap(
     submit(
         player.id,
         score.mode,
-        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'({mode_name})',
+        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'<{mode_name}>',
         (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
         (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
     )
@@ -99,9 +106,9 @@ def check(
 ) -> None:
     mode_name = {
         0: "osu!",
-        1: "taiko",
-        2: "catch the beat",
-        3: "mania"
+        1: "Taiko",
+        2: "CatchTheBeat",
+        3: "osu!mania"
     }[stats.mode]
 
     check_rank(

@@ -111,7 +111,7 @@ async def score_submission(
         if duplicate_score:
             if duplicate_score.user.name != score.username:
                 app.session.logger.warning(
-                    f'"{score.username}" submitted duplicate replay in score submission.'
+                    f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
                 )
                 utils.submit_to_queue(
                     type='restrict',
@@ -121,6 +121,10 @@ async def score_submission(
                     }
                 )
                 return Response('error: ban')
+
+            app.session.logger.warning(
+                f'"{score.username}" submitted duplicate replay from themselves ({duplicate_score.replay_md5}).'
+            )
 
             return Response('error: no')
 
@@ -449,12 +453,13 @@ async def score_submission(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
 
-    ac = Anticheat()
+    if config.CIRCLEGUARD_ENABLED:
+        ac = Anticheat()
 
-    threading.Thread(
-        target=ac.perform_checks,
-        args=[score, score_object.id],
-        daemon=True
-    ).start()
+        threading.Thread(
+            target=ac.perform_checks,
+            args=[score, score_object.id],
+            daemon=True
+        ).start()
 
     return Response('\n'.join([chart.get() for chart in response]))
