@@ -33,29 +33,32 @@ def search(
     except ValueError:
         return "-1\nno."
 
+    max_retries = 2
     response = []
 
-    try:
-        # This searching algorythm is really bad, but
-        # it works for now at least...
-        results = app.session.database.search(
-            query,
-            player.id,
-            display_mode
-        )
+    for retry in range(max_retries):
+        try:
+            # This searching algorythm is really bad, but
+            # it works for now at least...
+            results = app.session.database.search(
+                query,
+                player.id,
+                display_mode
+            )
 
-        response.append(str(
-            len(results)
-        ))
+            response.append(str(
+                len(results)
+            ))
 
-        for set in results:
-            response.append(utils.online_beatmap(set))
-    except Exception as e:
-        app.session.logger.error(f'Failed to execute search: {e}')
-        traceback.print_exc()
-        return "-1\nServer error. Please try again!"
+            for set in results:
+                response.append(utils.online_beatmap(set))
+        except Exception as e:
+            app.session.logger.error(f'Failed to execute search: {e}')
+            continue
 
-    return "\n".join(response)
+        return "\n".join(response)
+
+    return "-1\nServer error. Please try again!"
 
 @router.get('/osu-search-set.php')
 def pickup_info(
