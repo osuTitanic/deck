@@ -384,21 +384,22 @@ class Postgres:
         query = self.session.query(DBBeatmapset)
 
         if display_mode == DisplayMode.Ranked:
-            query = query.filter(DBBeatmapset.status == 1)
-        
+            query = query.filter(DBBeatmapset.status > 0)
+
         elif display_mode == DisplayMode.Pending:
             query = query.filter(DBBeatmapset.status == 0)
 
         elif display_mode == DisplayMode.Graveyard:
             query = query.filter(DBBeatmapset.status == -1)
-        
+
         elif display_mode == DisplayMode.Played:
             query = query.join(DBPlay) \
-                         .filter(DBPlay.user_id == user_id)
+                         .filter(DBPlay.user_id == user_id) \
+                         .filter(DBBeatmapset.status > 0)
 
         if query_string == 'Newest':
-            query = query.order_by(DBBeatmapset.created_at.desc())
-        
+            query = query.order_by(DBBeatmapset.id.desc())
+
         elif query_string == 'Top Rated':
             query = query.join(DBRating) \
                          .group_by(DBBeatmapset.id) \
