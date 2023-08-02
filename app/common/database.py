@@ -411,7 +411,15 @@ class Postgres:
                          .order_by(func.sum(DBBeatmap.playcount).desc())
 
         else:
-            query = query.filter(DBBeatmapset.query_string.like('%' + query_string.lower() + '%'))
+            query = query.join(DBBeatmap) \
+                    .filter(or_(
+                        func.lower(DBBeatmapset.artist).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.title).contains(query_string.lower()),
+                        func.lower(DBBeatmap.version).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.creator).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.source).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.tags).contains(query_string.lower())
+                    ))
 
         return query.limit(100).all()
 
