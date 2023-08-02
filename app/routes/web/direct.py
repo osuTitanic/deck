@@ -33,6 +33,9 @@ def search(
     except ValueError:
         return "-1\nno."
 
+    if len(query) < 3:
+        return "-1\nQuery is too short."
+
     max_retries = 4
 
     for retry in range(max_retries):
