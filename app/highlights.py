@@ -164,7 +164,7 @@ def check_pp(
             submit(
                 player.id,
                 score.mode,
-                '{} ' + 'has set the new pp record on' + ' {} ' + f'with {score.pp} <{mode_name}>',
+                '{} ' + 'has set the new pp record on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
                 (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
                 (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
             )
@@ -189,7 +189,7 @@ def check_pp(
             submit(
                 player.id,
                 score.mode,
-                '{} ' + 'got a new top play on' + ' {} ' + f'with {score.pp} <{mode_name}>',
+                '{} ' + 'got a new top play on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
                 (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
                 (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
                 submit_to_chat=False
