@@ -10,6 +10,7 @@ from fastapi import (
 )
 
 from typing import Optional, List
+from threading import Thread
 from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
@@ -18,7 +19,6 @@ from app.services.anticheat import Anticheat
 from app.constants import Mod, Grade
 from app import achievements
 
-import threading
 import hashlib
 import base64
 import config
@@ -374,13 +374,17 @@ async def score_submission(
     )
 
     if score.status == ScoreStatus.Best:
-        app.highlights.check(
-            score.user,
-            stats,
-            old_stats,
-            score_object,
-            beatmap_rank
-        )
+        Thread(
+            target=app.highlights.check,
+            args=[
+                score.user,
+                stats,
+                old_stats,
+                score_object,
+                beatmap_rank
+            ],
+            daemon=True
+        ).start()
 
     # TODO: Update preferred mode
 
@@ -456,7 +460,7 @@ async def score_submission(
     if config.CIRCLEGUARD_ENABLED:
         ac = Anticheat()
 
-        threading.Thread(
+        Thread(
             target=ac.perform_checks,
             args=[score, score_object.id],
             daemon=True
