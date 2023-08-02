@@ -1,5 +1,11 @@
 
-from app.common.objects import DBStats, DBUser, DBScore
+from app.constants import Mod
+from app.common.objects import (
+    DBBeatmap,
+    DBScore,
+    DBStats,
+    DBUser
+)
 
 from typing import List, Tuple
 
@@ -8,26 +14,27 @@ import config
 import utils
 import app
 
-def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]]):
-    try:
-        irc_args = [
-            f'[{a[1]} {a[0].replace("(", "[").replace(")", "]")}]'
-            for a in args
-        ]
-        irc_message = message.format(*irc_args)
+def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submit_to_chat: bool = True):
+    if submit_to_chat:
+        try:
+            irc_args = [
+                f'[{a[1]} {a[0].replace("(", "[").replace(")", "]")}]'
+                for a in args
+            ]
+            irc_message = message.format(*irc_args)
 
-        utils.submit_to_queue(
-            type='bot_message',
-            data={
-                'message': irc_message,
-                'target': '#announce'
-            }
-        )
-    except Exception as e:
-        traceback.print_exc()
-        app.session.logger.error(
-            f'Failed to submit highlight message: {e}'
-        )
+            utils.submit_to_queue(
+                type='bot_message',
+                data={
+                    'message': irc_message,
+                    'target': '#announce'
+                }
+            )
+        except Exception as e:
+            traceback.print_exc()
+            app.session.logger.error(
+                f'Failed to submit highlight message: {e}'
+            )
 
     try:
         app.session.database.submit_activity(
@@ -58,12 +65,36 @@ def check_rank(
         if ranks_gained <= 0:
             return
 
+    if previous_stats.rank < 1000 \
+       and stats.rank >= 1000:
+        # Player has risen to the top 1000
+        submit(
+            player.id,
+            stats.mode,
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+            submit_to_chat=False
+        )
+        return
+
+    if previous_stats.rank < 100 \
+       and stats.rank >= 100:
+        # Player has risen to the top 100
+        submit(
+            player.id,
+            stats.mode,
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+            submit_to_chat=False
+        )
+        return
+
     if stats.rank >= 10:
         # Player has risen to the top 10
         submit(
             player.id,
             stats.mode,
-            '{} ' + f"has risen {ranks_gained} ranks, now placed #{stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
         )
 
@@ -83,19 +114,86 @@ def check_beatmap(
     mode_name: str
 ):
     if score.status != 3:
-        # Score is not on the leaderboards
+        # Score is not visible on global rankings
         return
 
+    # Get short-from mods string (e.g. HDHR)
+    mods = Mod(score.mods).short if score.mods > 0 else ""
+
     if beatmap_rank > config.SCORE_RESPONSE_LIMIT:
-        return
+        # Score is not on the leaderboards
+        # Check if score is in the top 1000
+
+        if beatmap_rank >= 1000:
+            submit(
+                player.id,
+                score.mode,
+                '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
+                (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+                (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+                submit_to_chat=False
+            )
 
     submit(
         player.id,
         score.mode,
-        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'<{mode_name}>',
+        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
         (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
         (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
     )
+
+def check_pp(
+    score: DBScore,
+    player: DBUser,
+    mode_name: str
+):
+    # Get current pp record for mode
+    with app.session.database.session as session:
+        result = session.query(DBScore) \
+                .filter(DBScore.mode == score.mode) \
+                .filter(DBScore.status == 3) \
+                .order_by(DBScore.pp.desc()) \
+                .first()
+
+        if not result:
+            # No score has been set, yet
+            return
+
+        if score.id == result.id:
+            # Player has set the new pp record
+            submit(
+                player.id,
+                score.mode,
+                '{} ' + 'has set the new pp record on' + ' {} ' + f'with {score.pp} <{mode_name}>',
+                (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+                (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
+            )
+            return
+
+        # Check player's current top plays
+        query = session.query(DBScore) \
+                .filter(DBScore.mode == score.mode) \
+                .filter(DBScore.user_id == player.id) \
+                .filter(DBScore.status == 3)
+
+        # Exclude approved map rewards if specified in the config
+        if not config.APPROVED_MAP_REWARDS:
+            query = query.filter(DBBeatmap.status == 1) \
+                         .join(DBScore.beatmap)
+
+        result = query.order_by(DBScore.pp.desc()) \
+                      .first()
+
+        if score.id == result.id:
+            # Player got a new top play
+            submit(
+                player.id,
+                score.mode,
+                '{} ' + 'got a new top play on' + ' {} ' + f'with {score.pp} <{mode_name}>',
+                (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+                (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+                submit_to_chat=False
+            )
 
 def check(
     player: DBUser,
@@ -125,4 +223,8 @@ def check(
         mode_name
     )
 
-    # TODO: PP Record?
+    check_pp(
+        score,
+        player,
+        mode_name
+    )
