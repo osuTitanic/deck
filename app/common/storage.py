@@ -173,6 +173,7 @@ class Storage:
         )
 
         return mp3
+
     def get_achievement(self, filename: str) -> Optional[bytes]:
         if config.S3_ENABLED:
             return self.get_from_s3(f'images/achievements/{filename}', 'assets')
@@ -244,8 +245,8 @@ class Storage:
 
         return True
 
-    def get_from_cache(self, name: str) -> Optional[bytes]:
-        return self.cache.get(name)
+    def get_from_cache(self, key: str) -> Optional[bytes]:
+        return self.cache.get(key)
 
     def get_file_content(self, filepath: str) -> Optional[bytes]:
         try:
