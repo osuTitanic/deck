@@ -74,6 +74,43 @@ class Mod(IntFlag):
     LastMod        = 4194304
     FreeModAllowed = 2077883
 
+    @property
+    def members(self) -> list:
+        return [flag for flag in Mod if self & flag]
+
+    @property
+    def short(self) -> str:
+        return ''.join([
+            {
+                Mod.NoMod: "NM",
+                Mod.NoFail: "NF",
+                Mod.Easy: "EZ",
+                Mod.Hidden: "HD",
+                Mod.HardRock: "HR",
+                Mod.SuddenDeath: "SD",
+                Mod.DoubleTime: "DT",
+                Mod.Relax: "RX",
+                Mod.HalfTime: "HT",
+                Mod.Nightcore: "NC",
+                Mod.Flashlight: "FL",
+                Mod.Autoplay: "AT",
+                Mod.SpunOut: "SO",
+                Mod.Autopilot: "AP",
+                Mod.Perfect: "PF",
+                Mod.Key4: "K4",
+                Mod.Key5: "K5",
+                Mod.Key6: "K6",
+                Mod.Key7: "K7",
+                Mod.Key8: "K8",
+                Mod.keyMod: "",
+                Mod.FadeIn: "FadeIn",
+                Mod.Random: "Random",
+                Mod.LastMod: "",
+                Mod.FreeModAllowed: ""
+            }[mod]
+            for mod in self.members
+        ])
+
 class Grade(str, Enum):
     XH = 0
     SH = 1

@@ -384,21 +384,22 @@ class Postgres:
         query = self.session.query(DBBeatmapset)
 
         if display_mode == DisplayMode.Ranked:
-            query = query.filter(DBBeatmapset.status == 1)
-        
+            query = query.filter(DBBeatmapset.status > 0)
+
         elif display_mode == DisplayMode.Pending:
             query = query.filter(DBBeatmapset.status == 0)
 
         elif display_mode == DisplayMode.Graveyard:
             query = query.filter(DBBeatmapset.status == -1)
-        
+
         elif display_mode == DisplayMode.Played:
             query = query.join(DBPlay) \
-                         .filter(DBPlay.user_id == user_id)
+                         .filter(DBPlay.user_id == user_id) \
+                         .filter(DBBeatmapset.status > 0)
 
         if query_string == 'Newest':
-            query = query.order_by(DBBeatmapset.created_at.desc())
-        
+            query = query.order_by(DBBeatmapset.id.desc())
+
         elif query_string == 'Top Rated':
             query = query.join(DBRating) \
                          .group_by(DBBeatmapset.id) \
@@ -410,7 +411,15 @@ class Postgres:
                          .order_by(func.sum(DBBeatmap.playcount).desc())
 
         else:
-            query = query.filter(DBBeatmapset.query_string.like('%' + query_string.lower() + '%'))
+            query = query.join(DBBeatmap) \
+                    .filter(or_(
+                        func.lower(DBBeatmapset.artist).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.title).contains(query_string.lower()),
+                        func.lower(DBBeatmap.version).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.creator).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.source).contains(query_string.lower()),
+                        func.lower(DBBeatmapset.tags).contains(query_string.lower())
+                    ))
 
         return query.limit(100).all()
 
