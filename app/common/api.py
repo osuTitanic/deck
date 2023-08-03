@@ -26,17 +26,33 @@ class Beatmaps:
 
         if not response.ok:
             self.log_error(response.url, response.status_code)
-            return
+            return self.osz_backup(set_id, no_video)
 
         # NOTE: osu.direct always responds with status code 200, even on errors
         # So here is a little workaround for that
 
         if 'application/json' in response.headers['Content-Type']:
             self.log_error(response.url, response.json()['code'])
+            return self.osz_backup(set_id, no_video)
+
+        return response
+
+    def osz_backup(self, set_id: int, no_video: bool = False) -> Optional[Response]:
+        self.logger.debug(f'Downloading osz from backup api... ({set_id})')
+
+        response = self.session.get(f'https://api.nerinyan.moe/d/{set_id}',
+            stream=True,
+            params={
+                'noVideo': no_video
+            }
+        )
+
+        if not response.ok:
+            self.log_error(response.url, response.status_code)
             return
 
         return response
-    
+
     def osu(self, beatmap_id: int) -> Optional[bytes]:
         self.logger.debug(f'Downloading beatmap... ({beatmap_id})')
 
