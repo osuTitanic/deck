@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM python:3.9-bullseye
 
 # Installing/Updating system dependencies
@@ -22,6 +20,14 @@ RUN pip install -r requirements.txt
 # Copy source code
 COPY . .
 
-EXPOSE 80
+# Get config for deployment
+ENV WEB_HOST $WEB_HOST
+ENV WEB_PORT $WEB_PORT
+ENV WEB_WORKERS $WEB_WORKERS
 
-CMD ["python3", "main.py"]
+EXPOSE $WEB_PORT
+
+CMD gunicorn app:api \
+        --workers $WEB_WORKERS \
+        --worker-class uvicorn.workers.UvicornWorker \
+        --bind $WEB_HOST:$WEB_PORT
