@@ -15,8 +15,8 @@ from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app.common.objects import DBStats, DBScore
+from app.constants import Mod, Grade, BadFlags
 from app.services.anticheat import Anticheat
-from app.constants import Mod, Grade
 from app import achievements
 
 import hashlib
@@ -170,14 +170,19 @@ async def score_submission(
         # The "SpeedHackDetected" flag can be a false positive
         # especially on pc's with a lot of lag
         if score.flags > 2:
-            utils.submit_to_queue(
-                type='restrict',
-                data={
-                    'user_id': score.user.id,
-                    'reason': f'Submitted score with bad flags ({score.flags.value})'
-                }
-            )
-            return Response('error: ban')
+            if BadFlags.IncorrectModValue in score.flags:
+                # This can also be a false positive
+                # (Only for relax?)
+                pass
+            else:
+                utils.submit_to_queue(
+                    type='restrict',
+                    data={
+                        'user_id': score.user.id,
+                        'reason': f'Submitted score with bad flags ({score.flags.value})'
+                    }
+                )
+                return Response('error: ban')
 
     # What is FreeModAllowed?
     if Mod.FreeModAllowed in score.enabled_mods:
