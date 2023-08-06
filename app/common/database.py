@@ -31,8 +31,8 @@ from .objects import (
     Base
 )
 
-import traceback
 import logging
+import random
 import app
 
 class Postgres:
@@ -46,39 +46,33 @@ class Postgres:
 
         Base.metadata.create_all(bind=self.engine)
 
-        self.session_factory = scoped_session(
-            sessionmaker(self.engine, expire_on_commit=False, autoflush=True)
-        )
-    
+        # TODO: Add config for poolsize
+        self.poolsize = 10
+
+        self.pool: List[Session] = [
+            self.create_session() for _ in range(self.poolsize)
+        ]
+
     @property
     def session(self) -> Session:
-        for session in self.create_session():
+        session = self.pool[random.randrange(0, self.poolsize)]
+
+        if session.is_active:
             return session
+        else:
+            # Create new session
+            self.pool.remove(session)
+            self.pool.append(session := self.session)
 
-    def create_session(self) -> Generator:
-        session = self.session_factory()
-        try:
-            yield session
-        except Exception as e:
-            traceback.print_exc()
-            self.logger.critical(f'Transaction failed: "{e}". Performing rollback...')
-            session.rollback()
-        finally:
-            Timer(
-                interval=60,
-                function=self.close_session,
-                args=[session]
-            ).start()
+        # TODO: Is there a built-in connection pool?
 
-    def close_session(self, session: Session) -> None:
-        try:
-            session.close()
-        except AttributeError:
-            pass
-        except ResourceClosedError:
-            pass
-        except Exception as exc:
-            self.logger.error(f'Failed to close session: {exc}')
+        return session
+
+    def create_session(self) -> Session:
+        return Session(
+            bind=self.engine,
+            expire_on_commit=True
+        )
 
     def user_by_name(self, name: str) -> Optional[DBUser]:
         return self.session.query(DBUser) \
