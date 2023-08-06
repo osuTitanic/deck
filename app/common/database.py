@@ -50,7 +50,7 @@ class Postgres:
         self.poolsize = 10
 
         self.pool: List[Session] = [
-            self.create_session() for _ in range(self.poolsize)
+            self._create_session() for _ in range(self.poolsize)
         ]
 
     @property
@@ -64,11 +64,21 @@ class Postgres:
             self.pool.remove(session)
             self.pool.append(session := self.session)
 
+        Thread(
+            target=self._renew_session,
+            args=[session],
+            daemon=True
+        ).start()
+
         # TODO: Is there a built-in connection pool?
 
         return session
 
-    def create_session(self) -> Session:
+    def _renew_session(self, session: Session):
+        self.pool.remove(session)
+        self.pool.append(self.session)
+
+    def _create_session(self) -> Session:
         return Session(
             bind=self.engine,
             expire_on_commit=True
