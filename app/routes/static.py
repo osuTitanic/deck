@@ -45,7 +45,10 @@ def osz(
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
-    if not (response := app.session.storage.api.osz(set_id, no_video)):
+    # NOTE: osu.direct seems to have an issue, where it only returns partial osz files
+    # We will use the backup api until this issue gets resolved
+
+    if not (response := app.session.storage.api.osz_backup(set_id, no_video)):
         return
 
     osz = response.iter_content(1024)
