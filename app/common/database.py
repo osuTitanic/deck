@@ -62,7 +62,7 @@ class Postgres:
         else:
             # Create new session
             self.pool.remove(session)
-            self.pool.append(session := self.session)
+            self.pool.append(session := self._create_session())
 
         Thread(
             target=self._renew_session,
@@ -76,7 +76,7 @@ class Postgres:
 
     def _renew_session(self, session: Session):
         self.pool.remove(session)
-        self.pool.append(self.session)
+        self.pool.append(self._create_session())
 
     def _create_session(self) -> Session:
         return Session(
