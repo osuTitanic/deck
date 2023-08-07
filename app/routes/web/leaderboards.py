@@ -1,10 +1,21 @@
 
+from datetime import datetime
 from typing import Optional
+
 from fastapi import (
     HTTPException,
     APIRouter,
     Response,
     Query
+)
+
+from app.common.database.repositories import (
+    relationships,
+    beatmaps,
+    ratings,
+    scores,
+    plays,
+    users
 )
 
 from app.common.constants import (
@@ -28,7 +39,7 @@ def get_scores(
     user_id: Optional[int] = Query(None, alias='u'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    get_scores: int = Query(..., alias='s'),
+    skip_scores: str = Query(..., alias='s'),
     osz_hash: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='i'),
     mode: int = Query(..., alias='m'),
@@ -36,12 +47,13 @@ def get_scores(
 ):
     try:
         ranking_type = RankingType(ranking_type)
+        skip_scores = skip_scores == '1'
         mode = GameMode(mode)
     except ValueError:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
     if username:
-        if not (player := app.session.database.user_by_name(username)):
+        if not (player := users.fetch_by_name(username)):
             raise HTTPException(401)
 
         if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
@@ -50,15 +62,16 @@ def get_scores(
         if not user_id:
             raise HTTPException(401)
 
-        if not (player := app.session.database.user_by_id(user_id)):
+        if not (player := users.fetch_by_id(user_id)):
             raise HTTPException(401)
 
-    if not app.session.cache.user_exists(player.id):
-        raise HTTPException(401)
+    # TODO:
+    # if not app.session.cache.user_exists(player.id):
+    #     raise HTTPException(401)
 
-    app.session.database.update_latest_activity(player.id)
+    users.update(player.id, {'latest_activity': datetime.now()})
 
-    if not (beatmap := app.session.database.beatmap_by_file(beatmap_file)):
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
         return Response('-1|false')
 
     if beatmap.md5 != beatmap_hash:
@@ -69,7 +82,7 @@ def get_scores(
 
     response = []
 
-    submission_status = SubmissionStatus.from_db(beatmap.status)
+    submission_status = SubmissionStatus.from_database(beatmap.status)
     has_osz = False # TODO
 
     # Beatmap Info
@@ -79,7 +92,7 @@ def get_scores(
             str(has_osz),
             str(beatmap.id),
             str(beatmap.set_id),
-            str(0)
+            str(plays.fetch_count_for_beatmap(beatmap.id))
         ])
     )
 
@@ -100,12 +113,14 @@ def get_scores(
         )
     )
 
-    ratings = app.session.database.ratings(beatmap.md5)
+    if skip_scores or not beatmap.is_ranked:
+        return
+
     response.append(
-        str(sum(ratings) / len(ratings)) if ratings else '0'
+        ratings.fetch_average(beatmap.md5)
     )
 
-    personal_best = app.session.database.personal_best(
+    personal_best = scores.fetch_personal_best(
         beatmap.id,
         player.id,
         mode.value,
@@ -114,12 +129,12 @@ def get_scores(
 
     friends = [
         rel.target_id
-        for rel in app.session.database.relationships(player.id)
+        for rel in relationships.fetch_many_by_id(player.id)
         if rel.status == 0
     ]
 
     if personal_best:
-        index = app.session.database.score_index(
+        index = scores.fetch_score_index(
             player.id,
             beatmap.id,
             mode.value,
@@ -134,17 +149,17 @@ def get_scores(
     else:
         response.append('')
 
-    scores = []
+    top_scores = []
 
     if ranking_type == RankingType.Top:
-        scores = app.session.database.range_scores(
+        top_scores = scores.fetch_range_scores(
             beatmap.id,
             mode=mode.value,
             limit=config.SCORE_RESPONSE_LIMIT
         )
 
     elif ranking_type == RankingType.Country:
-        scores = app.session.database.range_scores_country(
+        top_scores = scores.fetch_range_scores_country(
             beatmap.id,
             mode=mode.value,
             country=player.country,
@@ -152,7 +167,7 @@ def get_scores(
         )
 
     elif ranking_type == RankingType.Friends:
-        scores = app.session.database.range_scores_friends(
+        top_scores = scores.fetch_range_scores_friends(
             beatmap.id,
             mode=mode.value,
             friends=friends,
@@ -160,7 +175,7 @@ def get_scores(
         )
 
     elif ranking_type == RankingType.SelectedMod:
-        scores = app.session.database.range_scores_mods(
+        top_scores = scores.fetch_range_scores_mods(
             beatmap.id,
             mode=mode.value,
             mods=mods,
@@ -170,7 +185,7 @@ def get_scores(
     else:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
-    for index, score in enumerate(scores):
+    for index, score in enumerate(top_scores):
         response.append(
             utils.score_string(score, index)
         )
@@ -181,22 +196,24 @@ def get_scores(
 def legacy_scores(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    get_scores: int = Query(..., alias='s'),
+    skip_scores: str = Query(..., alias='s'),
     user_id: int = Query(..., alias='u'),
     mode: int = Query(..., alias='m')
 ):
     try:
+        skip_scores = skip_scores == '1'
         mode = GameMode(mode)
     except ValueError:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
-    if not app.session.cache.user_exists(user_id):
+    # TODO:
+    # if not app.session.cache.user_exists(user_id):
+    #     raise HTTPException(401)
+
+    if not (player := users.fetch_by_id(user_id)):
         raise HTTPException(401)
 
-    if not (player := app.session.database.user_by_id(user_id)):
-        raise HTTPException(401)
-
-    if not (beatmap := app.session.database.beatmap_by_file(beatmap_file)):
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
         return Response('-1')
 
     if beatmap.md5 != beatmap_hash:
@@ -204,7 +221,7 @@ def legacy_scores(
 
     response = []
 
-    submission_status = SubmissionStatus.from_db(beatmap.status)
+    submission_status = SubmissionStatus.from_database(beatmap.status)
 
     # Status
     response.append(str(submission_status.value))
@@ -224,19 +241,18 @@ def legacy_scores(
         ])
     )
 
-    ratings = app.session.database.ratings(beatmap.md5)
     response.append(
-        str(sum(ratings) / len(ratings)) if ratings else '0'
+        ratings.fetch_average(beatmap.md5)
     )
 
-    personal_best = app.session.database.personal_best(
+    personal_best = scores.fetch_personal_best(
         beatmap.id,
         player.id,
         mode.value
     )
 
     if personal_best:
-        index = app.session.database.score_index(
+        index = scores.fetch_score_index(
             player.id,
             beatmap.id,
             mode.value
@@ -248,13 +264,13 @@ def legacy_scores(
     else:
         response.append('')
 
-    scores = app.session.database.range_scores(
+    top_scores = scores.fetch_range_scores(
         beatmap.id,
         mode=mode.value,
         limit=config.SCORE_RESPONSE_LIMIT
     )
 
-    for index, score in enumerate(scores):
+    for index, score in enumerate(top_scores):
         response.append(
             utils.score_string(score, index)
         )
