@@ -1,6 +1,7 @@
 
+from app.common.database.repositories import activities
 from app.constants import Mod
-from app.common.objects import (
+from app.common.database import (
     DBBeatmap,
     DBScore,
     DBStats,
@@ -37,7 +38,7 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submi
             )
 
     try:
-        app.session.database.submit_activity(
+        activities.create(
             user_id,
             mode,
             message,
