@@ -2,10 +2,21 @@
 from datetime import datetime
 from typing import Optional
 
-from .common.constants import Mods, GameMode, Grade, ScoreStatus, BadFlags
-from .common.database import DBScore, DBBeatmap, DBUser
-
 from .common.database.repositories import scores
+
+from .common.database import (
+    DBBeatmap,
+    DBScore,
+    DBUser
+)
+
+from .common.constants import (
+    ScoreStatus,
+    GameMode,
+    BadFlags,
+    Grade,
+    Mods
+)
 
 import hashlib
 import config
