@@ -1,6 +1,8 @@
 
 from fastapi import HTTPException, APIRouter, Query
 
+from app.common.database.repositories import users
+
 import bcrypt
 import config
 import app
@@ -13,7 +15,7 @@ def connect(
     password: str = Query(..., alias='h'),
     version: str = Query(..., alias='v')
 ):
-    if not (player := app.session.database.user_by_name(username)):
+    if not (player := users.fetch_by_name(username)):
         raise HTTPException(401)
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
