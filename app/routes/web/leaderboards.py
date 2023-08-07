@@ -69,6 +69,7 @@ def get_scores(
     # if not app.session.cache.user_exists(player.id):
     #     raise HTTPException(401)
 
+    # Update latest activity
     users.update(player.id, {'latest_activity': datetime.now()})
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
@@ -218,6 +219,9 @@ def legacy_scores(
 
     if beatmap.md5 != beatmap_hash:
         return Response('1')
+
+    # Update latest activity
+    users.update(player.id, {'latest_activity': datetime.now()})
 
     response = []
 
