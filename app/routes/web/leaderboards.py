@@ -7,10 +7,10 @@ from fastapi import (
     Query
 )
 
-from app.constants import (
+from app.common.constants import (
     SubmissionStatus,
     RankingType,
-    Mode
+    GameMode
 )
 
 import config
@@ -36,7 +36,7 @@ def get_scores(
 ):
     try:
         ranking_type = RankingType(ranking_type)
-        mode = Mode(mode)
+        mode = GameMode(mode)
     except ValueError:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
@@ -186,7 +186,7 @@ def legacy_scores(
     mode: int = Query(..., alias='m')
 ):
     try:
-        mode = Mode(mode)
+        mode = GameMode(mode)
     except ValueError:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 

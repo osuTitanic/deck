@@ -7,8 +7,8 @@ from fastapi import (
     Form
 )
 
-from app.constants import CommentTarget, Permissions
-from app.common.objects import DBComment
+from app.common.constants import CommentTarget, Permissions
+from app.common.database import DBComment
 
 router = APIRouter()
 

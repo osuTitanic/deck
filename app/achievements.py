@@ -6,7 +6,7 @@ from app.common.database.repositories import scores, stats
 from app.common.cache import leaderboards
 
 from app.common.database.objects import DBScore
-from app.constants import Mod
+from app.common.constants import Mods
 
 import config
 import app
@@ -131,7 +131,7 @@ def dancer(score: DBScore) -> bool:
     if (
         score.beatmap.filename == 'Yoko Ishida - paraparaMAX I (chan) [marathon].osu' and
         score.passed and
-        Mod.NoFail not in Mod(score.mods)
+        Mods.NoFail not in Mods(score.mods)
        ):
         return True
 
@@ -147,10 +147,10 @@ def prize(score: DBScore) -> bool:
         # Map is not ranked
         return False
 
-    mods = Mod(score.mods)
+    mods = Mods(score.mods)
 
-    if (Mod.NoFail in mods or
-        Mod.Easy   in mods):
+    if (Mods.NoFail in mods or
+        Mods.Easy   in mods):
         return False
 
     return True

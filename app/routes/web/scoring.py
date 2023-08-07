@@ -14,8 +14,8 @@ from threading import Thread
 from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
-from app.common.objects import DBStats, DBScore
-from app.constants import Mod, Grade, BadFlags
+from app.common.database import DBStats, DBScore
+from app.common.constants import Mod, Grade, BadFlags
 from app.services.anticheat import Anticheat
 from app import achievements
 

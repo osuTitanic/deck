@@ -1,6 +1,6 @@
 
 from app.common.database.repositories import activities
-from app.constants import Mod
+from app.common.constants import Mods
 from app.common.database import (
     DBBeatmap,
     DBScore,
@@ -119,7 +119,7 @@ def check_beatmap(
         return
 
     # Get short-from mods string (e.g. HDHR)
-    mods = Mod(score.mods).short if score.mods > 0 else ""
+    mods = Mods(score.mods).short if score.mods > 0 else ""
 
     if beatmap_rank > config.SCORE_RESPONSE_LIMIT:
         # Score is not on the leaderboards
