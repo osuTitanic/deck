@@ -1,5 +1,6 @@
 
 from fastapi import HTTPException, APIRouter, Query
+from datetime import datetime
 
 from app.common.database.repositories import users
 
@@ -20,6 +21,8 @@ def connect(
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
+
+    users.update(player.id, {'latest_activity': datetime.now()})
 
     app.session.logger.info(
         f'Player "{player.name}" with version "{version}" is about to connect to bancho.'
