@@ -5,6 +5,8 @@ from typing import Optional
 from .constants import Mod, Mode, Grade, ScoreStatus, BadFlags
 from .common.database import DBScore, DBBeatmap, DBUser
 
+from .common.database.repositories import scores
+
 import hashlib
 import config
 import app
@@ -131,7 +133,7 @@ class Score:
                                 .first()
 
         if self.beatmap:
-            self.personal_best = app.session.database.personal_best(
+            self.personal_best = scores.fetch_personal_best(
                 self.beatmap.id,
                 self.user.id,
                 self.play_mode.value
@@ -268,7 +270,7 @@ class Score:
                 return ScoreStatus.Submitted
 
             # Check pb with mods
-            mods_pb = app.session.database.personal_best(
+            mods_pb = scores.fetch_personal_best(
                 self.beatmap.id,
                 self.user.id,
                 self.play_mode.value,
