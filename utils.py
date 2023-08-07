@@ -3,7 +3,7 @@ from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime
 from typing import Optional
 
-from app.common.objects import DBScore, DBBeatmapset
+from app.common.database import DBScore, DBBeatmapset
 
 import hashlib
 import config
