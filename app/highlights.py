@@ -24,12 +24,10 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submi
             ]
             irc_message = message.format(*irc_args)
 
-            utils.submit_to_queue(
-                type='bot_message',
-                data={
-                    'message': irc_message,
-                    'target': '#announce'
-                }
+            app.session.events.submit(
+                'bot_message',
+                message=irc_message,
+                target='#announce'
             )
         except Exception as e:
             traceback.print_exc()
