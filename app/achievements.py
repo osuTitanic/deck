@@ -2,7 +2,10 @@
 from datetime import datetime, timedelta
 from typing import List, Callable
 
-from app.common.objects import DBScore
+from app.common.database.repositories import scores, stats
+from app.common.cache import leaderboards
+
+from app.common.database.objects import DBScore
 from app.constants import Mod
 
 import config
@@ -84,7 +87,7 @@ def bunny(score: DBScore) -> bool:
 @register(name="S-Ranker", category='Hush-Hush', filename='s-ranker.png')
 def sranker(score: DBScore) -> bool:
     """Get an S rank on 3 different beatmaps in a row"""
-    latest_scores = app.session.database.recent_scores(
+    latest_scores = scores.fetch_recent(
         score.user_id,
         score.mode,
         limit=3
@@ -189,9 +192,9 @@ def quickdraw(score: DBScore) -> bool:
     if not score.beatmap.is_ranked:
         return False
 
-    scores = app.session.database.range_scores(score.beatmap_id, score.mode)
+    all_scores = scores.fetch_range_scores(score.beatmap_id, score.mode)
 
-    if len(scores) > 1:
+    if len(all_scores) > 1:
         return False
 
     return True
@@ -253,9 +256,9 @@ def osuhits_1(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 0)
+    s = stats.fetch_by_mode(score.user_id, 0)
 
-    if stats.playcount < 5000:
+    if s.playcount < 5000:
         return False
 
     return True
@@ -266,9 +269,9 @@ def osuhits_2(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 0)
+    s = stats.fetch_by_mode(score.user_id, 0)
 
-    if stats.playcount < 15000:
+    if s.playcount < 15000:
         return False
 
     return True
@@ -279,9 +282,9 @@ def osuhits_3(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 0)
+    s = stats.fetch_by_mode(score.user_id, 0)
 
-    if stats.playcount < 25000:
+    if s.playcount < 25000:
         return False
 
     return True
@@ -292,9 +295,9 @@ def osuhits_4(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 0)
+    s = stats.fetch_by_mode(score.user_id, 0)
 
-    if stats.playcount < 50000:
+    if s.playcount < 50000:
         return False
 
     return True
@@ -306,9 +309,9 @@ def taikohits_1(score: DBScore) -> bool:
     if score.mode != 1:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 1)
+    s = stats.fetch_by_mode(score.user_id, 1)
 
-    if stats.playcount < 30000:
+    if s.playcount < 30000:
         return False
 
     return True
@@ -319,9 +322,9 @@ def taikohits_2(score: DBScore) -> bool:
     if score.mode != 1:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 1)
+    s = stats.fetch_by_mode(score.user_id, 1)
 
-    if stats.playcount < 300000:
+    if s.playcount < 300000:
         return False
 
     return True
@@ -332,9 +335,9 @@ def taikohits_3(score: DBScore) -> bool:
     if score.mode != 1:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 1)
+    s = stats.fetch_by_mode(score.user_id, 1)
 
-    if stats.playcount < 3000000:
+    if s.playcount < 3000000:
         return False
 
     return True
@@ -345,9 +348,9 @@ def fruitshits_1(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 2)
+    s = stats.fetch_by_mode(score.user_id, 2)
 
-    if stats.playcount < 20000:
+    if s.playcount < 20000:
         return False
 
     return True
@@ -358,9 +361,9 @@ def fruitshits_2(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 2)
+    s = stats.fetch_by_mode(score.user_id, 2)
 
-    if stats.playcount < 200000:
+    if s.playcount < 200000:
         return False
 
     return True
@@ -371,9 +374,9 @@ def fruitshits_3(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 2)
+    s = stats.fetch_by_mode(score.user_id, 2)
 
-    if stats.playcount < 2000000:
+    if s.playcount < 2000000:
         return False
 
     return True
@@ -384,9 +387,9 @@ def maniahits_1(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 3)
+    s = stats.fetch_by_mode(score.user_id, 3)
 
-    if stats.playcount < 40000:
+    if s.playcount < 40000:
         return False
 
     return True
@@ -397,9 +400,9 @@ def maniahits_2(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 3)
+    s = stats.fetch_by_mode(score.user_id, 3)
 
-    if stats.playcount < 400000:
+    if s.playcount < 400000:
         return False
 
     return True
@@ -410,9 +413,9 @@ def maniahits_3(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    stats = app.session.database.user_stats_by_mode(score.user_id, 3)
+    s = stats.fetch_by_mode(score.user_id, 3)
 
-    if stats.playcount < 4000000:
+    if s.playcount < 4000000:
         return False
 
     return True
@@ -420,7 +423,7 @@ def maniahits_3(score: DBScore) -> bool:
 @register(name='I can see the top', category='Skill', filename='high-ranker-1.png')
 def ranking_1(score: DBScore) -> bool:
     """Reach a profile rank of at least 50,000 in any osu! mode"""
-    rank = app.session.cache.get_global_rank(score.user_id, score.mode)
+    rank = leaderboards.global_rank(score.user_id, score.mode)
 
     if rank > 50000:
         return False
@@ -430,7 +433,7 @@ def ranking_1(score: DBScore) -> bool:
 @register(name='The gradual rise', category='Skill', filename='high-ranker-2.png')
 def ranking_2(score: DBScore) -> bool:
     """Reach a profile rank of at least 10,000 in any osu! mode"""
-    rank = app.session.cache.get_global_rank(score.user_id, score.mode)
+    rank = leaderboards.global_rank(score.user_id, score.mode)
 
     if rank > 10000:
         return False
@@ -440,7 +443,7 @@ def ranking_2(score: DBScore) -> bool:
 @register(name='Scaling up', category='Skill', filename='high-ranker-3.png')
 def ranking_3(score: DBScore) -> bool:
     """Reach a profile rank of at least 5,000 in any osu! mode"""
-    rank = app.session.cache.get_global_rank(score.user_id, score.mode)
+    rank = leaderboards.global_rank(score.user_id, score.mode)
 
     if rank > 5000:
         return False
@@ -450,7 +453,7 @@ def ranking_3(score: DBScore) -> bool:
 @register(name='Approaching the summit', category='Skill', filename='high-ranker-4.png')
 def ranking_3(score: DBScore) -> bool:
     """Reach a profile rank of at least 1,000 in any osu! mode"""
-    rank = app.session.cache.get_global_rank(score.user_id, score.mode)
+    rank = leaderboards.global_rank(score.user_id, score.mode)
 
     if rank > 1000:
         return False
