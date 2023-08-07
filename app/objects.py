@@ -1,9 +1,9 @@
 
-from typing   import List, Optional
 from datetime import datetime
+from typing import Optional
 
 from .constants import Mod, Mode, Grade, ScoreStatus, BadFlags
-from .common.objects import DBScore, DBBeatmap, DBUser
+from .common.database import DBScore, DBBeatmap, DBUser
 
 import hashlib
 import config
