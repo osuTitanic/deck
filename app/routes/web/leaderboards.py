@@ -97,6 +97,9 @@ def get_scores(
         ])
     )
 
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
     # Offset
     response.append('0')
 
@@ -113,9 +116,6 @@ def get_scores(
             ]
         )
     )
-
-    if skip_scores or not beatmap.is_ranked:
-        return
 
     response.append(str(
         ratings.fetch_average(beatmap.md5)
@@ -229,6 +229,9 @@ def legacy_scores(
 
     # Status
     response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
 
     # Offset
     response.append('0')
