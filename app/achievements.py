@@ -202,7 +202,7 @@ def quickdraw(score: DBScore) -> bool:
 @register(name='Obsessed', category='Hush-Hush', filename='obsessed.png')
 def obsessed(score: DBScore) -> bool:
     """Play the same map over 100 times in a day, retries included"""
-    last_scores = app.session.database.session.query(DBScore) \
+    last_scores = app.session.database.pool_session.query(DBScore) \
             .filter(DBScore.beatmap_id == score.beatmap_id) \
             .filter(DBScore.user_id == score.user_id) \
             .filter(DBScore.mode == score.mode) \
