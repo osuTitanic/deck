@@ -370,7 +370,6 @@ async def score_submission(
                     .update(updates)
 
     score.session.commit()
-    score.session.close()
 
     # Reload stats on bancho
     app.session.events.submit(
@@ -463,6 +462,8 @@ async def score_submission(
             overallChart['toNextRank'] = score_above.total_score - score.total_score
 
     response.append(overallChart)
+
+    score.session.close()
 
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
