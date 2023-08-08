@@ -1,6 +1,7 @@
 
 from datetime import datetime
 
+from app.common.cache import status
 from app.common.database.repositories import (
     beatmapsets,
     favourites,
@@ -10,7 +11,6 @@ from app.common.database.repositories import (
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response,
     Query
 )
 
@@ -29,6 +29,9 @@ async def add_favourite(
         raise HTTPException(401)
     
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        raise HTTPException(401)
+
+    if not status.exists(player.id):
         raise HTTPException(401)
 
     users.update(player.id, {'latest_activity': datetime.now()})

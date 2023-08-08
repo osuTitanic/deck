@@ -1,4 +1,5 @@
 
+from app.common.cache import status
 from app.common.database.repositories import (
     screenshots,
     users
@@ -32,9 +33,8 @@ async def screenshot(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
-    # TODO:
-    # if not app.session.cache.user_exists(player.id):
-    #     raise HTTPException(401)
+    if not status.exists(player.id):
+        raise HTTPException(401)
 
     screenshot_content = await screenshot.read()
 

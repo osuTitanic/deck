@@ -9,12 +9,13 @@ from fastapi import (
     Query
 )
 
+from app.common.cache import status
+
 from app.common.database.repositories import (
     relationships,
     beatmaps,
     ratings,
     scores,
-    plays,
     users
 )
 
@@ -65,9 +66,8 @@ async def get_scores(
         if not (player := users.fetch_by_id(user_id)):
             raise HTTPException(401)
 
-    # TODO:
-    # if not app.session.cache.user_exists(player.id):
-    #     raise HTTPException(401)
+    if not status.exists(player.id):
+        raise HTTPException(401)
 
     # Update latest activity
     users.update(player.id, {'latest_activity': datetime.now()})
@@ -221,7 +221,7 @@ async def legacy_scores(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s'),
-    user_id: int = Query(..., alias='u'),
+    player_id: int = Query(..., alias='u'),
     mode: int = Query(..., alias='m')
 ):
     try:
@@ -230,11 +230,10 @@ async def legacy_scores(
     except ValueError:
         raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
-    # TODO:
-    # if not app.session.cache.user_exists(user_id):
-    #     raise HTTPException(401)
+    if not status.exists(player_id):
+        raise HTTPException(401)
 
-    if not (player := users.fetch_by_id(user_id)):
+    if not (player := users.fetch_by_id(player_id)):
         raise HTTPException(401)
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):

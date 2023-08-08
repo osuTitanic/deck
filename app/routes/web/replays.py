@@ -1,4 +1,5 @@
 
+from app.common.cache import status
 from app.common.database import DBStats
 from app.common.database.repositories import (
     histories,
@@ -33,9 +34,8 @@ async def get_replay(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
-    # TODO:
-    # if not app.session.cache.user_exists(player.id):
-    #     raise HTTPException(401)
+    if not status.exists(player.id):
+        raise HTTPException(401)
 
     users.update(player.id, {'latest_activity': datetime.now()})
 

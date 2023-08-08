@@ -1,7 +1,8 @@
 
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List
+from typing import Optional
 
+from app.common.cache import status
 from app.common.constants import DisplayMode
 from app.common.database.repositories import (
     beatmapsets,
@@ -27,6 +28,9 @@ def search(
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         return '-1\nFailed to authenticate user'
+
+    if not status.exists(player.id):
+        return '-1\nNot connected to bancho'
 
     if not player.is_supporter:
         return "-1\nWhy are you here?"

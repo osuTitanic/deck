@@ -4,6 +4,7 @@ from fastapi import APIRouter, Response, Query
 from datetime import datetime
 from typing import Optional
 
+from app.common.cache import status
 from app.common.database.repositories import (
     beatmaps,
     ratings,
@@ -26,6 +27,9 @@ async def rate(
         return Response('auth fail')
     
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        return Response('auth fail')
+
+    if not status.exists(player.id):
         return Response('auth fail')
 
     users.update(player.id, {'latest_activity': datetime.now()})

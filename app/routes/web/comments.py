@@ -16,6 +16,7 @@ from app.common.database.repositories import (
 
 from app.common.constants import CommentTarget, Permissions
 from app.common.database import DBComment
+from app.common.cache import status
 
 router = APIRouter()
 
@@ -41,6 +42,9 @@ async def get_comments(
 
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
         raise HTTPException(401, detail="Auth")
+
+    if not status.exists(user.id):
+        raise HTTPException(401, detail='Bancho')
 
     users.update(user.id, {'latest_activity': datetime.now()})
 

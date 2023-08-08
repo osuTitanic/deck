@@ -16,9 +16,9 @@ from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app import achievements as AchievementManager
+from app.common.cache import leaderboards, status
 from app.common.database import DBStats, DBScore
 from app.common.constants import Grade, BadFlags
-from app.common.cache import leaderboards
 
 from app.common.database.repositories import (
     achievements,
@@ -90,10 +90,9 @@ async def score_submission(
     if not score.beatmap:
         return Response('error: beatmap')
 
-    # TODO:
-    # if not app.session.cache.user_exists(player.id):
-    #     # Client will resend the request
-    #     return Response('')
+    if not status.exists(player.id):
+        # Client will resend the request
+        return Response('')
 
     users.update(player.id, {'latest_activity': datetime.now()})
 
@@ -142,13 +141,6 @@ async def score_submission(
     # if bancho_hash.decode() != client_hash.string:
     #     app.session.logger.warning(
     #         f'"{score.username}" submitted score with client hash mismatch.'
-    #     )
-    #     utils.submit_to_queue(
-    #         type='restrict',
-    #         data={
-    #             'user_id': score.user.id,
-    #             'reason': 'Score submission with client hash mismatch'
-    #         }
     #     )
     #     return Response('error: ban')
 
