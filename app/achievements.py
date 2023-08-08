@@ -40,7 +40,7 @@ def register(name: str, category: str, filename: str) -> Callable:
         achievements.append(a)
 
         return a
-    
+
     return wrapper
 
 @register(name='500 Combo  (any song)', category='Skill', filename='combo500.png')
@@ -115,7 +115,7 @@ def improved(score: DBScore) -> bool:
 
     # if not score.personal_best:
     #     return False
-    #     
+    #
     # previous_grade = Grade[score.personal_best.grade].value
     # new_grade      = Grade[score.grade].value
 
@@ -202,7 +202,7 @@ def quickdraw(score: DBScore) -> bool:
 @register(name='Obsessed', category='Hush-Hush', filename='obsessed.png')
 def obsessed(score: DBScore) -> bool:
     """Play the same map over 100 times in a day, retries included"""
-    last_scores = app.session.database.pool_session.query(DBScore) \
+    last_scores = app.session.database.session.query(DBScore) \
             .filter(DBScore.beatmap_id == score.beatmap_id) \
             .filter(DBScore.user_id == score.user_id) \
             .filter(DBScore.mode == score.mode) \
@@ -427,7 +427,7 @@ def ranking_1(score: DBScore) -> bool:
 
     if rank > 50000:
         return False
-    
+
     return True
 
 @register(name='The gradual rise', category='Skill', filename='high-ranker-2.png')
@@ -437,7 +437,7 @@ def ranking_2(score: DBScore) -> bool:
 
     if rank > 10000:
         return False
-    
+
     return True
 
 @register(name='Scaling up', category='Skill', filename='high-ranker-3.png')
@@ -447,7 +447,7 @@ def ranking_3(score: DBScore) -> bool:
 
     if rank > 5000:
         return False
-    
+
     return True
 
 @register(name='Approaching the summit', category='Skill', filename='high-ranker-4.png')
@@ -457,7 +457,7 @@ def ranking_3(score: DBScore) -> bool:
 
     if rank > 1000:
         return False
-    
+
     return True
 
 # TODO

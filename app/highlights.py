@@ -147,7 +147,7 @@ def check_pp(
     mode_name: str
 ):
     # Get current pp record for mode
-    with app.session.database.session as session:
+    with app.session.database.managed_session() as session:
         result = session.query(DBScore) \
                 .filter(DBScore.mode == score.mode) \
                 .filter(DBScore.status == 3) \
