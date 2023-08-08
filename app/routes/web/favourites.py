@@ -33,14 +33,25 @@ def add_favourite(
 
     users.update(player.id, {'latest_activity': datetime.now()})
 
+    count = favourites.fetch_count(player.id)
+
+    if count > 49:
+        return 'You have too many favourite maps. Please go to your profile and delete some first.'
+
+    if favourites.fetch_one(player.id, set_id):
+        return 'You have already favourited this map...'
+
     if not (beatmap_set := beatmapsets.fetch_one(set_id)):
         raise HTTPException(404)
 
+    count += 1
+
     favourites.create(player.id, beatmap_set.id)
+    app.session.logger.info(
+        f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}'
+    )
 
-    app.session.logger.info(f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}')
-
-    return Response('ok')
+    return f'Added to favourites! You have a total of {count} favourite{"s" if count > 1 else ""}'
 
 @router.get('/osu-getfavourites.php')
 def get_favourites(
