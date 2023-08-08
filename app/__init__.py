@@ -16,6 +16,7 @@ from fastapi import (
 
 import uvicorn
 import config
+import time
 
 api = FastAPI(
     title='Deck',
@@ -24,6 +25,16 @@ api = FastAPI(
     redoc_url=None,
     docs_url=None
 )
+
+@api.middleware('http')
+async def get_process_time(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    total_time = time.time() - start
+    session.logger.debug(
+        f'Processing Time: ~{round(total_time, 4)} seconds'
+    )
+    return response
 
 @api.exception_handler(HTTPException)
 async def exception_handler(request: Request, exc: HTTPException):
