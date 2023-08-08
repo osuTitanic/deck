@@ -38,15 +38,14 @@ def add_favourite(
     if count > 49:
         return 'You have too many favourite maps. Please go to your profile and delete some first.'
 
-    if favourites.fetch_one(player.id, set_id):
-        return 'You have already favourited this map...'
-
     if not (beatmap_set := beatmapsets.fetch_one(set_id)):
         raise HTTPException(404)
 
+    if not favourites.create(player.id, beatmap_set.id):
+        return 'You have already favourited this map...'
+
     count += 1
 
-    favourites.create(player.id, beatmap_set.id)
     app.session.logger.info(
         f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}'
     )
