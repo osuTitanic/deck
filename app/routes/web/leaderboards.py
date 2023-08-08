@@ -117,9 +117,9 @@ def get_scores(
     if skip_scores or not beatmap.is_ranked:
         return
 
-    response.append(
+    response.append(str(
         ratings.fetch_average(beatmap.md5)
-    )
+    ))
 
     personal_best = scores.fetch_personal_best(
         beatmap.id,
@@ -245,9 +245,9 @@ def legacy_scores(
         ])
     )
 
-    response.append(
+    response.append(str(
         ratings.fetch_average(beatmap.md5)
-    )
+    ))
 
     personal_best = scores.fetch_personal_best(
         beatmap.id,
