@@ -39,36 +39,30 @@ def search(
     if len(query) < 3:
         return "-1\nQuery is too short."
 
-    max_retries = 4
+    response = []
 
-    for retry in range(max_retries):
-        response = []
+    try:
+        # This searching algorythm is really bad, but
+        # it works for now at least...
+        results = beatmapsets.search(
+            query,
+            player.id,
+            display_mode
+        )
 
-        try:
-            # This searching algorythm is really bad, but
-            # it works for now at least...
-            results = beatmapsets.search(
-                query,
-                player.id,
-                display_mode
+        response.append(str(
+            len(results)
+        ))
+
+        for set in results:
+            response.append(
+                utils.online_beatmap(set)
             )
+    except Exception as e:
+        app.session.logger.error(f'Failed to execute search: {e}')
+        return "-1\nServer error. Please try again!"
 
-            response.append(str(
-                len(results)
-            ))
-
-            for set in results:
-                response.append(
-                    utils.online_beatmap(set)
-                )
-        except Exception as e:
-            app.session.logger.error(f'Failed to execute search: {e}')
-            app.session.logger.warning(f'Retrying... ({retry})')
-            continue
-
-        return "\n".join(response)
-
-    return "-1\nServer error. Please try again!"
+    return "\n".join(response)
 
 @router.get('/osu-search-set.php')
 def pickup_info(
