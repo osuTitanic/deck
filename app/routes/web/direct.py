@@ -46,8 +46,6 @@ def search(
     response = []
 
     try:
-        # This searching algorythm is really bad, but
-        # it works for now at least...
         results = beatmapsets.search(
             query,
             player.id,
