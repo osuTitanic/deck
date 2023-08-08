@@ -32,7 +32,7 @@ import app
 router = APIRouter()
 
 @router.get('/osu-osz2-getscores.php')
-def get_scores(
+async def get_scores(
     username: Optional[str] = Query(None, alias='us'),
     password: Optional[str] = Query(None, alias='ha'),
     ranking_type: Optional[int] = Query(1, alias='v'),
@@ -194,7 +194,7 @@ def get_scores(
     return Response('\n'.join(response))
 
 @router.get('/osu-getscores6.php')
-def legacy_scores(
+async def legacy_scores(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s'),

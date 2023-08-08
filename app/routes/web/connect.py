@@ -11,7 +11,7 @@ import app
 router = APIRouter()
 
 @router.get('/bancho_connect.php')
-def connect(
+async def connect(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     version: str = Query(..., alias='v')

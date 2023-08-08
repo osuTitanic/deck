@@ -20,7 +20,7 @@ import app
 router = APIRouter()
 
 @router.get('/osu-addfavourite.php')
-def add_favourite(
+async def add_favourite(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='a')
@@ -53,7 +53,7 @@ def add_favourite(
     return f'Added to favourites! You have a total of {count} favourite{"s" if count > 1 else ""}'
 
 @router.get('/osu-getfavourites.php')
-def get_favourites(
+async def get_favourites(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
 ):

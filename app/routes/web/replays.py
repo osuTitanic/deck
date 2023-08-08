@@ -21,7 +21,7 @@ import bcrypt
 import app
 
 @router.get('/osu-getreplay.php')
-def get_replay(
+async def get_replay(
     score_id: int = Query(..., alias='c'),
     mode: int = Query(..., alias='m'),
     username: str = Query(..., alias='u'),
