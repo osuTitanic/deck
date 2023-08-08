@@ -229,7 +229,7 @@ def nonstop(score: DBScore) -> bool:
 @register(name='Jack of All Trades', category='Hush-Hush', filename='jack.png')
 def allmodes(score: DBScore) -> bool:
     """Reach a play count of at least 5,000 in all osu!Standard, osu!Taiko, osu!CtB and osu!Mania"""
-    all_stats = app.session.database.user_stats(score.user_id)
+    all_stats = stats.fetch_all(score.user_id)
 
     playcounts = [stats.playcount for stats in all_stats]
 

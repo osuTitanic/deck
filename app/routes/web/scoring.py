@@ -339,7 +339,10 @@ async def score_submission(
             player.country
         )
 
-        stats.rank = leaderboards.global_rank(stats.user_id, stats.mode)
+        stats.rank = leaderboards.global_rank(
+            stats.user_id,
+            stats.mode
+        )
 
         score.session.commit()
 
