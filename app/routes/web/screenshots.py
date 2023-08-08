@@ -1,4 +1,10 @@
 
+from app.common.database.repositories import (
+    screenshots,
+    users
+)
+
+from datetime import datetime
 from fastapi import (
     HTTPException,
     UploadFile,
@@ -20,14 +26,15 @@ async def screenshot(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p')
 ):
-    if not (player := app.session.database.user_by_name(username)):
+    if not (player := users.fetch_by_name(username)):
         raise HTTPException(401)
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
-    if not app.session.cache.user_exists(player.id):
-        raise HTTPException(401)
+    # TODO:
+    # if not app.session.cache.user_exists(player.id):
+    #     raise HTTPException(401)
 
     screenshot_content = await screenshot.read()
 
@@ -45,9 +52,9 @@ async def screenshot(
                 detail="Invalid file type"
             )
 
-        app.session.database.update_latest_activity(player.id)
+        users.update(player.id, {'latest_activity': datetime.now()})
 
-        id = app.session.database.submit_screenshot(player.id, hidden=False)
+        id = screenshots.create(player.id, hidden=False).id
 
         app.session.storage.upload_screenshot(id, screenshot_content)
         app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
@@ -63,7 +70,7 @@ async def monitor(
     # This endpoint will be called, when the client receives a
     # monitor packet from bancho
 
-    if not (player := app.session.database.user_by_id(user_id)):
+    if not (player := users.fetch_by_id(user_id)):
         raise HTTPException(401)
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
@@ -85,9 +92,9 @@ async def monitor(
                 detail="Invalid file type"
             )
 
-        app.session.database.update_latest_activity(player.id)
+        users.update(player.id, {'latest_activity': datetime.now()})
 
-        id = app.session.database.submit_screenshot(player.id, hidden=True)
+        id = screenshots.create(player.id, hidden=True).id
 
         app.session.storage.upload_screenshot(id, screenshot_content)
         app.session.logger.info(f'{player.name} uploaded a hidden screenshot ({id})')
