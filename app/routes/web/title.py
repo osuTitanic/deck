@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.get('/osu-title-image.php')
 def legacy_menu_icon(
-    # image_checksum: Optional[str] = Query('', alias='c'), why does this not work tf
+    image_checksum: Optional[str] = Query('', alias='c'),
     redirect: Optional[bool] = Query(False, alias='l')
 ):
     if redirect:
@@ -37,4 +37,4 @@ def legacy_menu_icon(
         expiry=timedelta(hours=1)
     )
 
-    return response.content
+    return Response(response.content)
