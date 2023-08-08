@@ -41,7 +41,7 @@ async def rate(
         return Response('not ranked')
 
     if beatmap.beatmapset.creator == player.name:
-        # TODO: This is pretty useless...
+        # This is pretty useless...
         return Response('owner')
 
     previous_rating = ratings.fetch_one(beatmap.md5, player.id)
