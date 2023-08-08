@@ -391,7 +391,19 @@ async def score_submission(
             daemon=True
         ).start()
 
-    # TODO: Update preferred mode
+    # Update preferred mode
+
+    if player.preferred_mode != score.play_mode.value:
+        recent_scores = scores.fetch_recent_top_scores(
+            player.id,
+            limit=25
+        )
+
+        if len({s.mode for s in recent_scores}) == 1:
+            users.update(
+                player.id,
+                {'preferred_mode': score.play_mode.value}
+            )
 
     achievement_response: List[str] = []
     response: List[Chart] = []
