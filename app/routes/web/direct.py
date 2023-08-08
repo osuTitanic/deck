@@ -63,6 +63,7 @@ def search(
                 )
         except Exception as e:
             app.session.logger.error(f'Failed to execute search: {e}')
+            app.session.logger.warning(f'Retrying... ({retry})')
             continue
 
         return "\n".join(response)
