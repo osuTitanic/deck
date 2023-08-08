@@ -56,8 +56,8 @@ def rate(
         return RedirectResponse('https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
     ratings.create(
-        player.id,
         beatmap.md5,
+        player.id,
         beatmap.set_id,
         rating
     )
