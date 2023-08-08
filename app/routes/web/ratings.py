@@ -46,7 +46,7 @@ def rate(
         return Response(
             '\n'.join([
                 'alreadyvoted',
-                ratings.fetch_average(beatmap.md5)
+                str(ratings.fetch_average(beatmap.md5))
             ]))
     
     if rating is None:
@@ -69,5 +69,5 @@ def rate(
     return Response(
         '\n'.join([
             'ok',
-            ratings.fetch_average(beatmap.md5)
+            str(ratings.fetch_average(beatmap.md5))
         ]))
