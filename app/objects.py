@@ -4,15 +4,13 @@ from typing import Optional
 
 from app.common.helpers import performance
 from app.common.database.repositories import (
-    beatmaps,
     scores,
     users
 )
 
 from .common.database import (
     DBBeatmap,
-    DBScore,
-    DBUser
+    DBScore
 )
 
 from .common.constants import (
@@ -24,7 +22,6 @@ from .common.constants import (
 )
 
 import hashlib
-import config
 import app
 
 class Chart(dict):
@@ -139,7 +136,12 @@ class Score:
 
         self.status = ScoreStatus.Submitted
 
-        self.beatmap = beatmaps.fetch_by_checksum(file_checksum)
+        # Beatmap needs to be bound to session
+        self.session = app.session.database.session
+        self.beatmap = self.session.query(DBBeatmap) \
+                        .filter(DBBeatmap.md5 == file_checksum) \
+                        .first()
+
         self.user = users.fetch_by_name(username)
 
         if self.beatmap:
@@ -271,46 +273,45 @@ class Score:
         if not self.personal_best:
             return ScoreStatus.Best
 
-        with app.session.database.session as session:
-            if self.total_score < self.personal_best.total_score:
-                if self.enabled_mods.value == self.personal_best.mods:
-                    return ScoreStatus.Submitted
+        if self.total_score < self.personal_best.total_score:
+            if self.enabled_mods.value == self.personal_best.mods:
+                return ScoreStatus.Submitted
 
-                # Check pb with mods
-                mods_pb = scores.fetch_personal_best(
-                    self.beatmap.id,
-                    self.user.id,
-                    self.play_mode.value,
-                    self.enabled_mods.value
-                )
+            # Check pb with mods
+            mods_pb = scores.fetch_personal_best(
+                self.beatmap.id,
+                self.user.id,
+                self.play_mode.value,
+                self.enabled_mods.value
+            )
 
-                if not mods_pb:
-                    return ScoreStatus.Mods
-
-                if self.total_score < mods_pb.total_score:
-                    return ScoreStatus.Submitted
-
-                session.query(DBScore) \
-                       .filter(DBScore.id == mods_pb.id) \
-                       .update(
-                           {'status': ScoreStatus.Submitted.value}
-                       )
-                session.commit()
-
+            if not mods_pb:
                 return ScoreStatus.Mods
 
-            # New pb was set
-            status = {'status': ScoreStatus.Submitted.value} \
-                     if self.enabled_mods.value == self.personal_best.mods else \
-                     {'status': ScoreStatus.Mods.value}
+            if self.total_score < mods_pb.total_score:
+                return ScoreStatus.Submitted
 
-            session.query(DBScore) \
-                   .filter(DBScore.id == self.personal_best.id) \
-                   .update(status)
+            self.session.query(DBScore) \
+                   .filter(DBScore.id == mods_pb.id) \
+                   .update(
+                       {'status': ScoreStatus.Submitted.value}
+                   )
+            self.session.commit()
 
-            session.commit()
+            return ScoreStatus.Mods
 
-            return ScoreStatus.Best
+        # New pb was set
+        status = {'status': ScoreStatus.Submitted.value} \
+                 if self.enabled_mods.value == self.personal_best.mods else \
+                 {'status': ScoreStatus.Mods.value}
+
+        self.session.query(DBScore) \
+               .filter(DBScore.id == self.personal_best.id) \
+               .update(status)
+
+        self.session.commit()
+
+        return ScoreStatus.Best
 
     @classmethod
     def parse(
