@@ -86,6 +86,35 @@ async def get_scores(
     submission_status = SubmissionStatus.from_database(beatmap.status)
     has_osz = False # TODO
 
+    # Fetch score count
+
+    score_count = 0
+    friends = []
+
+    if beatmap.is_ranked:
+        friends = [
+            rel.target_id
+            for rel in relationships.fetch_many_by_id(player.id)
+            if rel.status == 0
+        ]
+
+        score_count = scores.fetch_count_beatmap(
+            beatmap.id,
+            mode.value,
+            mods=mods
+                if ranking_type == RankingType.SelectedMod
+                else None,
+            country=player.country
+                if ranking_type == RankingType.Country
+                else None,
+            friends=friends
+                if ranking_type == RankingType.Friends
+                else None
+        )
+
+        if ranking_type == RankingType.Friends:
+            score_count += 1
+
     # Beatmap Info
     response.append(
         '|'.join([
@@ -93,7 +122,7 @@ async def get_scores(
             str(has_osz),
             str(beatmap.id),
             str(beatmap.set_id),
-            str(plays.fetch_count_for_beatmap(beatmap.id))
+            str(score_count)
         ])
     )
 
@@ -127,12 +156,6 @@ async def get_scores(
         mode.value,
         mods if ranking_type == RankingType.SelectedMod else None
     )
-
-    friends = [
-        rel.target_id
-        for rel in relationships.fetch_many_by_id(player.id)
-        if rel.status == 0
-    ]
 
     if personal_best:
         index = scores.fetch_score_index(
