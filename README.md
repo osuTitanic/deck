@@ -21,4 +21,4 @@ A lot of the features are pretty much done for the most part:
 - [x] Bot messages on #announce
 - [x] Rank/Plays/Replays history
 
-You can view the todo's [here](https://github.com/users/Lekuruu/projects/2).
+You can view the todo's [here](https://github.com/users/osuTitanic/projects/2).
