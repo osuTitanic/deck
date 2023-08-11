@@ -1,9 +1,10 @@
 
+from .common.cache.events import EventQueue
 from .common.database import Postgres
 from .common.storage import Storage
-from .common.users import UserCache
 
 from requests import Session
+from redis import Redis
 
 import logging
 import config
@@ -15,6 +16,16 @@ requests.headers = {
     'User-Agent': f'deck-{config.VERSION}'
 }
 
+redis = Redis(
+    config.REDIS_HOST,
+    config.REDIS_PORT
+)
+
+events = EventQueue(
+    name='bancho:events',
+    connection=redis
+)
+
 database = Postgres(
     config.POSTGRES_USER,
     config.POSTGRES_PASSWORD,
@@ -23,5 +34,3 @@ database = Postgres(
 )
 
 storage = Storage()
-
-cache = UserCache()

@@ -10,14 +10,23 @@ from fastapi import (
 )
 
 from typing import Optional, List
+from datetime import datetime
 from threading import Thread
 from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
-from app.common.objects import DBStats, DBScore
-from app.constants import Mod, Grade, BadFlags
-from app.services.anticheat import Anticheat
-from app import achievements
+from app import achievements as AchievementManager
+from app.common.cache import leaderboards, status
+from app.common.database import DBStats, DBScore
+from app.common.constants import Grade, BadFlags
+
+from app.common.database.repositories import (
+    achievements,
+    histories,
+    scores,
+    plays,
+    users
+)
 
 import hashlib
 import base64
@@ -81,11 +90,11 @@ async def score_submission(
     if not score.beatmap:
         return Response('error: beatmap')
 
-    if not app.session.cache.user_exists(player.id):
+    if not status.exists(player.id):
         # Client will resend the request
         return Response('')
 
-    app.session.database.update_latest_activity(player.id)
+    users.update(player.id, {'latest_activity': datetime.now()})
 
     if score.passed:
         # Check for replay
@@ -94,31 +103,27 @@ async def score_submission(
             app.session.logger.warning(
                 f'"{score.username}" submitted score without replay.'
             )
-            utils.submit_to_queue(
-                type='restrict',
-                data={
-                    'user_id': score.user.id,
-                    'reason': 'Score submission without replay.'
-                }
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                reason='Score submission without replay'
             )
             return Response('error: ban')
 
         # Check for duplicate score
 
         replay_hash = hashlib.md5(replay).hexdigest()
-        duplicate_score = app.session.database.score_by_checksum(replay_hash)
+        duplicate_score = scores.fetch_by_replay_checksum(replay_hash)
 
         if duplicate_score:
-            if duplicate_score.user.name != score.username:
+            if duplicate_score.user.id != player.id:
                 app.session.logger.warning(
                     f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
                 )
-                utils.submit_to_queue(
-                    type='restrict',
-                    data={
-                        'user_id': score.user.id,
-                        'reason': 'Duplicate replay in score submission'
-                    }
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    reason='Duplicate replay in score submission'
                 )
                 return Response('error: ban')
 
@@ -130,20 +135,14 @@ async def score_submission(
 
     # Validate client hash
 
-    bancho_hash = app.session.cache.get_user(player.id)[b'client_hash']
+    # TODO:
+    # bancho_hash = app.session.cache.get_user(player.id)[b'client_hash']
 
-    if bancho_hash.decode() != client_hash.string:
-        app.session.logger.warning(
-            f'"{score.username}" submitted score with client hash mismatch.'
-        )
-        utils.submit_to_queue(
-            type='restrict',
-            data={
-                'user_id': score.user.id,
-                'reason': 'Score submission with client hash mismatch'
-            }
-        )
-        return Response('error: ban')
+    # if bancho_hash.decode() != client_hash.string:
+    #     app.session.logger.warning(
+    #         f'"{score.username}" submitted score with client hash mismatch.'
+    #     )
+    #     return Response('error: ban')
 
     # Check for invalid mods
 
@@ -151,12 +150,10 @@ async def score_submission(
         app.session.logger.warning(
             f'"{score.username}" submitted score with invalid mods.'
         )
-        utils.submit_to_queue(
-            type='restrict',
-            data={
-                'user_id': score.user.id,
-                'reason': 'Invalid mods on score submission'
-            }
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            reason='Invalid mods on score submission'
         )
         return Response('error: ban')
 
@@ -175,43 +172,33 @@ async def score_submission(
                 # (Only for relax?)
                 pass
             else:
-                utils.submit_to_queue(
-                    type='restrict',
-                    data={
-                        'user_id': score.user.id,
-                        'reason': f'Submitted score with bad flags ({score.flags.value})'
-                    }
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    reason=f'Submitted score with bad flags ({score.flags.value})'
                 )
                 return Response('error: ban')
 
-    # What is FreeModAllowed?
-    if Mod.FreeModAllowed in score.enabled_mods:
-        score.enabled_mods = score.enabled_mods & ~Mod.FreeModAllowed
-
-    # This fixes the keymods
-    if Mod.keyMod in score.enabled_mods:
-        score.enabled_mods = score.enabled_mods & ~Mod.keyMod
+    # TODO: Check flashlight screenshot
 
     # Submit to database
 
     score_object = score.to_database()
     score_object.client_hash = str(client_hash)
-    score_object.screenshot  = screenshot
-    score_object.processes   = processes
-    score_object.bad_flags   = score.flags
+    score_object.processes = processes
+    score_object.bad_flags = score.flags
 
     if not config.ALLOW_RELAX and score.relaxing:
         score_object.status = -1
 
-    instance = app.session.database.session
-    instance.add(score_object)
-    instance.flush()
+    score.session.add(score_object)
+    score.session.flush()
 
     # Upload replay
 
     if score.passed:
         if score.status.value > ScoreStatus.Submitted.value:
-            score_rank = app.session.database.score_index_by_id(
+            score_rank = scores.fetch_score_index_by_id(
                 mods=score.enabled_mods.value,
                 beatmap_id=score.beatmap.id,
                 mode=score.play_mode.value,
@@ -221,9 +208,12 @@ async def score_submission(
             if score.beatmap.is_ranked:
                 # Check if score is inside the leaderboards
                 if score_rank <= config.SCORE_RESPONSE_LIMIT:
-                    app.session.storage.upload_replay(score_object.id, replay)
+                    app.session.storage.upload_replay(
+                        score_object.id,
+                        replay
+                    )
 
-    instance.commit()
+    score.session.commit()
 
     score.beatmap.playcount += 1
     score.beatmap.passcount += 1 if score.passed else 0
@@ -232,7 +222,7 @@ async def score_submission(
 
     # Update user stats
 
-    stats: DBStats = instance.query(DBStats) \
+    stats: DBStats = score.session.query(DBStats) \
                 .filter(DBStats.user_id == player.id) \
                 .filter(DBStats.mode == score.play_mode.value) \
                 .first()
@@ -248,18 +238,18 @@ async def score_submission(
         stats.tscore += score.total_score
         stats.total_hits += score.total_hits
 
-    instance.commit()
+    score.session.commit()
 
-    app.session.database.update_plays_history(
+    histories.update_plays(
         stats.user_id,
         stats.mode
     )
 
-    app.session.database.update_plays(
-        score.beatmap.id,
+    plays.update(
         score.beatmap.filename,
+        score.beatmap.id,
+        score.user.id,
         score.beatmap.set_id,
-        score.user.id
     )
 
     if score.beatmap.status < 0:
@@ -271,8 +261,8 @@ async def score_submission(
     previous_grade = None
     grade = None
 
-    score_count = app.session.database.score_count(score.user.id, score.play_mode.value)
-    top_scores = app.session.database.top_scores(
+    score_count = scores.fetch_count(score.user.id, score.play_mode.value)
+    top_scores = scores.fetch_top_scores(
         user_id=score.user.id,
         mode=score.play_mode.value,
         exclude_approved=False
@@ -301,7 +291,7 @@ async def score_submission(
 
         # Update max combo
 
-        max_combo_score = instance.query(DBScore) \
+        max_combo_score = score.session.query(DBScore) \
             .filter(DBScore.user_id == score.user.id) \
             .order_by(DBScore.max_combo.desc()) \
             .first()
@@ -333,14 +323,26 @@ async def score_submission(
 
         stats.pp = weighted_pp + bonus_pp
 
-        app.session.cache.update_leaderboards(stats)
+        leaderboards.update(
+            stats.user_id,
+            stats.mode,
+            stats.pp,
+            stats.rscore,
+            player.country
+        )
 
-        stats.rank = app.session.cache.get_global_rank(stats.user_id, stats.mode)
+        stats.rank = leaderboards.global_rank(
+            stats.user_id,
+            stats.mode
+        )
 
-        instance.commit()
+        score.session.commit()
 
         if score.passed:
-            app.session.database.update_rank_history(stats)
+            histories.update_rank(
+                stats,
+                player.country
+            )
 
     # Update grades
 
@@ -357,22 +359,20 @@ async def score_submission(
                     {grade_name: getattr(DBStats, grade_name) - 1}
                 )
 
-            instance.query(DBStats) \
+            score.session.query(DBStats) \
                     .filter(DBStats.user_id == score.user.id) \
                     .filter(DBStats.mode == score.play_mode.value) \
                     .update(updates)
 
-    instance.commit()
+    score.session.commit()
 
     # Reload stats on bancho
-    utils.submit_to_queue(
-        type='user_update',
-        data={
-            'user_id': score.user.id
-        }
+    app.session.events.submit(
+        'user_update',
+        user_id=player.id
     )
 
-    beatmap_rank = app.session.database.score_index_by_id(
+    beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
         score.beatmap.id,
         mode=score.play_mode.value
@@ -391,19 +391,31 @@ async def score_submission(
             daemon=True
         ).start()
 
-    # TODO: Update preferred mode
+    # Update preferred mode
+
+    if player.preferred_mode != score.play_mode.value:
+        recent_scores = scores.fetch_recent_top_scores(
+            player.id,
+            limit=25
+        )
+
+        if len({s.mode for s in recent_scores}) == 1:
+            users.update(
+                player.id,
+                {'preferred_mode': score.play_mode.value}
+            )
 
     achievement_response: List[str] = []
     response: List[Chart] = []
 
     if score.passed and not score.relaxing:
-        unlocked_achievements = app.session.database.achievements(player.id)
+        unlocked_achievements = achievements.fetch_many(player.id)
         ignore_list = [a.filename for a in unlocked_achievements]
 
-        new_achievements = achievements.check(score_object, ignore_list)
+        new_achievements = AchievementManager.check(score_object, ignore_list)
         achievement_response = [a.filename for a in new_achievements]
 
-        app.session.database.add_achievements(new_achievements, player.id)
+        achievements.create_many(new_achievements, player.id)
 
     beatmapInfo = Chart()
     beatmapInfo['beatmapId'] = score.beatmap.id
@@ -433,7 +445,7 @@ async def score_submission(
     overallChart['toNextRank'] = '0'
 
     if score.beatmap.status > 0:
-        old_rank = app.session.database.score_index_by_id(
+        old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
                     mode=score.play_mode.value
@@ -446,7 +458,7 @@ async def score_submission(
             beatmap_rank
         )
 
-        score_above = app.session.database.score_above(
+        score_above = scores.fetch_score_above(
             score.beatmap.id,
             score.play_mode.value,
             score.total_score
@@ -458,17 +470,10 @@ async def score_submission(
 
     response.append(overallChart)
 
+    score.session.close()
+
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
-
-    if config.CIRCLEGUARD_ENABLED:
-        ac = Anticheat()
-
-        Thread(
-            target=ac.perform_checks,
-            args=[score, score_object.id],
-            daemon=True
-        ).start()
 
     return Response('\n'.join([chart.get() for chart in response]))
