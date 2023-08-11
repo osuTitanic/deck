@@ -84,7 +84,10 @@ async def get_scores(
     response = []
 
     submission_status = SubmissionStatus.from_database(beatmap.status)
-    has_osz = False # TODO
+
+    # TODO: has_osz is used to check if the osz file is still up to date
+    # But I think this is unused tho...
+    has_osz = False
 
     # Fetch score count
 
