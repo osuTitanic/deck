@@ -116,7 +116,7 @@ async def score_submission(
         duplicate_score = scores.fetch_by_replay_checksum(replay_hash)
 
         if duplicate_score:
-            if duplicate_score.user.id != player.id:
+            if duplicate_score.user_id != player.id:
                 app.session.logger.warning(
                     f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
                 )
