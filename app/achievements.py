@@ -499,7 +499,7 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
                 score.user_id,
                 score.mode,
                 '{}' + f' unlocked an achievement: {achievement.name}',
-                (score.user.name, f'http://{config.DOMAIN_NAME}/u/{score.user_id}')
+                (score.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{score.user_id}')
             )
 
     return new_achievements

@@ -16,7 +16,7 @@ async def legacy_menu_icon(
 ):
     if redirect:
         if not config.MENUICON_URL:
-            return RedirectResponse(f'http://{config.DOMAIN_NAME}')
+            return RedirectResponse(f'http://osu.{config.DOMAIN_NAME}')
 
         return RedirectResponse(config.MENUICON_URL)
 

@@ -71,7 +71,7 @@ def check_rank(
             player.id,
             stats.mode,
             '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
-            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
         return
@@ -83,7 +83,7 @@ def check_rank(
             player.id,
             stats.mode,
             '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
-            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
+            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
         return
@@ -94,7 +94,7 @@ def check_rank(
             player.id,
             stats.mode,
             '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
-            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
+            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
         )
 
     if stats.rank == 1:
@@ -103,7 +103,7 @@ def check_rank(
             player.id,
             stats.mode,
             '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
-            (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}')
+            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
         )
 
 def check_beatmap(
@@ -128,8 +128,8 @@ def check_beatmap(
                 player.id,
                 score.mode,
                 '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
-                (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
-                (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+                (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
+                (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
                 submit_to_chat=False
             )
 
@@ -137,8 +137,8 @@ def check_beatmap(
         player.id,
         score.mode,
         '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
-        (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
-        (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
+        (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
+        (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
     )
 
 def check_pp(
@@ -164,8 +164,8 @@ def check_pp(
                 player.id,
                 score.mode,
                 '{} ' + 'has set the new pp record on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
-                (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
-                (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}')
+                (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
+                (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
             )
             return
 
@@ -189,8 +189,8 @@ def check_pp(
                 player.id,
                 score.mode,
                 '{} ' + 'got a new top play on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
-                (player.name, f'http://{config.DOMAIN_NAME}/u/{player.id}'),
-                (score.beatmap.full_name, f'http://{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+                (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
+                (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
                 submit_to_chat=False
             )
 
