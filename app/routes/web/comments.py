@@ -1,5 +1,6 @@
 
 from typing import Optional, List
+from datetime import datetime
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -7,8 +8,15 @@ from fastapi import (
     Form
 )
 
-from app.constants import CommentTarget, Permissions
-from app.common.objects import DBComment
+from app.common.database.repositories import (
+    beatmaps,
+    comments,
+    users
+)
+
+from app.common.constants import CommentTarget, Permissions
+from app.common.database import DBComment
+from app.common.cache import status
 
 router = APIRouter()
 
@@ -29,23 +37,26 @@ async def get_comments(
     color: Optional[str] = Form(None, alias='f'),
     target: Optional[str] = Form(None),
 ):
-    if not (user := app.session.database.user_by_name(username)):
+    if not (user := users.fetch_by_name(username)):
         raise HTTPException(401, detail="Auth")
 
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
         raise HTTPException(401, detail="Auth")
 
-    app.session.database.update_latest_activity(user.id)
+    if not status.exists(user.id):
+        raise HTTPException(401, detail='Bancho')
+
+    users.update(user.id, {'latest_activity': datetime.now()})
 
     if action == 'get':
-        comments: List[DBComment] = []
-        comments.extend(app.session.database.comments(replay_id, 'replay'))
-        comments.extend(app.session.database.comments(beatmap_id, 'map'))
-        comments.extend(app.session.database.comments(set_id, 'song'))
+        db_comments: List[DBComment] = []
+        db_comments.extend(comments.fetch_many(replay_id, 'replay'))
+        db_comments.extend(comments.fetch_many(beatmap_id, 'map'))
+        db_comments.extend(comments.fetch_many(set_id, 'song'))
 
         response: List[str] = []
 
-        for comment in comments:
+        for comment in db_comments:
             comment_format = comment.format if comment.format != None else ""
             comment_format = f'{comment_format}{f"|{comment.color}" if comment.color else ""}'
 
@@ -72,7 +83,7 @@ async def get_comments(
         if len(content) > 80:
             raise HTTPException(400, detail="Content size")
 
-        if not (beatmap := app.session.database.beatmap_by_id(beatmap_id)):
+        if not (beatmap := beatmaps.fetch_by_id(beatmap_id)):
             raise HTTPException(404, detail="Beatmap not found")
 
         target_id = {
@@ -83,7 +94,7 @@ async def get_comments(
 
         permissions = Permissions(user.permissions)
 
-        if Permissions.Subscriber not in permissions:
+        if Permissions.Supporter not in permissions:
             color = None
 
         comment_format = 'player'
@@ -92,10 +103,10 @@ async def get_comments(
             comment_format = 'creator'
         elif Permissions.BAT in permissions:
             comment_format = 'bat'
-        elif Permissions.Subscriber in permissions:
+        elif Permissions.Supporter in permissions:
             comment_format = 'subscriber'
 
-        app.session.database.submit_comment(
+        comments.create(
             target_id,
             target.name.lower(),
             user.id,
@@ -106,7 +117,9 @@ async def get_comments(
             color
         )
 
-        app.session.logger.info(f'<{user.name} ({user.id})> -> Submitted comment on {target.name}: "{content}".')
+        app.session.logger.info(
+            f'<{user.name} ({user.id})> -> Submitted comment on {target.name}: "{content}".'
+        )
 
         return Response('ok')
 

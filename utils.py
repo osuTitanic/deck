@@ -3,12 +3,11 @@ from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime
 from typing import Optional
 
-from app.common.objects import DBScore, DBBeatmapset
+from app.common.database import DBScore, DBBeatmapset
 
 import hashlib
 import config
 import base64
-import json
 import time
 import app
 import os
@@ -206,12 +205,6 @@ def compute_score_checksum(score: DBScore) -> str:
         ).encode()
     ).hexdigest()
 
-def submit_to_queue(type: str, data: dict):
-    app.session.cache.redis.lpush(
-        'bancho:queue',
-        json.dumps({'type': type, 'data': data})
-    )
-
 def online_beatmap(set: DBBeatmapset) -> str:
     ratings = [r.rating for r in set.ratings]
     avg_rating = (sum(ratings) / len(ratings)) \
@@ -248,15 +241,6 @@ def online_beatmap(set: DBBeatmapset) -> str:
         versions,
         str(set.id), # TODO: postId
     ])
-
-def bot_message(message: str, target: str):
-    submit_to_queue(
-        'bot_message',
-        {
-            'message': message,
-            'target': target
-        }
-    )
 
 def has_jpeg_headers(data_view: memoryview) -> bool:
     return data_view[:4] == b"\xff\xd8\xff\xe0" and data_view[6:11] == b"JFIF\x00"

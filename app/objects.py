@@ -1,12 +1,27 @@
 
-from typing   import List, Optional
 from datetime import datetime
+from typing import Optional
 
-from .constants import Mod, Mode, Grade, ScoreStatus, BadFlags
-from .common.objects import DBScore, DBBeatmap, DBUser
+from app.common.helpers import performance
+from app.common.database.repositories import (
+    scores,
+    users
+)
+
+from .common.database import (
+    DBBeatmap,
+    DBScore
+)
+
+from .common.constants import (
+    ScoreStatus,
+    GameMode,
+    BadFlags,
+    Grade,
+    Mods
+)
 
 import hashlib
-import config
 import app
 
 class Chart(dict):
@@ -79,9 +94,9 @@ class Score:
         max_combo: int,
         perfect: bool,
         grade: Grade,
-        enabled_mods: Mod,
+        enabled_mods: Mods,
         passed: bool,
-        play_mode: Mode,
+        play_mode: GameMode,
         date: datetime,
         version: int,
         flags: BadFlags,
@@ -121,17 +136,16 @@ class Score:
 
         self.status = ScoreStatus.Submitted
 
+        # Beatmap needs to be bound to session
         self.session = app.session.database.session
         self.beatmap = self.session.query(DBBeatmap) \
-                                   .filter(DBBeatmap.md5 == self.file_checksum) \
-                                   .first()
+                        .filter(DBBeatmap.md5 == file_checksum) \
+                        .first()
 
-        self.user = self.session.query(DBUser) \
-                                .filter(DBUser.name == self.username) \
-                                .first()
+        self.user = users.fetch_by_name(username)
 
         if self.beatmap:
-            self.personal_best = app.session.database.personal_best(
+            self.personal_best = scores.fetch_personal_best(
                 self.beatmap.id,
                 self.user.id,
                 self.play_mode.value
@@ -144,10 +158,10 @@ class Score:
 
     @property
     def total_hits(self) -> int:
-        if self.play_mode == Mode.CatchTheBeat:
+        if self.play_mode == GameMode.CatchTheBeat:
             return self.c50 + self.c100 + self.c300 + self.cMiss + self.cKatu
 
-        elif self.play_mode == Mode.OsuMania:
+        elif self.play_mode == GameMode.OsuMania:
             return self.c300 + self.c100 + self.c50 + self.cGeki + self.cKatu + self.cMiss
 
         return self.c50 + self.c100 + self.c300 + self.cMiss
@@ -157,19 +171,19 @@ class Score:
         if self.total_hits == 0:
             return 0.0
 
-        if self.play_mode == Mode.Osu:
+        if self.play_mode == GameMode.Osu:
             return (
                 ((self.c300 * 300.0) + (self.c100 * 100.0) + (self.c50 * 50.0))
                 / (self.total_hits * 300.0)
             )
 
-        elif self.play_mode == Mode.Taiko:
+        elif self.play_mode == GameMode.Taiko:
             return ((self.c100 * 0.5) + self.c300) / self.total_hits
 
-        elif self.play_mode == Mode.CatchTheBeat:
+        elif self.play_mode == GameMode.CatchTheBeat:
             return (self.c300 + self.c100 + self.c50) / self.total_hits
 
-        elif self.play_mode == Mode.OsuMania:
+        elif self.play_mode == GameMode.OsuMania:
             return  (
                         (
                           (self.c50 * 50.0) + (self.c100 * 100.0) + (self.cKatu * 200.0) + ((self.c300 + self.cGeki) * 300.0)
@@ -183,7 +197,7 @@ class Score:
 
     @property
     def relaxing(self) -> bool:
-        return (Mod.Relax in self.enabled_mods) or (Mod.Autopilot in self.enabled_mods)
+        return (Mods.Relax in self.enabled_mods) or (Mods.Autopilot in self.enabled_mods)
 
     @property
     def pp(self) -> float:
@@ -193,16 +207,13 @@ class Score:
         self._pp = 0.0
 
         score = self.to_database()
+        result = performance.calculate_ppv2(score)
 
-        if config.USING_AKATSUKI_PP_SYSTEM:
-            performance = app.services.performance.ppv2_akatsuki.calculate_ppv2(score)
-        else:
-            performance = app.services.performance.calculate_ppv2(score)
-
-        if performance is None:
+        if result is None:
+            app.session.logger.warning('Failed to calculate pp: No result')
             return 0.0
 
-        self._pp = performance.pp
+        self._pp = result.pp
 
         return self._pp
 
@@ -212,45 +223,44 @@ class Score:
             # No mods are enabled
             return False
 
-        # NOTE: There is a bug, where DT/NC, PF/SD are enabled at the same time.
-        # The same applies to Hidden/FadeIn
+        # NOTE: There is a bug, where DT/NC, PF/SD are enabled at the same time
 
-        if self.check_mods(Mod.DoubleTime|Mod.Nightcore):
-            self.enabled_mods = self.enabled_mods & ~Mod.DoubleTime
+        if self.check_mods(Mods.DoubleTime|Mods.Nightcore):
+            self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
 
-        if self.check_mods(Mod.Perfect|Mod.SuddenDeath):
-            self.enabled_mods = self.enabled_mods & ~Mod.SuddenDeath
+        if self.check_mods(Mods.Perfect|Mods.SuddenDeath):
+            self.enabled_mods = self.enabled_mods & ~Mods.SuddenDeath
 
-        if self.check_mods(Mod.FadeIn|Mod.Hidden):
-            self.enabled_mods = self.enabled_mods & ~Mod.FadeIn
+        if self.check_mods(Mods.FadeIn|Mods.Hidden):
+            self.enabled_mods = self.enabled_mods & ~Mods.FadeIn
 
-        if self.check_mods(Mod.Easy|Mod.HardRock):
+        if self.check_mods(Mods.Easy|Mods.HardRock):
             return True
 
-        if self.check_mods(Mod.HalfTime|Mod.DoubleTime):
+        if self.check_mods(Mods.HalfTime|Mods.DoubleTime):
             return True
 
-        if self.check_mods(Mod.HalfTime|Mod.Nightcore):
+        if self.check_mods(Mods.HalfTime|Mods.Nightcore):
             return True
 
-        if self.check_mods(Mod.NoFail|Mod.SuddenDeath):
+        if self.check_mods(Mods.NoFail|Mods.SuddenDeath):
             return True
 
-        if self.check_mods(Mod.NoFail|Mod.Perfect):
+        if self.check_mods(Mods.NoFail|Mods.Perfect):
             return True
 
-        if self.check_mods(Mod.Relax|Mod.Autopilot):
+        if self.check_mods(Mods.Relax|Mods.Autopilot):
             return True
 
-        if self.check_mods(Mod.SpunOut|Mod.Autopilot):
+        if self.check_mods(Mods.SpunOut|Mods.Autopilot):
             return True
 
-        if self.check_mods(Mod.Autoplay):
+        if self.check_mods(Mods.Autoplay):
             return True
 
         return False
 
-    def check_mods(self, mods: Mod) -> bool:
+    def check_mods(self, mods: Mods) -> bool:
         if not self.enabled_mods:
             return False
 
@@ -268,7 +278,7 @@ class Score:
                 return ScoreStatus.Submitted
 
             # Check pb with mods
-            mods_pb = app.session.database.personal_best(
+            mods_pb = scores.fetch_personal_best(
                 self.beatmap.id,
                 self.user.id,
                 self.play_mode.value,
@@ -282,10 +292,10 @@ class Score:
                 return ScoreStatus.Submitted
 
             self.session.query(DBScore) \
-                        .filter(DBScore.id == mods_pb.id) \
-                        .update(
-                            {'status': ScoreStatus.Submitted.value}
-                        )
+                   .filter(DBScore.id == mods_pb.id) \
+                   .update(
+                       {'status': ScoreStatus.Submitted.value}
+                   )
             self.session.commit()
 
             return ScoreStatus.Mods
@@ -296,8 +306,8 @@ class Score:
                  {'status': ScoreStatus.Mods.value}
 
         self.session.query(DBScore) \
-                    .filter(DBScore.id == self.personal_best.id) \
-                    .update(status)
+               .filter(DBScore.id == self.personal_best.id) \
+               .update(status)
 
         self.session.commit()
 
@@ -327,9 +337,9 @@ class Score:
             max_combo = int(items[10]),
             perfect = items[11].lower() == 'true',
             grade = Grade[items[12]],
-            enabled_mods = Mod(int(items[13])),
+            enabled_mods = Mods(int(items[13])),
             passed = items[14].lower() == 'true',
-            play_mode = Mode(int(items[15])),
+            play_mode = GameMode(int(items[15])),
             date = items[16],
             version = int(items[17].strip()),
             flags = BadFlags(items[17].count(' ')),

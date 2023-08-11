@@ -7,7 +7,8 @@ from fastapi import (
     Query
 )
 
-from app.common.objects import DBBeatmapset
+from app.common.database.repositories import users
+from app.common.database import DBBeatmapset
 
 import bcrypt
 import app
@@ -36,7 +37,7 @@ def osz(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
 ):
-    if not (user := app.session.database.user_by_name(username)):
+    if not (user := users.fetch_by_name(username)):
         raise HTTPException(401)
 
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):

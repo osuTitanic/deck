@@ -7,7 +7,7 @@ router = APIRouter()
 import app
 
 @router.post('/osu-error.php')
-def osu_error(
+async def osu_error(
     username: str = Form(..., alias='u'),
     user_id: Optional[int] = Form(None, alias='i'),
     language: str = Form(..., alias='culture'),

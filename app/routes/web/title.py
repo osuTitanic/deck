@@ -10,13 +10,13 @@ import app
 router = APIRouter()
 
 @router.get('/osu-title-image.php')
-def legacy_menu_icon(
-    # image_checksum: Optional[str] = Query('', alias='c'), why does this not work tf
+async def legacy_menu_icon(
+    image_checksum: Optional[str] = Query('', alias='c'),
     redirect: Optional[bool] = Query(False, alias='l')
 ):
     if redirect:
         if not config.MENUICON_URL:
-            return RedirectResponse(f'http://{config.DOMAIN_NAME}')
+            return RedirectResponse(f'http://osu.{config.DOMAIN_NAME}')
 
         return RedirectResponse(config.MENUICON_URL)
 
@@ -37,4 +37,4 @@ def legacy_menu_icon(
         expiry=timedelta(hours=1)
     )
 
-    return response.content
+    return Response(response.content)
