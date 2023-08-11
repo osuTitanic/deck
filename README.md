@@ -18,7 +18,6 @@ A lot of the features are pretty much done for the most part:
 - [x] Leaderboards
 - [x] Replays
 - [x] Score Submission
-- [x] [Circleguard](https://github.com/circleguard) anticheat reports
 - [x] Bot messages on #announce
 - [x] Rank/Plays/Replays history
 
