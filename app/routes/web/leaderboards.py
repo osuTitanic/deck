@@ -88,32 +88,38 @@ async def get_scores(
 
     # Fetch score count
 
+    personal_best = None
     score_count = 0
-    friends = []
+    friends = None
+
+    if ranking_type == RankingType.Friends:
+        friends = relationships.fetch_target_ids(player.id)
 
     if beatmap.is_ranked:
-        friends = [
-            rel.target_id
-            for rel in relationships.fetch_many_by_id(player.id)
-            if rel.status == 0
-        ]
-
-        score_count = scores.fetch_count_beatmap(
+        personal_best = scores.fetch_personal_best(
             beatmap.id,
+            player.id,
             mode.value,
-            mods=mods
-                if ranking_type == RankingType.SelectedMod
-                else None,
-            country=player.country
-                if ranking_type == RankingType.Country
-                else None,
-            friends=friends
-                if ranking_type == RankingType.Friends
-                else None
+            mods if ranking_type == RankingType.SelectedMod else None
         )
 
-        if ranking_type == RankingType.Friends:
-            score_count += 1
+        if personal_best:
+            score_count = scores.fetch_count_beatmap(
+                beatmap.id,
+                mode.value,
+                mods=mods
+                    if ranking_type == RankingType.SelectedMod
+                    else None,
+                country=player.country
+                    if ranking_type == RankingType.Country
+                    else None,
+                friends=friends
+                    if ranking_type == RankingType.Friends
+                    else None
+            )
+
+            if ranking_type == RankingType.Friends:
+                score_count += 1
 
     # Beatmap Info
     response.append(
@@ -149,13 +155,6 @@ async def get_scores(
     response.append(str(
         ratings.fetch_average(beatmap.md5)
     ))
-
-    personal_best = scores.fetch_personal_best(
-        beatmap.id,
-        player.id,
-        mode.value,
-        mods if ranking_type == RankingType.SelectedMod else None
-    )
 
     if personal_best:
         index = scores.fetch_score_index(
