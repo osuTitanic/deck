@@ -30,4 +30,5 @@ EXPOSE $WEB_PORT
 CMD gunicorn app:api \
         --workers $WEB_WORKERS \
         --worker-class uvicorn.workers.UvicornWorker \
-        --bind $WEB_HOST:$WEB_PORT
+        --bind $WEB_HOST:$WEB_PORT \
+        --access-logfile '-'
