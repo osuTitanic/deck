@@ -16,6 +16,7 @@ from fastapi import (
 )
 
 import bcrypt
+import config
 import utils
 import app
 
@@ -98,5 +99,21 @@ async def monitor(
 
         app.session.storage.upload_screenshot(id, screenshot_content)
         app.session.logger.info(f'{player.name} uploaded a hidden screenshot ({id})')
+
+    message = f'{id}'
+
+    url = app.session.storage.get_presigned_url(
+        bucket='screenshots',
+        key=id
+    )
+
+    if url:
+        message = f'[{url} View Screenshot]'
+
+    app.session.events.submit(
+        'bot_message',
+        message=f'"{player.name}" was monitored: {message}',
+        target='#admin'
+    )
 
     return Response('ok')
