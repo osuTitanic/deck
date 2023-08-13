@@ -18,15 +18,23 @@ router = APIRouter()
 
 @router.get('/osu-search.php')
 def search(
+    legacy_password: str = Query(None, alias='c'),
     display_mode: int = Query(4, alias='r'),
     username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='h'),
+    password: str = Query(None, alias='h'),
     query: str = Query(..., alias='q')
 ):
+    if legacy_password is None and password is None:
+        raise HTTPException(400, 'what?')
+
     if not (player := users.fetch_by_name(username)):
         return '-1\nFailed to authenticate user'
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    password = password.encode() \
+            if password else \
+            legacy_password.encode()
+
+    if not bcrypt.checkpw(password, player.bcrypt.encode()):
         return '-1\nFailed to authenticate user'
 
     if not status.exists(player.id):
@@ -73,17 +81,22 @@ def pickup_info(
     checksum: Optional[int] = Query(None, alias='c'),
     post_id: Optional[int] = Query(None, alias='p'),
     set_id: Optional[int] = Query(None, alias='s'),
-    username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='h'),
+    username: str = Query(None, alias='u'),
+    password: str = Query(None, alias='h'),
 ):
-    if not (player := users.fetch_by_name(username)):
-        raise HTTPException(401)
+    if username and password:
+        if not (player := users.fetch_by_name(username)):
+            raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        raise HTTPException(401)
+        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+            raise HTTPException(401)
 
-    if not player.is_supporter:
-        raise HTTPException(401)
+        if not player.is_supporter:
+            raise HTTPException(401)
+    else:
+        # The old clients don't use authentication for direct pickups...
+        if beatmap_id == None:
+            raise HTTPException(400)
 
     if topic_id:
         # TODO
