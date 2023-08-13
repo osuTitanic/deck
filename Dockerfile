@@ -23,12 +23,10 @@ COPY . .
 # Get config for deployment
 ENV WEB_HOST $WEB_HOST
 ENV WEB_PORT $WEB_PORT
-ENV WEB_WORKERS $WEB_WORKERS
 
 EXPOSE $WEB_PORT
 
-CMD gunicorn app:api \
-        --workers $WEB_WORKERS \
-        --worker-class uvicorn.workers.UvicornWorker \
-        --bind $WEB_HOST:$WEB_PORT \
-        --access-logfile '-'
+CMD uvicorn app:api \
+        --host ${WEB_HOST} \
+        --port ${WEB_PORT} \
+        --log-level info
