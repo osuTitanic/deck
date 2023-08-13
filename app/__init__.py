@@ -18,7 +18,10 @@ from fastapi import (
 import logging
 import uvicorn
 import config
+import utils
 import time
+
+utils.setup()
 
 logging.basicConfig(
     format='[%(asctime)s] - <%(name)s> %(levelname)s: %(message)s',
