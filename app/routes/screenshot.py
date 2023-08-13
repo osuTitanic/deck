@@ -1,4 +1,6 @@
 
+from app.common.database.repositories import screenshots
+
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -15,6 +17,12 @@ def index():
 
 @router.get('/{id}')
 def get_screenshot(id: int):
+    if not (ss := screenshots.fetch_by_id(id)):
+        raise HTTPException(404)
+    
+    if ss.hidden:
+        raise HTTPException(404)
+
     if not (image := app.session.storage.get_screenshot(id)):
         raise HTTPException(404)
 
