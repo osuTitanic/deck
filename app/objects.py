@@ -323,6 +323,13 @@ class Score:
     ):
         items = formatted_string.split(':')
 
+        try:
+            version = int(items[17].strip())
+            flags = BadFlags(items[17].count(' '))
+        except IndexError:
+            version = 0
+            flags = BadFlags.Clean
+
         return Score(
             file_checksum = items[0],
             username = items[1],
@@ -341,8 +348,8 @@ class Score:
             passed = items[14].lower() == 'true',
             play_mode = GameMode(int(items[15])),
             date = items[16],
-            version = int(items[17].strip()),
-            flags = BadFlags(items[17].count(' ')),
+            version = version,
+            flags = flags,
             exited = exited,
             failtime = failtime,
             replay = replay
