@@ -95,8 +95,7 @@ def pickup_info(
             raise HTTPException(401)
     else:
         # The old clients don't use authentication for direct pickups...
-        if beatmap_id == None:
-            raise HTTPException(400)
+        pass
 
     if topic_id:
         # TODO
