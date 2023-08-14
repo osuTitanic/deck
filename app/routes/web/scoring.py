@@ -5,6 +5,7 @@ from fastapi import (
     APIRouter,
     Response,
     Request,
+    Query,
     File,
     Form
 )
@@ -28,6 +29,7 @@ from app.common.database.repositories import (
     users
 )
 
+import traceback
 import hashlib
 import base64
 import config
@@ -41,15 +43,29 @@ router = APIRouter()
 async def score_submission(
     request: Request,
     iv: Optional[str] = Form(None),
-    password: str = Form(..., alias='pass'),
-    client_hash: str = Form(..., alias='s'),
+    password: Optional[str] = Form(None, alias='pass'),
+    client_hash: Optional[str] = Form(None, alias='s'),
     exited: Optional[bool] = Form(None, alias='x'),
     failtime: Optional[int] = Form(None, alias='ft'),
     processes: Optional[str] = Form(None, alias='pl'),
     fun_spoiler: Optional[str] = Form(None, alias='fs'),
     screenshot: Optional[bytes] = Form(None, alias='i'),
-    replay: Optional[UploadFile] = File(None, alias='score')
+    replay: Optional[UploadFile] = File(None, alias='score'),
+    legacy_score: Optional[str] = Query(None, alias='score'),
+    legacy_password: Optional[str] = Query(None, alias='pass'),
+    legacy_failtime: Optional[int] = Query(None, alias='ft'),
+    legacy_exited: Optional[bool] = Query(None, alias='x'),
 ):
+    if legacy_password:
+        # Old clients use query params instead of form data
+        legacy = True
+        password = legacy_password
+    else:
+        legacy = False
+
+        if not password:
+            raise HTTPException(400, detail='password missing')
+
     form = await request.form()
 
     score_data = form.getlist('score')[0]
@@ -64,16 +80,28 @@ async def score_submission(
         except UnicodeDecodeError:
             raise HTTPException(400, 'invalid submission key')
 
-    client_hash = ClientHash.from_string(client_hash)
+    if client_hash is not None:
+        # Client hash does not get sent in old clients
+        client_hash = ClientHash.from_string(client_hash)
+
+    if replay is not None and replay.filename != 'replay':
+        # Replay filename is incorrect
+        raise HTTPException(400, detail='invalid replay')
 
     replay = await replay.read() if replay else None
 
-    score = Score.parse(
-        score_data,
-        replay,
-        exited,
-        failtime
-    )
+    try:
+        score = Score.parse(
+            score_data if not legacy else legacy_score,
+            replay,
+            exited if not legacy else legacy_exited,
+            failtime if not legacy else legacy_failtime
+        )
+    except Exception as e:
+        # Failed to parse score
+        traceback.print_exc()
+        app.session.logger.error(f'Failed to parse score data: {e}')
+        raise HTTPException(400, detail='invalid score data')
 
     if not (player := score.user):
         return Response('error: nouser')
@@ -133,18 +161,7 @@ async def score_submission(
 
             return Response('error: no')
 
-    # Validate client hash
-
-    # TODO:
-    # bancho_hash = app.session.cache.get_user(player.id)[b'client_hash']
-
-    # if bancho_hash.decode() != client_hash.string:
-    #     app.session.logger.warning(
-    #         f'"{score.username}" submitted score with client hash mismatch.'
-    #     )
-    #     return Response('error: ban')
-
-    # Check for invalid mods
+    # TODO: Validate client hash
 
     if score.has_invalid_mods:
         app.session.logger.warning(
