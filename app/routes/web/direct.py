@@ -11,6 +11,7 @@ from app.common.database.repositories import (
 )
 
 import bcrypt
+import config
 import utils
 import app
 
@@ -20,28 +21,32 @@ router = APIRouter()
 def search(
     legacy_password: str = Query(None, alias='c'),
     display_mode: int = Query(4, alias='r'),
-    username: str = Query(..., alias='u'),
+    username: str = Query(None, alias='u'),
     password: str = Query(None, alias='h'),
-    query: str = Query(..., alias='q')
+    query: str = Query(None, alias='q')
 ):
     if legacy_password is None and password is None:
-        raise HTTPException(400, 'what?')
+        # Legacy clients don't have authentication for osu! direct
+        if not config.FREE_SUPPORTER:
+            return '-1\nThis version of osu! does not support osu!direct'
 
-    if not (player := users.fetch_by_name(username)):
-        return '-1\nFailed to authenticate user'
+        player = None
+    else:
+        if not (player := users.fetch_by_name(username)):
+            return '-1\nFailed to authenticate user'
 
-    password = password.encode() \
-            if password else \
-            legacy_password.encode()
+        password = password.encode() \
+                if password else \
+                legacy_password.encode()
 
-    if not bcrypt.checkpw(password, player.bcrypt.encode()):
-        return '-1\nFailed to authenticate user'
+        if not bcrypt.checkpw(password, player.bcrypt.encode()):
+            return '-1\nFailed to authenticate user'
 
-    if not status.exists(player.id):
-        return '-1\nNot connected to bancho'
+        if not status.exists(player.id):
+            return '-1\nNot connected to bancho'
 
-    if not player.is_supporter:
-        return "-1\nWhy are you here?"
+        if not player.is_supporter:
+            return "-1\nWhy are you here?"
 
     try:
         display_mode = DisplayMode(display_mode)
@@ -56,7 +61,7 @@ def search(
     try:
         results = beatmapsets.search(
             query,
-            player.id,
+            player.id if player else 0,
             display_mode
         )
 
@@ -95,7 +100,8 @@ def pickup_info(
             raise HTTPException(401)
     else:
         # The old clients don't use authentication for direct pickups...
-        pass
+        if not config.FREE_SUPPORTER:
+            raise HTTPException(401)
 
     if topic_id:
         # TODO
