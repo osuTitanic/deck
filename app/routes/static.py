@@ -4,11 +4,14 @@ from fastapi import (
     HTTPException,
     APIRouter,
     Response,
+    Request,
     Query
 )
 
 from app.common.database.repositories import users
 from app.common.database import DBBeatmapset
+
+from . import avatar
 
 import bcrypt
 import app
@@ -70,5 +73,14 @@ def achievement_image(filename: str):
         raise HTTPException(404)
 
     return Response(image)
+
+@router.get('/forum/download.php')
+def legacy_avatar(request: Request):
+    args = request.query_params
+
+    if not (user_id := args.get('avatar')):
+        raise HTTPException(404)
+
+    return avatar.avatar(str(user_id))
 
 # TODO: Move to seperate server
