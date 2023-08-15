@@ -50,7 +50,8 @@ def osz(
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
-    if not (response := app.session.storage.api.osz(set_id, no_video)):
+    # osu.direct seems to have issues again...
+    if not (response := app.session.storage.api.osz_backup(set_id, no_video)):
         return
 
     osz = response.iter_content(1024)
