@@ -27,11 +27,11 @@ import app
 async def get_comments(
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
-    playmode: int = Form(..., alias='m'),
-    replay_id: int = Form(..., alias='r'),
-    beatmap_id: int = Form(..., alias='b'),
-    set_id: int = Form(..., alias='s'),
     action: str = Form(..., alias='a'),
+    beatmap_id: int = Form(..., alias='b'),
+    replay_id: int = Form(None, alias='r'),
+    playmode: int = Form(None, alias='m'),
+    set_id: int = Form(None, alias='s'),
     content: Optional[str] = Form(None, alias='comment'),
     time: Optional[int] = Form(None, alias='starttime'),
     color: Optional[str] = Form(None, alias='f'),
@@ -50,9 +50,9 @@ async def get_comments(
 
     if action == 'get':
         db_comments: List[DBComment] = []
-        db_comments.extend(comments.fetch_many(replay_id, 'replay'))
-        db_comments.extend(comments.fetch_many(beatmap_id, 'map'))
-        db_comments.extend(comments.fetch_many(set_id, 'song'))
+        if replay_id: db_comments.extend(comments.fetch_many(replay_id, 'replay'))
+        if beatmap_id: db_comments.extend(comments.fetch_many(beatmap_id, 'map'))
+        if set_id: db_comments.extend(comments.fetch_many(set_id, 'song'))
 
         response: List[str] = []
 
@@ -60,14 +60,23 @@ async def get_comments(
             comment_format = comment.format if comment.format != None else ""
             comment_format = f'{comment_format}{f"|{comment.color}" if comment.color else ""}'
 
-            response.append(
-                '\t'.join([
-                    str(comment.time),
-                    comment.target_type,
-                    comment_format,
-                    comment.comment
-                ])
-            )
+            if not set_id or not replay_id:
+                # Legacy comments
+                response.append(
+                    '|'.join([
+                        str(comment.time),
+                        comment.comment
+                    ])
+                )
+            else:
+                response.append(
+                    '\t'.join([
+                        str(comment.time),
+                        comment.target_type,
+                        comment_format,
+                        comment.comment
+                    ])
+                )
 
         return Response('\n'.join(response))
 
@@ -75,7 +84,7 @@ async def get_comments(
         try:
             target = CommentTarget(target)
         except ValueError:
-            raise HTTPException(400, detail="Invalid target")
+            target = CommentTarget.Map
 
         if not (content):
             raise HTTPException(400, detail="No content")
@@ -85,6 +94,9 @@ async def get_comments(
 
         if not (beatmap := beatmaps.fetch_by_id(beatmap_id)):
             raise HTTPException(404, detail="Beatmap not found")
+
+        content = content.replace('\t', '') \
+                         .replace('|', '')
 
         target_id = {
             CommentTarget.Replay: replay_id,
@@ -121,6 +133,6 @@ async def get_comments(
             f'<{user.name} ({user.id})> -> Submitted comment on {target.name}: "{content}".'
         )
 
-        return Response('ok')
+        return Response(f'{time}|{content}\n')
 
     raise HTTPException(400, detail="Invalid action")
