@@ -471,6 +471,7 @@ async def score_submission(
 
     return Response('\n'.join([chart.get() for chart in response]))
 
+@router.post('/osu-submit.php')
 @router.post('/osu-submit-new.php')
 async def legacy_score_submission(
     replay: Optional[UploadFile] = File(None, alias='score'),

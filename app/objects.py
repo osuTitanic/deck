@@ -330,6 +330,11 @@ class Score:
             version = 0
             flags = BadFlags.Clean
 
+        try:
+            date = items[16]
+        except IndexError:
+            date = datetime.now()
+
         return Score(
             file_checksum = items[0],
             username = items[1],
@@ -347,7 +352,7 @@ class Score:
             enabled_mods = Mods(int(items[13])),
             passed = items[14].lower() == 'true',
             play_mode = GameMode(int(items[15])),
-            date = items[16],
+            date = date,
             version = version,
             flags = flags,
             exited = exited,
