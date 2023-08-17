@@ -477,8 +477,8 @@ async def legacy_score_submission(
     replay: Optional[UploadFile] = File(None, alias='score'),
     score_data: Optional[str] = Query(None, alias='score'),
     password: Optional[str] = Query(None, alias='pass'),
-    failtime: Optional[int] = Query(None, alias='ft'),
-    exited: Optional[bool] = Query(None, alias='x'),
+    failtime: Optional[int] = Query(0, alias='ft'),
+    exited: Optional[bool] = Query(False, alias='x')
 ):
     if replay is not None and replay.filename != 'replay':
         # Replay filename is incorrect
@@ -816,5 +816,11 @@ async def legacy_score_submission(
         response.append('0')
 
     response.append(' '.join(achievement_response))
+
+    app.session.logger.info(
+        f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+    )
+
+    score.session.close()
 
     return '\n'.join(response)
