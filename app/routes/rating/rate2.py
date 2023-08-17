@@ -21,6 +21,7 @@ import app
 
 router = APIRouter()
 
+@router.get('/ingame-rate.php')
 @router.get('/ingame-rate2.php')
 def ingame_rate(
     username: str = Query(..., alias='u'),
