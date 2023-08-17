@@ -35,22 +35,25 @@ async def get_replay(
         if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
             raise HTTPException(401)
 
+        if not status.exists(player.id):
+            raise HTTPException(401)
+
+        users.update(player.id, {'latest_activity': datetime.now()})
+    else:
+        player = None
+
     # Old clients don't have authentication for this...
-
-    if not status.exists(player.id):
-        raise HTTPException(401)
-
-    users.update(player.id, {'latest_activity': datetime.now()})
 
     if not (score := scores.fetch_by_id(score_id)):
         raise HTTPException(404)
 
-    if player.id != score.user.id:
-        histories.update_replay_views(score.user.id, mode)
-        stats.update(
-            score.user.id, mode,
-            {'replay_views': DBStats.replay_views + 1}
-        )
+    if player:
+        if player.id != score.user.id:
+            histories.update_replay_views(score.user.id, mode)
+            stats.update(
+                score.user.id, mode,
+                {'replay_views': DBStats.replay_views + 1}
+            )
 
     if score.status <= 0:
         # Score is hidden
