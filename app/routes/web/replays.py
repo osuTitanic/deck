@@ -24,15 +24,18 @@ import app
 @router.get('/osu-getreplay.php')
 async def get_replay(
     score_id: int = Query(..., alias='c'),
-    mode: int = Query(..., alias='m'),
-    username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='h')
+    mode: int = Query(0, alias='m'),
+    username: str = Query(None, alias='u'),
+    password: str = Query(None, alias='h')
 ):
-    if not (player := users.fetch_by_name(username)):
-        raise HTTPException(401)
+    if username:
+        if not (player := users.fetch_by_name(username)):
+            raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        raise HTTPException(401)
+        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+            raise HTTPException(401)
+
+    # Old clients don't have authentication for this...
 
     if not status.exists(player.id):
         raise HTTPException(401)
@@ -43,9 +46,9 @@ async def get_replay(
         raise HTTPException(404)
 
     if player.id != score.user.id:
-        histories.update_replay_views(player.id, mode)
+        histories.update_replay_views(score.user.id, mode)
         stats.update(
-            player.id, mode,
+            score.user.id, mode,
             {'replay_views': DBStats.replay_views + 1}
         )
 
