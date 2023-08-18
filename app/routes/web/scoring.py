@@ -793,7 +793,10 @@ async def legacy_score_submission(
     achievement_response: List[str] = []
     response: List[Chart] = []
 
-    if score.passed and not score.relaxing:
+    if not score.passed:
+        return
+
+    if not score.relaxing:
         unlocked_achievements = achievements.fetch_many(player.id)
         ignore_list = [a.filename for a in unlocked_achievements]
 
@@ -802,7 +805,10 @@ async def legacy_score_submission(
 
         achievements.create_many(new_achievements, player.id)
 
-    response.append(str(beatmap_rank))
+    if score.status == ScoreStatus.Best:
+        response.append(str(beatmap_rank))
+    else:
+        response.append('0')
 
     score_above = scores.fetch_score_above(
         score.beatmap.id,
