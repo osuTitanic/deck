@@ -161,8 +161,6 @@ async def score_submission(
 
             return Response('error: no')
 
-    # TODO: Validate client hash
-
     if score.has_invalid_mods:
         app.session.logger.warning(
             f'"{score.username}" submitted score with invalid mods.'
@@ -173,28 +171,6 @@ async def score_submission(
             reason='Invalid mods on score submission'
         )
         return Response('error: ban')
-
-    # Check client flags
-
-    if score.flags:
-        app.session.logger.warning(
-            f'"{score.username}" submitted score with bad flags: {score.flags}.'
-        )
-
-        # The "SpeedHackDetected" flag can be a false positive
-        # especially on pc's with a lot of lag
-        if score.flags > 2:
-            if BadFlags.IncorrectModValue in score.flags:
-                # This can also be a false positive
-                # (Only for relax?)
-                pass
-            else:
-                app.session.events.submit(
-                    'restrict',
-                    user_id=player.id,
-                    reason=f'Submitted score with bad flags ({score.flags.value})'
-                )
-                return Response('error: ban')
 
     # TODO: Check flashlight screenshot
 
@@ -494,3 +470,363 @@ async def score_submission(
     )
 
     return Response('\n'.join([chart.get() for chart in response]))
+
+@router.post('/osu-submit.php')
+@router.post('/osu-submit-new.php')
+async def legacy_score_submission(
+    replay: Optional[UploadFile] = File(None, alias='score'),
+    score_data: Optional[str] = Query(None, alias='score'),
+    password: Optional[str] = Query(None, alias='pass'),
+    failtime: Optional[int] = Query(0, alias='ft'),
+    exited: Optional[bool] = Query(False, alias='x')
+):
+    if replay is not None and replay.filename != 'replay':
+        # Replay filename is incorrect
+        raise HTTPException(400, detail='invalid replay')
+
+    replay = await replay.read() if replay else None
+
+    try:
+        score = Score.parse(
+            score_data,
+            replay,
+            exited,
+            failtime
+        )
+    except Exception as e:
+        # Failed to parse score
+        traceback.print_exc()
+        app.session.logger.error(f'Failed to parse score data: {e}')
+        raise HTTPException(400, detail='invalid score data')
+
+    if not (player := score.user):
+        raise HTTPException(401)
+
+    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        raise HTTPException(401)
+
+    if not player.activated:
+        raise HTTPException(401)
+
+    if player.restricted:
+        raise HTTPException(401)
+
+    if not score.beatmap:
+        raise HTTPException(404)
+
+    if not status.exists(player.id):
+        return Response('')
+
+    users.update(player.id, {'latest_activity': datetime.now()})
+
+    if score.passed:
+        # Check for replay
+
+        if not replay:
+            app.session.logger.warning(
+                f'"{score.username}" submitted score without replay.'
+            )
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                reason='Score submission without replay'
+            )
+            raise HTTPException(401)
+
+        # Check for duplicate score
+
+        replay_hash = hashlib.md5(replay).hexdigest()
+        duplicate_score = scores.fetch_by_replay_checksum(replay_hash)
+
+        if duplicate_score:
+            if duplicate_score.user_id != player.id:
+                app.session.logger.warning(
+                    f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
+                )
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    reason='Duplicate replay in score submission'
+                )
+                raise HTTPException(401)
+
+            app.session.logger.warning(
+                f'"{score.username}" submitted duplicate replay from themselves ({duplicate_score.replay_md5}).'
+            )
+
+            raise HTTPException(401)
+
+    if score.has_invalid_mods:
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with invalid mods.'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            reason='Invalid mods on score submission'
+        )
+        raise HTTPException(401)
+
+    # Submit to database
+
+    score_object = score.to_database()
+    score_object.client_hash = ''
+    score_object.processes = ''
+
+    if not config.ALLOW_RELAX and score.relaxing:
+        score_object.status = -1
+
+    score.session.add(score_object)
+    score.session.flush()
+
+    # Upload replay
+
+    if score.passed:
+        if score.status.value > ScoreStatus.Submitted.value:
+            score_rank = scores.fetch_score_index_by_id(
+                mods=score.enabled_mods.value,
+                beatmap_id=score.beatmap.id,
+                mode=score.play_mode.value,
+                score_id=score_object.id
+            )
+
+            if score.beatmap.is_ranked:
+                # Check if score is inside the leaderboards
+                if score_rank <= config.SCORE_RESPONSE_LIMIT:
+                    app.session.storage.upload_replay(
+                        score_object.id,
+                        replay
+                    )
+
+    score.session.commit()
+
+    score.beatmap.playcount += 1
+    score.beatmap.passcount += 1 if score.passed else 0
+
+    score.session.commit()
+
+    # Update user stats
+
+    stats: DBStats = score.session.query(DBStats) \
+                .filter(DBStats.user_id == player.id) \
+                .filter(DBStats.mode == score.play_mode.value) \
+                .first()
+
+    old_stats = copy(stats)
+
+    stats.playcount += 1
+    stats.playtime += score.beatmap.total_length  \
+                      if score.passed else \
+                      score.failtime / 1000
+
+    if score.status != ScoreStatus.Failed:
+        stats.tscore += score.total_score
+        stats.total_hits += score.total_hits
+
+    score.session.commit()
+
+    histories.update_plays(
+        stats.user_id,
+        stats.mode
+    )
+
+    plays.update(
+        score.beatmap.filename,
+        score.beatmap.id,
+        score.user.id,
+        score.beatmap.set_id,
+    )
+
+    if score.beatmap.status < 0:
+        raise HTTPException(404)
+
+    if not config.ALLOW_RELAX and score.relaxing:
+        raise HTTPException(400)
+
+    previous_grade = None
+    grade = None
+
+    score_count = scores.fetch_count(score.user.id, score.play_mode.value)
+    top_scores = scores.fetch_top_scores(
+        user_id=score.user.id,
+        mode=score.play_mode.value,
+        exclude_approved=False
+                         if config.APPROVED_MAP_REWARDS else
+                         True
+    )
+
+    if score.beatmap.is_ranked:
+        if score.status == ScoreStatus.Best:
+            # Update grades
+            if score.personal_best:
+                previous_grade = Grade[score.personal_best.grade]
+                grade = score.grade
+
+                if previous_grade == grade:
+                    previous_grade = None
+                    grade = None
+
+                # Remove old score
+                if score.beatmap.awards_pp:
+                    stats.rscore -= score.personal_best.total_score
+            else:
+                grade = score.grade
+
+            stats.rscore += score.total_score
+
+        # Update max combo
+
+        max_combo_score = score.session.query(DBScore) \
+            .filter(DBScore.user_id == score.user.id) \
+            .order_by(DBScore.max_combo.desc()) \
+            .first()
+
+        if max_combo_score:
+            if score.max_combo > max_combo_score.max_combo:
+                stats.max_combo = score.max_combo
+
+    if score_count > 0:
+        # Update accuracy
+
+        total_acc = 0
+        divide_total = 0
+
+        for index, s in enumerate(top_scores):
+            add = 0.95 ** index
+            total_acc    += s.acc * add
+            divide_total += add
+
+        if divide_total != 0:
+            stats.acc = total_acc / divide_total
+        else:
+            stats.acc = 0.0
+
+        # Update performance
+
+        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
+        bonus_pp = 416.6667 * (1 - 0.9994**score_count)
+
+        stats.pp = weighted_pp + bonus_pp
+
+        leaderboards.update(
+            stats.user_id,
+            stats.mode,
+            stats.pp,
+            stats.rscore,
+            player.country
+        )
+
+        stats.rank = leaderboards.global_rank(
+            stats.user_id,
+            stats.mode
+        )
+
+        score.session.commit()
+
+        if score.passed:
+            histories.update_rank(
+                stats,
+                player.country
+            )
+
+    # Update grades
+
+    if grade:
+        if grade != previous_grade:
+            grade_name = f'{grade.name.lower()}_count'
+
+            updates = {grade_name: getattr(DBStats, grade_name) + 1}
+
+            if previous_grade:
+                grade_name = f'{previous_grade.name.lower()}_count'
+
+                updates.update(
+                    {grade_name: getattr(DBStats, grade_name) - 1}
+                )
+
+            score.session.query(DBStats) \
+                    .filter(DBStats.user_id == score.user.id) \
+                    .filter(DBStats.mode == score.play_mode.value) \
+                    .update(updates)
+
+    score.session.commit()
+
+    # Reload stats on bancho
+    app.session.events.submit(
+        'user_update',
+        user_id=player.id
+    )
+
+    beatmap_rank = scores.fetch_score_index_by_id(
+        score_object.id,
+        score.beatmap.id,
+        mode=score.play_mode.value
+    )
+
+    if score.status == ScoreStatus.Best:
+        Thread(
+            target=app.highlights.check,
+            args=[
+                score.user,
+                stats,
+                old_stats,
+                score_object,
+                beatmap_rank
+            ],
+            daemon=True
+        ).start()
+
+    # Update preferred mode
+
+    if player.preferred_mode != score.play_mode.value:
+        recent_scores = scores.fetch_recent_top_scores(
+            player.id,
+            limit=25
+        )
+
+        if len({s.mode for s in recent_scores}) == 1:
+            users.update(
+                player.id,
+                {'preferred_mode': score.play_mode.value}
+            )
+
+    achievement_response: List[str] = []
+    response: List[Chart] = []
+
+    if not score.passed:
+        return
+
+    if not score.relaxing:
+        unlocked_achievements = achievements.fetch_many(player.id)
+        ignore_list = [a.filename for a in unlocked_achievements]
+
+        new_achievements = AchievementManager.check(score_object, ignore_list)
+        achievement_response = [a.filename for a in new_achievements]
+
+        achievements.create_many(new_achievements, player.id)
+
+    if score.status == ScoreStatus.Best:
+        response.append(str(beatmap_rank))
+    else:
+        response.append('0')
+
+    score_above = scores.fetch_score_above(
+        score.beatmap.id,
+        score.play_mode.value,
+        score.total_score
+    )
+
+    if score_above:
+        response.append(str(score_above.total_score - score.total_score))
+    else:
+        response.append('0')
+
+    response.append(' '.join(achievement_response))
+
+    app.session.logger.info(
+        f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+    )
+
+    score.session.close()
+
+    return '\n'.join(response)

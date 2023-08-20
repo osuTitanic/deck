@@ -21,6 +21,7 @@ import app
 
 router = APIRouter()
 
+@router.get('/ingame-rate.php')
 @router.get('/ingame-rate2.php')
 def ingame_rate(
     username: str = Query(..., alias='u'),
@@ -75,8 +76,4 @@ def ingame_rate(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
     )
 
-    return Response(
-        '\n'.join([
-            'ok',
-            str(ratings.fetch_average(beatmap.md5))
-        ]))
+    return Response(str(ratings.fetch_average(beatmap.md5)))

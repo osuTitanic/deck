@@ -224,7 +224,7 @@ async def legacy_scores(
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s'),
     player_id: int = Query(..., alias='u'),
-    mode: int = Query(..., alias='m')
+    mode: int = Query(0, alias='m')
 ):
     try:
         skip_scores = skip_scores == '1'
@@ -275,6 +275,92 @@ async def legacy_scores(
     response.append(str(
         ratings.fetch_average(beatmap.md5)
     ))
+
+    personal_best = scores.fetch_personal_best(
+        beatmap.id,
+        player.id,
+        mode.value
+    )
+
+    if personal_best:
+        index = scores.fetch_score_index(
+            player.id,
+            beatmap.id,
+            mode.value
+        )
+
+        response.append(
+            utils.score_string(personal_best, index)
+        )
+    else:
+        response.append('')
+
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT
+    )
+
+    for index, score in enumerate(top_scores):
+        response.append(
+            utils.score_string(score, index)
+        )
+
+    return Response('\n'.join(response))
+
+@router.get('/osu-getscores5.php')
+async def legacy_scores_no_ratings(
+    beatmap_hash: str = Query(..., alias='c'),
+    beatmap_file: str = Query(..., alias='f'),
+    skip_scores: str = Query(..., alias='s'),
+    player_id: int = Query(..., alias='u'),
+    mode: int = Query(0, alias='m')
+):
+    try:
+        skip_scores = skip_scores == '1'
+        mode = GameMode(mode)
+    except ValueError:
+        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
+
+    if not status.exists(player_id):
+        raise HTTPException(401)
+
+    if not (player := users.fetch_by_id(player_id)):
+        raise HTTPException(401)
+
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
+        return Response('-1')
+
+    if beatmap.md5 != beatmap_hash:
+        return Response('1')
+
+    # Update latest activity
+    users.update(player.id, {'latest_activity': datetime.now()})
+
+    response = []
+
+    submission_status = SubmissionStatus.from_database(beatmap.status)
+
+    # Status
+    response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
+    # Offset
+    response.append('0')
+
+    # Title
+    # Example: https://i.imgur.com/BofeZ2z.png
+    # TODO: Title Configuration?
+    response.append(
+        '|'.join([
+            '[bold:0,size:20]' +
+            beatmap.beatmapset.artist,
+            '[]' +
+            beatmap.beatmapset.title
+        ])
+    )
 
     personal_best = scores.fetch_personal_best(
         beatmap.id,
