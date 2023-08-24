@@ -335,6 +335,11 @@ class Score:
         except IndexError:
             date = datetime.now()
 
+        try:
+            play_mode = GameMode(int(items[15]))
+        except IndexError:
+            play_mode = GameMode.Osu
+
         return Score(
             file_checksum = items[0],
             username = items[1],
@@ -351,7 +356,7 @@ class Score:
             grade = Grade[items[12]],
             enabled_mods = Mods(int(items[13])),
             passed = items[14].lower() == 'true',
-            play_mode = GameMode(int(items[15])),
+            play_mode = play_mode,
             date = date,
             version = version,
             flags = flags,
