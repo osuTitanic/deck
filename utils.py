@@ -150,7 +150,7 @@ def setup():
                 download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
                 download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
 
-def score_string(score: DBScore, index: int) -> str:
+def score_string(score: DBScore, index: int = -1, legacy: bool = False) -> str:
     return '|'.join([
         str(score.id),
         str(score.user.name),
@@ -162,11 +162,11 @@ def score_string(score: DBScore, index: int) -> str:
         str(score.nMiss),
         str(score.nKatu),
         str(score.nGeki),
-        str(int(score.perfect)),
+        str(score.perfect),
         str(score.mods),
         str(score.user_id),
-        str(index),
-        str(time.mktime(score.submitted_at.timetuple()))
+        str(index if not legacy else score.user_id), # Avatar Filename
+        str(score.submitted_at)
     ])
 
 def decrypt_string(b64: Optional[str], iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
