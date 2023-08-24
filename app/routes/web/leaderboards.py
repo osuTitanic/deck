@@ -460,3 +460,41 @@ async def legacy_scores_no_beatmap_data(
         )
 
     return Response('\n'.join(response))
+
+@router.get('/osu-getscores3.php')
+async def legacy_scores_no_personal_best(
+    beatmap_hash: str = Query(..., alias='c'),
+    beatmap_file: str = Query(..., alias='f'),
+    skip_scores: str = Query(..., alias='s')
+):
+    skip_scores = skip_scores == '1'
+    mode = GameMode.Osu
+
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
+        return Response('-1')
+
+    if beatmap.md5 != beatmap_hash:
+        return Response('1')
+
+    response = []
+
+    submission_status = SubmissionStatus.from_database(beatmap.status)
+
+    # Status
+    response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT
+    )
+
+    for score in top_scores:
+        response.append(
+            utils.score_string(score, legacy=True)
+        )
+
+    return Response('\n'.join(response))
