@@ -79,7 +79,7 @@ def legacy_avatar(request: Request):
     args = request.query_params
 
     if not (user_id := args.get('avatar')):
-        raise HTTPException(404)
+        return avatar.default_avatar()
 
     return avatar.avatar(str(user_id))
 
