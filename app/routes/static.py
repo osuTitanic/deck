@@ -78,9 +78,9 @@ def achievement_image(filename: str):
 def legacy_avatar(request: Request):
     args = request.query_params
 
-    if not (user_id := args.get('avatar')):
+    if not (filename := args.get('avatar')):
         return avatar.default_avatar()
 
-    return avatar.avatar(str(user_id))
+    return avatar.avatar(str(filename))
 
 # TODO: Move to seperate server
