@@ -505,6 +505,9 @@ async def legacy_scores_status_change(
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s')
 ):
+    # TODO: /osu-getscores2.php response format is different in some versions
+    #       One method would be to check the client version over the cache
+
     skip_scores = skip_scores == '1'
     mode = GameMode.Osu
 
