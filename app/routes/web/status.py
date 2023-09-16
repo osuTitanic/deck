@@ -16,8 +16,8 @@ def get_beatmaps(
     checksums: str = Query(..., alias='c')
 ):
     # Check amount of requests
-    if len(checksums := checksums.split(',')) > 35:
-        raise HTTPException(404)
+    if len(checksums := checksums.split(',')) > 60:
+        raise HTTPException(400)
 
     # Check md5 size
     if any([len(checksum) != 32 for checksum in checksums if checksum]):
