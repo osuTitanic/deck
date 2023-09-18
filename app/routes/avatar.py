@@ -14,7 +14,7 @@ def default_avatar():
     if not (image := app.session.storage.get_avatar('unknown')):
         raise HTTPException(500, 'Default avatar not found')
     
-    return Response(image)
+    return Response(image, media_type='image')
 
 @router.get('/{filename}')
 def avatar(filename: str):
@@ -27,6 +27,6 @@ def avatar(filename: str):
     if not (image := app.session.storage.get_avatar(user_id)):
         return default_avatar()
 
-    return Response(image)
+    return Response(image, media_type='image')
 
 # TODO: Move to seperate server
