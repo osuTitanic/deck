@@ -318,10 +318,10 @@ def resize_image(
 
     if (target_width is None) or (target_height is None):
         if target_height:
-            target_width = round((image_width / image_height) * target_height)
+            target_width = round((image_width / image_height) * min(target_height, 2000))
 
         if target_width:
-            target_height = round((image_height / image_width) * target_width)
+            target_height = round((image_height / image_width) * min(target_width, 2000))
 
         else:
             raise ValueError('At least one value must be given.')
