@@ -316,12 +316,12 @@ def resize_image(
     img = Image.open(io.BytesIO(image))
     image_width, image_height = img.size
 
-    if not target_height and not target_width:
-        if target_width:
+    if (target_width is None) or (target_height is None):
+        if target_height:
             target_width = round((image_width / image_height) * target_height)
 
-        if target_height:
-            target_height = round((image_width / image_height) * target_width)
+        if target_width:
+            target_height = round((image_height / image_width) * target_width)
 
         else:
             raise ValueError('At least one value must be given.')
