@@ -50,8 +50,7 @@ def osz(
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
-    # osu.direct seems to have issues again...
-    if not (response := app.session.storage.api.osz_backup(set_id, no_video)):
+    if not (response := app.session.storage.api.osz(set_id, no_video)):
         return
 
     osz = response.iter_content(1024)
@@ -79,9 +78,9 @@ def achievement_image(filename: str):
 def legacy_avatar(request: Request):
     args = request.query_params
 
-    if not (user_id := args.get('avatar')):
-        raise HTTPException(404)
+    if not (filename := args.get('avatar')):
+        return avatar.default_avatar()
 
-    return avatar.avatar(str(user_id))
+    return avatar.avatar(str(filename))
 
 # TODO: Move to seperate server

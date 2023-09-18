@@ -21,6 +21,7 @@ from app.common.database.repositories import (
 
 from app.common.constants import (
     SubmissionStatus,
+    LegacyStatus,
     RankingType,
     GameMode
 )
@@ -28,7 +29,6 @@ from app.common.constants import (
 import config
 import bcrypt
 import utils
-import app
 
 router = APIRouter()
 
@@ -73,10 +73,10 @@ async def get_scores(
     users.update(player.id, {'latest_activity': datetime.now()})
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1|false')
+        return Response('-1|false') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
-        return Response('1|false')
+        return Response('1|false') # Update Available
 
     if not ranking_type:
         ranking_type = RankingType.Top
@@ -239,10 +239,10 @@ async def legacy_scores(
         raise HTTPException(401)
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1')
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
-        return Response('1')
+        return Response('1') # Update Available
 
     # Update latest activity
     users.update(player.id, {'latest_activity': datetime.now()})
@@ -329,10 +329,10 @@ async def legacy_scores_no_ratings(
         raise HTTPException(401)
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1')
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
-        return Response('1')
+        return Response('1') # Update Available
 
     # Update latest activity
     users.update(player.id, {'latest_activity': datetime.now()})
@@ -390,6 +390,152 @@ async def legacy_scores_no_ratings(
     for index, score in enumerate(top_scores):
         response.append(
             utils.score_string(score, index)
+        )
+
+    return Response('\n'.join(response))
+
+@router.get('/osu-getscores4.php')
+async def legacy_scores_no_beatmap_data(
+    beatmap_hash: str = Query(..., alias='c'),
+    beatmap_file: str = Query(..., alias='f'),
+    skip_scores: str = Query(..., alias='s'),
+    player_id: int = Query(..., alias='u')
+):
+    skip_scores = skip_scores == '1'
+    mode = GameMode.Osu
+
+    if not status.exists(player_id):
+        raise HTTPException(401)
+
+    if not (player := users.fetch_by_id(player_id)):
+        raise HTTPException(401)
+
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
+        return Response('-1') # Not Submitted
+
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
+
+    # Update latest activity
+    users.update(player.id, {'latest_activity': datetime.now()})
+
+    response = []
+
+    submission_status = SubmissionStatus.from_database(beatmap.status)
+
+    # Status
+    response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
+    personal_best = scores.fetch_personal_best(
+        beatmap.id,
+        player.id,
+        mode.value
+    )
+
+    if personal_best:
+        index = scores.fetch_score_index(
+            player.id,
+            beatmap.id,
+            mode.value
+        )
+
+        response.append(
+            utils.score_string(personal_best, index)
+        )
+    else:
+        response.append('')
+
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT
+    )
+
+    for index, score in enumerate(top_scores):
+        response.append(
+            utils.score_string(score, index)
+        )
+
+    return Response('\n'.join(response))
+
+@router.get('/osu-getscores3.php')
+async def legacy_scores_no_personal_best(
+    beatmap_hash: str = Query(..., alias='c'),
+    beatmap_file: str = Query(..., alias='f'),
+    skip_scores: str = Query(..., alias='s')
+):
+    skip_scores = skip_scores == '1'
+    mode = GameMode.Osu
+
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
+        return Response('-1') # Not Submitted
+
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
+
+    response = []
+
+    submission_status = SubmissionStatus.from_database(beatmap.status)
+
+    # Status
+    response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT
+    )
+
+    for score in top_scores:
+        response.append(
+            utils.score_string_legacy(score)
+        )
+
+    return Response('\n'.join(response))
+
+@router.get('/osu-getscores2.php')
+async def legacy_scores_status_change(
+    beatmap_hash: str = Query(..., alias='c'),
+    beatmap_file: str = Query(..., alias='f'),
+    skip_scores: str = Query(..., alias='s')
+):
+    # TODO: /osu-getscores2.php response format is different in some versions
+    #       One method would be to check the client version over the cache
+
+    skip_scores = skip_scores == '1'
+    mode = GameMode.Osu
+
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
+        return Response('-1') # Not Submitted
+
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
+
+    response = []
+
+    submission_status = LegacyStatus.from_database(beatmap.status)
+
+    # Status
+    response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT
+    )
+
+    for score in top_scores:
+        response.append(
+            utils.score_string_legacy(score)
         )
 
     return Response('\n'.join(response))

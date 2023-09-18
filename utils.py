@@ -162,11 +162,30 @@ def score_string(score: DBScore, index: int) -> str:
         str(score.nMiss),
         str(score.nKatu),
         str(score.nGeki),
-        str(int(score.perfect)),
+        str(score.perfect),
         str(score.mods),
         str(score.user_id),
         str(index),
-        str(time.mktime(score.submitted_at.timetuple()))
+        str(score.submitted_at)
+    ])
+
+def score_string_legacy(score: DBScore) -> str:
+    return '|'.join([
+        str(score.id),
+        str(score.user.name),
+        str(score.total_score),
+        str(score.max_combo),
+        str(score.n50),
+        str(score.n100),
+        str(score.n300),
+        str(score.nMiss),
+        str(score.nKatu),
+        str(score.nGeki),
+        str(score.perfect),
+        str(score.mods),
+        str(score.user_id),
+        str(score.user_id), # Avatar Filename
+        str(score.submitted_at)
     ])
 
 def decrypt_string(b64: Optional[str], iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
