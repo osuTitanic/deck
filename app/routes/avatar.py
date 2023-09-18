@@ -5,6 +5,7 @@ from fastapi import (
     Response
 )
 
+import utils
 import app
 
 router = APIRouter()
@@ -14,7 +15,7 @@ def default_avatar():
     if not (image := app.session.storage.get_avatar('unknown')):
         raise HTTPException(500, 'Default avatar not found')
     
-    return Response(image, media_type='image')
+    return Response(image, media_type='image/png')
 
 @router.get('/{filename}')
 def avatar(filename: str):
@@ -27,6 +28,11 @@ def avatar(filename: str):
     if not (image := app.session.storage.get_avatar(user_id)):
         return default_avatar()
 
-    return Response(image, media_type='image')
+    return Response(
+        image,
+        media_type='image/jpeg' \
+            if utils.has_jpeg_headers(memoryview(image))
+            else 'image/png'
+    )
 
 # TODO: Move to seperate server
