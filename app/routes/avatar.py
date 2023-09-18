@@ -1,8 +1,11 @@
 
+from typing import Optional
+
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response
+    Response,
+    Query
 )
 
 import utils
@@ -18,7 +21,11 @@ def default_avatar():
     return Response(image, media_type='image/png')
 
 @router.get('/{filename}')
-def avatar(filename: str):
+def avatar(
+    filename: str,
+    height: Optional[int] = Query(None, alias='h'),
+    width: Optional[int] = Query(None, alias='w')
+):
     # Workaround for older clients
     user_id = int(
         filename.replace('_000.png', '') \
@@ -28,11 +35,12 @@ def avatar(filename: str):
     if not (image := app.session.storage.get_avatar(user_id)):
         return default_avatar()
 
+    if height or width:
+        image = utils.resize_image(image, width, height)
+
     return Response(
         image,
         media_type='image/jpeg' \
             if utils.has_jpeg_headers(memoryview(image))
             else 'image/png'
     )
-
-# TODO: Move to seperate server

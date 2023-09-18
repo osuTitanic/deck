@@ -2,14 +2,15 @@
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime
 from typing import Optional
+from PIL import Image
 
 from app.common.database import DBScore, DBBeatmapset
 
 import hashlib
 import config
 import base64
-import time
 import app
+import io
 import os
 
 REQUIRED_BUCKETS = [
@@ -306,3 +307,28 @@ def update_osz_filesize(set_id: int, has_video: bool = False):
             .filter(DBBeatmapset.id == set_id) \
             .update(updates)
     instance.commit()
+
+def resize_image(
+    image: bytes,
+    target_width: Optional[int] = None,
+    target_height: Optional[int] = None
+) -> bytes:
+    img = Image.open(io.BytesIO(image))
+    image_width, image_height = img.size
+
+    if not target_height and not target_width:
+        if target_width:
+            target_width = round((image_width / image_height) * target_height)
+
+        if target_height:
+            target_height = round((image_width / image_height) * target_width)
+
+        else:
+            raise ValueError('At least one value must be given.')
+
+    image_buffer = io.BytesIO()
+
+    img = img.resize((target_width, target_height))
+    img.save(image_buffer, format='PNG' )
+
+    return image_buffer.getvalue()
