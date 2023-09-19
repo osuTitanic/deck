@@ -205,6 +205,12 @@ async def score_submission(
                         score_object.id,
                         replay
                     )
+                else:
+                    # Replay will be cached temporarily and deleted after
+                    app.session.storage.cache_replay(
+                        score.object.id,
+                        replay
+                    )
 
     score.session.commit()
 
