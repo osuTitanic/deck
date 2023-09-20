@@ -467,15 +467,14 @@ async def score_submission(
             beatmap_rank
         )
 
-        score_above = scores.fetch_score_above(
-            score.beatmap.id,
-            score.play_mode.value,
-            score.total_score
+        difference, next_user = leaderboards.player_above(
+            player.id,
+            score.play_mode.value
         )
 
-        if score_above:
-            overallChart['toNextRankUser'] = score_above.user.name
-            overallChart['toNextRank'] = score_above.total_score - score.total_score
+        if difference > 0:
+            overallChart['toNextRankUser'] = next_user
+            overallChart['toNextRank'] = difference
 
     response.append(overallChart)
 
@@ -844,16 +843,12 @@ async def legacy_score_submission(
     else:
         response.append('0')
 
-    score_above = scores.fetch_score_above(
-        score.beatmap.id,
-        score.play_mode.value,
-        score.total_score
+    difference, next_user = leaderboards.player_above(
+        player.id,
+        score.play_mode.value
     )
 
-    if score_above:
-        response.append(str(score_above.total_score - score.total_score))
-    else:
-        response.append('0')
+    response.append(str(difference))
 
     response.append(' '.join(achievement_response))
 
