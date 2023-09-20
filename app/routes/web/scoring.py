@@ -191,26 +191,28 @@ async def score_submission(
 
     if score.passed:
         if score.status.value > ScoreStatus.Submitted.value:
-            score_rank = scores.fetch_score_index_by_id(
-                mods=score.enabled_mods.value,
-                beatmap_id=score.beatmap.id,
-                mode=score.play_mode.value,
-                score_id=score_object.id
-            )
+            # Check replay size (10mb max)
+            if len(replay) < 1e+7:
+                score_rank = scores.fetch_score_index_by_id(
+                    mods=score.enabled_mods.value,
+                    beatmap_id=score.beatmap.id,
+                    mode=score.play_mode.value,
+                    score_id=score_object.id
+                )
 
-            if score.beatmap.is_ranked:
-                # Check if score is inside the leaderboards
-                if score_rank <= config.SCORE_RESPONSE_LIMIT:
-                    app.session.storage.upload_replay(
-                        score_object.id,
-                        replay
-                    )
-                else:
-                    # Replay will be cached temporarily and deleted after
-                    app.session.storage.cache_replay(
-                        score.object.id,
-                        replay
-                    )
+                if score.beatmap.is_ranked:
+                    # Check if score is inside the leaderboards
+                    if score_rank <= config.SCORE_RESPONSE_LIMIT:
+                        app.session.storage.upload_replay(
+                            score_object.id,
+                            replay
+                        )
+                    else:
+                        # Replay will be cached temporarily and deleted after
+                        app.session.storage.cache_replay(
+                            score_object.id,
+                            replay
+                        )
 
     score.session.commit()
 
