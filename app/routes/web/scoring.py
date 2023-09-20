@@ -172,7 +172,21 @@ async def score_submission(
         )
         return Response('error: ban')
 
-    # TODO: Check flashlight screenshot
+    # Check score submission "spam"
+
+    if (recent_score := scores.fetch_recent(player.id, score.play_mode.value, limit=1)):
+        last_submission = (datetime.now().timestamp() - recent_score[0].submitted_at.timestamp())
+
+        if last_submission <= 8:
+            app.session.logger.warning(
+                f'"{score.username}" is spamming score submission.'
+            )
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                reason='Spamming score submission'
+            )
+            return Response('error: ban')
 
     # Submit to database
 
@@ -191,20 +205,28 @@ async def score_submission(
 
     if score.passed:
         if score.status.value > ScoreStatus.Submitted.value:
-            score_rank = scores.fetch_score_index_by_id(
-                mods=score.enabled_mods.value,
-                beatmap_id=score.beatmap.id,
-                mode=score.play_mode.value,
-                score_id=score_object.id
-            )
+            # Check replay size (10mb max)
+            if len(replay) < 1e+7:
+                score_rank = scores.fetch_score_index_by_id(
+                    mods=score.enabled_mods.value,
+                    beatmap_id=score.beatmap.id,
+                    mode=score.play_mode.value,
+                    score_id=score_object.id
+                )
 
-            if score.beatmap.is_ranked:
-                # Check if score is inside the leaderboards
-                if score_rank <= config.SCORE_RESPONSE_LIMIT:
-                    app.session.storage.upload_replay(
-                        score_object.id,
-                        replay
-                    )
+                if score.beatmap.is_ranked:
+                    # Check if score is inside the leaderboards
+                    if score_rank <= config.SCORE_RESPONSE_LIMIT:
+                        app.session.storage.upload_replay(
+                            score_object.id,
+                            replay
+                        )
+                    else:
+                        # Replay will be cached temporarily and deleted after
+                        app.session.storage.cache_replay(
+                            score_object.id,
+                            replay
+                        )
 
     score.session.commit()
 
@@ -284,14 +306,8 @@ async def score_submission(
 
         # Update max combo
 
-        max_combo_score = score.session.query(DBScore) \
-            .filter(DBScore.user_id == score.user.id) \
-            .order_by(DBScore.max_combo.desc()) \
-            .first()
-
-        if max_combo_score:
-            if score.max_combo > max_combo_score.max_combo:
-                stats.max_combo = score.max_combo
+        if score.max_combo > stats.max_combo:
+            stats.max_combo = score.max_combo
 
     if score_count > 0:
         # Update accuracy
@@ -451,15 +467,14 @@ async def score_submission(
             beatmap_rank
         )
 
-        score_above = scores.fetch_score_above(
-            score.beatmap.id,
-            score.play_mode.value,
-            score.total_score
+        difference, next_user = leaderboards.player_above(
+            player.id,
+            score.play_mode.value
         )
 
-        if score_above:
-            overallChart['toNextRankUser'] = score_above.user.name
-            overallChart['toNextRank'] = score_above.total_score - score.total_score
+        if difference > 0:
+            overallChart['toNextRankUser'] = next_user
+            overallChart['toNextRank'] = difference
 
     response.append(overallChart)
 
@@ -567,6 +582,22 @@ async def legacy_score_submission(
         )
         raise HTTPException(401)
 
+    # Check score submission "spam"
+
+    if (recent_score := scores.fetch_recent(player.id, score.play_mode.value, limit=1)):
+        last_submission = (datetime.now().timestamp() - recent_score[0].submitted_at.timestamp())
+
+        if last_submission <= 8:
+            app.session.logger.warning(
+                f'"{score.username}" is spamming score submission.'
+            )
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                reason='Spamming score submission'
+            )
+            return Response('error: ban')
+
     # Submit to database
 
     score_object = score.to_database()
@@ -583,20 +614,28 @@ async def legacy_score_submission(
 
     if score.passed:
         if score.status.value > ScoreStatus.Submitted.value:
-            score_rank = scores.fetch_score_index_by_id(
-                mods=score.enabled_mods.value,
-                beatmap_id=score.beatmap.id,
-                mode=score.play_mode.value,
-                score_id=score_object.id
-            )
+            # Check replay size (10mb max)
+            if len(replay) < 1e+7:
+                score_rank = scores.fetch_score_index_by_id(
+                    mods=score.enabled_mods.value,
+                    beatmap_id=score.beatmap.id,
+                    mode=score.play_mode.value,
+                    score_id=score_object.id
+                )
 
-            if score.beatmap.is_ranked:
-                # Check if score is inside the leaderboards
-                if score_rank <= config.SCORE_RESPONSE_LIMIT:
-                    app.session.storage.upload_replay(
-                        score_object.id,
-                        replay
-                    )
+                if score.beatmap.is_ranked:
+                    # Check if score is inside the leaderboards
+                    if score_rank <= config.SCORE_RESPONSE_LIMIT:
+                        app.session.storage.upload_replay(
+                            score_object.id,
+                            replay
+                        )
+                    else:
+                        # Replay will be cached temporarily and deleted after
+                        app.session.storage.cache_replay(
+                            score_object.id,
+                            replay
+                        )
 
     score.session.commit()
 
@@ -676,14 +715,8 @@ async def legacy_score_submission(
 
         # Update max combo
 
-        max_combo_score = score.session.query(DBScore) \
-            .filter(DBScore.user_id == score.user.id) \
-            .order_by(DBScore.max_combo.desc()) \
-            .first()
-
-        if max_combo_score:
-            if score.max_combo > max_combo_score.max_combo:
-                stats.max_combo = score.max_combo
+        if score.max_combo > stats.max_combo:
+            stats.max_combo = score.max_combo
 
     if score_count > 0:
         # Update accuracy
@@ -810,16 +843,12 @@ async def legacy_score_submission(
     else:
         response.append('0')
 
-    score_above = scores.fetch_score_above(
-        score.beatmap.id,
-        score.play_mode.value,
-        score.total_score
+    difference, next_user = leaderboards.player_above(
+        player.id,
+        score.play_mode.value
     )
 
-    if score_above:
-        response.append(str(score_above.total_score - score.total_score))
-    else:
-        response.append('0')
+    response.append(str(difference))
 
     response.append(' '.join(achievement_response))
 

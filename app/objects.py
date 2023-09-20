@@ -273,7 +273,16 @@ class Score:
         if not self.personal_best:
             return ScoreStatus.Best
 
-        if self.total_score < self.personal_best.total_score:
+        if (Mods.Relax in self.enabled_mods or
+            Mods.Autopilot in self.enabled_mods):
+            # PP will be used for rx/ap
+            better_score = self.pp > self.personal_best.pp
+
+        else:
+            # Total Score will be used for non-rx
+            better_score = self.total_score > self.personal_best.total_score
+
+        if not better_score:
             if self.enabled_mods.value == self.personal_best.mods:
                 return ScoreStatus.Submitted
 
