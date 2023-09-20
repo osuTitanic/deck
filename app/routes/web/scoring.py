@@ -290,14 +290,8 @@ async def score_submission(
 
         # Update max combo
 
-        max_combo_score = score.session.query(DBScore) \
-            .filter(DBScore.user_id == score.user.id) \
-            .order_by(DBScore.max_combo.desc()) \
-            .first()
-
-        if max_combo_score:
-            if score.max_combo > max_combo_score.max_combo:
-                stats.max_combo = score.max_combo
+        if score.max_combo > stats.max_combo:
+            stats.max_combo = score.max_combo
 
     if score_count > 0:
         # Update accuracy
@@ -682,14 +676,8 @@ async def legacy_score_submission(
 
         # Update max combo
 
-        max_combo_score = score.session.query(DBScore) \
-            .filter(DBScore.user_id == score.user.id) \
-            .order_by(DBScore.max_combo.desc()) \
-            .first()
-
-        if max_combo_score:
-            if score.max_combo > max_combo_score.max_combo:
-                stats.max_combo = score.max_combo
+        if score.max_combo > stats.max_combo:
+            stats.max_combo = score.max_combo
 
     if score_count > 0:
         # Update accuracy
