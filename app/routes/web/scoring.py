@@ -172,7 +172,21 @@ async def score_submission(
         )
         return Response('error: ban')
 
-    # TODO: Check flashlight screenshot
+    # Check score submission "spam"
+
+    if (recent_score := scores.fetch_recent(player.id, score.play_mode.value, limit=1)):
+        last_submission = (datetime.now().timestamp() - recent_score[0].submitted_at.timestamp())
+
+        if last_submission <= 8:
+            app.session.logger.warning(
+                f'"{score.username}" is spamming score submission.'
+            )
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                reason='Spamming score submission'
+            )
+            return Response('error: ban')
 
     # Submit to database
 
