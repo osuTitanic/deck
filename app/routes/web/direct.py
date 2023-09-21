@@ -18,7 +18,7 @@ import app
 router = APIRouter()
 
 @router.get('/osu-search.php')
-def search(
+async def search(
     legacy_password: str = Query(None, alias='c'),
     display_mode: int = Query(4, alias='r'),
     username: str = Query(None, alias='u'),

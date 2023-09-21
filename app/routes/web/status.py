@@ -12,7 +12,7 @@ from fastapi import (
 router = APIRouter()
 
 @router.get('/osu-getstatus.php')
-def get_beatmaps(
+async def get_beatmaps(
     checksums: str = Query(..., alias='c')
 ):
     # Check amount of requests
