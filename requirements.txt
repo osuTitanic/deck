@@ -50,7 +50,7 @@ SQLAlchemy==2.0.19
 starlette==0.27.0
 typing-extensions==4.7.1
 typing-utils==0.1.0
-urllib3==1.26.16
+urllib3==2.0.5
 uvicorn==0.23.2
 wtc==1.2.1
 yarl==1.9.2
