@@ -305,27 +305,25 @@ def score_submission(
                          True
     )
 
-    if score.beatmap.is_ranked:
-        if score.status == ScoreStatus.Best:
-            # Update grades
-            if score.personal_best:
-                previous_grade = Grade[score.personal_best.grade]
-                grade = score.grade
+    if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
+        # Update grades
+        if score.personal_best:
+            previous_grade = Grade[score.personal_best.grade]
+            grade = score.grade
 
-                if previous_grade == grade:
-                    previous_grade = None
-                    grade = None
+            if previous_grade == grade:
+                previous_grade = None
+                grade = None
 
-                # Remove old score
-                if score.beatmap.awards_pp:
-                    stats.rscore -= score.personal_best.total_score
-            else:
-                grade = score.grade
+            # Remove old score
+            if score.beatmap.awards_pp:
+                stats.rscore -= score.personal_best.total_score
+        else:
+            grade = score.grade
 
-            stats.rscore += score.total_score
+        stats.rscore += score.total_score
 
         # Update max combo
-
         if score.max_combo > stats.max_combo:
             stats.max_combo = score.max_combo
 
@@ -374,24 +372,22 @@ def score_submission(
             )
 
     # Update grades
-
     if grade:
-        if grade != previous_grade:
-            grade_name = f'{grade.name.lower()}_count'
+        grade_name = f'{grade.name.lower()}_count'
 
-            updates = {grade_name: getattr(DBStats, grade_name) + 1}
+        updates = {grade_name: getattr(DBStats, grade_name) + 1}
 
-            if previous_grade:
-                grade_name = f'{previous_grade.name.lower()}_count'
+        if previous_grade:
+            grade_name = f'{previous_grade.name.lower()}_count'
 
-                updates.update(
-                    {grade_name: getattr(DBStats, grade_name) - 1}
-                )
+            updates.update(
+                {grade_name: getattr(DBStats, grade_name) - 1}
+            )
 
-            score.session.query(DBStats) \
-                    .filter(DBStats.user_id == score.user.id) \
-                    .filter(DBStats.mode == score.play_mode.value) \
-                    .update(updates)
+        score.session.query(DBStats) \
+            .filter(DBStats.user_id == score.user.id) \
+            .filter(DBStats.mode == score.play_mode.value) \
+            .update(updates)
 
     score.session.commit()
 
