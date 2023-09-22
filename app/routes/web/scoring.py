@@ -40,7 +40,7 @@ import app
 router = APIRouter()
 
 @router.post('/osu-submit-modular.php')
-def score_submission(
+async def score_submission(
     request: Request,
     iv: Optional[str] = Form(None),
     password: Optional[str] = Form(None, alias='pass'),
@@ -66,7 +66,7 @@ def score_submission(
         if not password:
             raise HTTPException(400, detail='password missing')
 
-    form = request.form()
+    form = await request.form()
 
     score_data = form.getlist('score')[0]
 
@@ -88,7 +88,7 @@ def score_submission(
         # Replay filename is incorrect
         raise HTTPException(400, detail='invalid replay')
 
-    replay = replay.read() if replay else None
+    replay = await replay.read() if replay else None
 
     try:
         score = Score.parse(
