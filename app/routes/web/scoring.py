@@ -1,10 +1,12 @@
 
+from starlette.datastructures import FormData
 from fastapi import (
     HTTPException,
     UploadFile,
     APIRouter,
     Response,
     Request,
+    Depends,
     Query,
     File,
     Form
@@ -18,8 +20,8 @@ from copy import copy
 from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app import achievements as AchievementManager
 from app.common.cache import leaderboards, status
-from app.common.database import DBStats, DBScore
-from app.common.constants import Grade, BadFlags
+from app.common.database import DBStats
+from app.common.constants import Grade
 
 from app.common.database.repositories import (
     achievements,
@@ -39,8 +41,33 @@ import app
 
 router = APIRouter()
 
+async def get_form_data(request: Request) -> FormData:
+    return await request.form()
+
+async def get_replay(request: Request):
+    form = await request.form()
+    score_form = form.getlist('score')
+
+    if len(score_form) <= 1:
+        return
+
+    replay = score_form[-1]
+
+    if replay.filename != 'replay':
+        raise HTTPException(400, detail='invalid replay')
+
+    return await replay.read()
+
+async def get_legacy_replay(request: Request):
+    form = await request.form()
+
+    if not (replay := form.get('score')):
+        return
+
+    return await replay.read()
+
 @router.post('/osu-submit-modular.php')
-async def score_submission(
+def score_submission(
     request: Request,
     iv: Optional[str] = Form(None),
     password: Optional[str] = Form(None, alias='pass'),
@@ -50,11 +77,12 @@ async def score_submission(
     processes: Optional[str] = Form(None, alias='pl'),
     fun_spoiler: Optional[str] = Form(None, alias='fs'),
     screenshot: Optional[bytes] = Form(None, alias='i'),
-    replay: Optional[UploadFile] = File(None, alias='score'),
     legacy_score: Optional[str] = Query(None, alias='score'),
     legacy_password: Optional[str] = Query(None, alias='pass'),
     legacy_failtime: Optional[int] = Query(None, alias='ft'),
     legacy_exited: Optional[bool] = Query(None, alias='x'),
+    form: FormData = Depends(get_form_data),
+    replay: Optional[bytes] = Depends(get_replay)
 ):
     if legacy_password:
         # Old clients use query params instead of form data
@@ -65,8 +93,6 @@ async def score_submission(
 
         if not password:
             raise HTTPException(400, detail='password missing')
-
-    form = await request.form()
 
     score_data = form.getlist('score')[0]
 
@@ -83,12 +109,6 @@ async def score_submission(
     if client_hash is not None:
         # Client hash does not get sent in old clients
         client_hash = ClientHash.from_string(client_hash)
-
-    if replay is not None and replay.filename != 'replay':
-        # Replay filename is incorrect
-        raise HTTPException(400, detail='invalid replay')
-
-    replay = await replay.read() if replay else None
 
     try:
         score = Score.parse(
@@ -489,18 +509,12 @@ async def score_submission(
 @router.post('/osu-submit.php')
 @router.post('/osu-submit-new.php')
 def legacy_score_submission(
-    replay: Optional[UploadFile] = File(None, alias='score'),
     score_data: Optional[str] = Query(None, alias='score'),
     password: Optional[str] = Query(None, alias='pass'),
     failtime: Optional[int] = Query(0, alias='ft'),
-    exited: Optional[bool] = Query(False, alias='x')
+    exited: Optional[bool] = Query(False, alias='x'),
+    replay: Optional[bytes] = Depends(get_legacy_replay),
 ):
-    if replay is not None and replay.filename != 'replay':
-        # Replay filename is incorrect
-        raise HTTPException(400, detail='invalid replay')
-
-    replay = replay.read() if replay else None
-
     try:
         score = Score.parse(
             score_data,
