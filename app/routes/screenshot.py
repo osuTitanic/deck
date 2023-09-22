@@ -7,6 +7,7 @@ from fastapi import (
     Response
 )
 
+import utils
 import app
 
 router = APIRouter()
@@ -26,6 +27,11 @@ def get_screenshot(id: int):
     if not (image := app.session.storage.get_screenshot(id)):
         raise HTTPException(404)
 
-    return Response(image)
+    return Response(
+        image,
+        media_type='image/jpeg' \
+            if utils.has_jpeg_headers(memoryview(image))
+            else 'image/png'
+    )
 
 # TODO: Move to seperate server
