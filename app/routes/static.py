@@ -20,14 +20,14 @@ router = APIRouter()
 
 @router.get('/mt/{id}')
 @router.get('/images/map-thumb/{id}')
-async def direct_cover(id: str):
+def direct_cover(id: str):
     if not (image := app.session.storage.get_background(id)):
         return
 
     return Response(image)
 
 @router.get('/mp3/preview/{filename}')
-async def mp3(filename: str):
+def mp3(filename: str):
     set_id = int(filename.replace('.mp3', ''))
 
     if not (mp3 := app.session.storage.get_mp3(set_id)):
@@ -36,7 +36,7 @@ async def mp3(filename: str):
     return Response(mp3)
 
 @router.get('/d/{id}')
-async def osz(
+def osz(
     id: str,
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
@@ -68,14 +68,14 @@ async def osz(
     return StreamingResponse(osz)
 
 @router.get('/images/achievements/{filename}')
-async def achievement_image(filename: str):
+def achievement_image(filename: str):
     if not (image := app.session.storage.get_achievement(filename)):
         raise HTTPException(404)
 
     return Response(image)
 
 @router.get('/forum/download.php')
-async def legacy_avatar(request: Request):
+def legacy_avatar(request: Request):
     args = request.query_params
 
     if not (filename := args.get('avatar')):

@@ -11,11 +11,11 @@ import app
 router = APIRouter()
 
 @router.get('/maps/')
-async def index():
+def index():
     raise HTTPException(404)
 
 @router.get('/maps/{filename}')
-async def get_map(filename: str):
+def get_map(filename: str):
     if not (beatmap := beatmaps.fetch_by_file(filename)):
         raise HTTPException(404)
 

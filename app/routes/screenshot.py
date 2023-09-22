@@ -12,11 +12,11 @@ import app
 router = APIRouter()
 
 @router.get('/')
-async def index():
+def index():
     raise HTTPException(404)
 
 @router.get('/{id}')
-async def get_screenshot(id: int):
+def get_screenshot(id: int):
     if not (ss := screenshots.fetch_by_id(id)):
         raise HTTPException(404)
     

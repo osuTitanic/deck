@@ -47,7 +47,7 @@ api = FastAPI(
 )
 
 @api.middleware('http')
-async def get_process_time(request: Request, call_next):
+def get_process_time(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
     total_time = time.time() - start
@@ -57,7 +57,7 @@ async def get_process_time(request: Request, call_next):
     return response
 
 @api.exception_handler(HTTPException)
-async def exception_handler(request: Request, exc: HTTPException):
+def exception_handler(request: Request, exc: HTTPException):
     headers = exc.headers if exc.headers else {}
     headers.update({'detail': exc.detail})
 
@@ -67,7 +67,7 @@ async def exception_handler(request: Request, exc: HTTPException):
     )
 
 @api.exception_handler(StarletteHTTPException)
-async def exception_handler(request: Request, exc: StarletteHTTPException):
+def exception_handler(request: Request, exc: StarletteHTTPException):
     return Response(
         status_code=exc.status_code,
         headers={'detail': exc.detail}

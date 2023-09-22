@@ -23,7 +23,7 @@ import app
 router = APIRouter()
 
 @router.post('/osu-screenshot.php')
-async def screenshot(
+def screenshot(
     screenshot: UploadFile = File(..., alias='ss'),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p')
@@ -63,7 +63,7 @@ async def screenshot(
     return Response(str(id))
 
 @router.post('/osu-ss.php')
-async def monitor(
+def monitor(
     screenshot: UploadFile = File(..., alias='ss'),
     user_id: int = Query(..., alias='u'),
     password: str = Query(..., alias='h')

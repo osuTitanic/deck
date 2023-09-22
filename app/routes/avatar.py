@@ -14,14 +14,14 @@ import app
 router = APIRouter()
 
 @router.get('/')
-async def default_avatar():
+def default_avatar():
     if not (image := app.session.storage.get_avatar('unknown')):
         raise HTTPException(500, 'Default avatar not found')
     
     return Response(image, media_type='image/png')
 
 @router.get('/{filename}')
-async def avatar(
+def avatar(
     filename: str,
     height: Optional[int] = Query(None, alias='h'),
     width: Optional[int] = Query(None, alias='w')

@@ -17,7 +17,7 @@ import bcrypt
 import app
 
 @router.get('/osu-rate.php')
-async def rate(
+def rate(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
     beatmap_md5: str = Query(..., alias='c'),

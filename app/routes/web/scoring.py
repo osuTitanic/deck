@@ -40,7 +40,7 @@ import app
 router = APIRouter()
 
 @router.post('/osu-submit-modular.php')
-async def score_submission(
+def score_submission(
     request: Request,
     iv: Optional[str] = Form(None),
     password: Optional[str] = Form(None, alias='pass'),
@@ -488,7 +488,7 @@ async def score_submission(
 
 @router.post('/osu-submit.php')
 @router.post('/osu-submit-new.php')
-async def legacy_score_submission(
+def legacy_score_submission(
     replay: Optional[UploadFile] = File(None, alias='score'),
     score_data: Optional[str] = Query(None, alias='score'),
     password: Optional[str] = Query(None, alias='pass'),
