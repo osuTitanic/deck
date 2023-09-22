@@ -74,7 +74,7 @@ def search(
                 utils.online_beatmap(set)
             )
     except Exception as e:
-        app.session.logger.error(f'Failed to execute search: {e}')
+        app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
         return "-1\nServer error. Please try again!"
 
     return "\n".join(response)
