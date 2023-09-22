@@ -66,7 +66,7 @@ def score_submission(
         if not password:
             raise HTTPException(400, detail='password missing')
 
-    form = await request.form()
+    form = request.form()
 
     score_data = form.getlist('score')[0]
 
@@ -88,7 +88,7 @@ def score_submission(
         # Replay filename is incorrect
         raise HTTPException(400, detail='invalid replay')
 
-    replay = await replay.read() if replay else None
+    replay = replay.read() if replay else None
 
     try:
         score = Score.parse(
@@ -499,7 +499,7 @@ def legacy_score_submission(
         # Replay filename is incorrect
         raise HTTPException(400, detail='invalid replay')
 
-    replay = await replay.read() if replay else None
+    replay = replay.read() if replay else None
 
     try:
         score = Score.parse(

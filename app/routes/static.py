@@ -79,8 +79,8 @@ def legacy_avatar(request: Request):
     args = request.query_params
 
     if not (filename := args.get('avatar')):
-        return await avatar.default_avatar()
+        return avatar.default_avatar()
 
-    return await avatar.avatar(str(filename))
+    return avatar.avatar(str(filename))
 
 # TODO: Move to seperate server

@@ -33,7 +33,7 @@ def avatar(
     )
 
     if not (image := app.session.storage.get_avatar(user_id)):
-        return await default_avatar()
+        return default_avatar()
 
     if height is None:
         # Default height for avatars

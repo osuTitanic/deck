@@ -49,7 +49,7 @@ api = FastAPI(
 @api.middleware('http')
 def get_process_time(request: Request, call_next):
     start = time.time()
-    response = await call_next(request)
+    response = call_next(request)
     total_time = time.time() - start
     session.logger.debug(
         f'Processing Time: ~{round(total_time, 4)} seconds'

@@ -37,7 +37,7 @@ def screenshot(
     if not status.exists(player.id):
         raise HTTPException(401)
 
-    screenshot_content = await screenshot.read()
+    screenshot_content = screenshot.read()
 
     with memoryview(screenshot_content) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
@@ -77,7 +77,7 @@ def monitor(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
-    screenshot_content = await screenshot.read()
+    screenshot_content = screenshot.read()
 
     with memoryview(screenshot_content) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
