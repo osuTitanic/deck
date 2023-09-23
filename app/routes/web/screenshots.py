@@ -23,7 +23,7 @@ import app
 router = APIRouter()
 
 @router.post('/osu-screenshot.php')
-async def screenshot(
+def screenshot(
     screenshot: UploadFile = File(..., alias='ss'),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p')
@@ -37,7 +37,7 @@ async def screenshot(
     if not status.exists(player.id):
         raise HTTPException(401)
 
-    screenshot_content = await screenshot.read()
+    screenshot_content = screenshot.read()
 
     with memoryview(screenshot_content) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
@@ -63,7 +63,7 @@ async def screenshot(
     return Response(str(id))
 
 @router.post('/osu-ss.php')
-async def monitor(
+def monitor(
     screenshot: UploadFile = File(..., alias='ss'),
     user_id: int = Query(..., alias='u'),
     password: str = Query(..., alias='h')
@@ -77,7 +77,7 @@ async def monitor(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
-    screenshot_content = await screenshot.read()
+    screenshot_content = screenshot.read()
 
     with memoryview(screenshot_content) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):

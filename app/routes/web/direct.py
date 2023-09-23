@@ -23,7 +23,7 @@ def search(
     display_mode: int = Query(4, alias='r'),
     username: str = Query(None, alias='u'),
     password: str = Query(None, alias='h'),
-    query: str = Query(None, alias='q')
+    query: str = Query(..., alias='q')
 ):
     if legacy_password is None and password is None:
         # Legacy clients don't have authentication for osu! direct
@@ -74,7 +74,7 @@ def search(
                 utils.online_beatmap(set)
             )
     except Exception as e:
-        app.session.logger.error(f'Failed to execute search: {e}')
+        app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
         return "-1\nServer error. Please try again!"
 
     return "\n".join(response)

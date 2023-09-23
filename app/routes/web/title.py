@@ -10,7 +10,7 @@ import app
 router = APIRouter()
 
 @router.get('/osu-title-image.php')
-async def legacy_menu_icon(
+def legacy_menu_icon(
     image_checksum: Optional[str] = Query('', alias='c'),
     redirect: Optional[bool] = Query(False, alias='l')
 ):

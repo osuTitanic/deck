@@ -24,7 +24,7 @@ import bcrypt
 import app
 
 @router.post('/osu-comment.php')
-async def get_comments(
+def get_comments(
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
     action: str = Form(..., alias='a'),
