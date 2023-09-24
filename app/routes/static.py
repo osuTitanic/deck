@@ -19,6 +19,7 @@ import app
 router = APIRouter()
 
 @router.get('/mt/{id}')
+@router.get('/thumb/{id}')
 @router.get('/images/map-thumb/{id}')
 def direct_cover(id: str):
     if not (image := app.session.storage.get_background(id)):
