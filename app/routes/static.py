@@ -29,6 +29,7 @@ def direct_cover(id: str):
 
     return Response(image)
 
+@router.get('/preview/{filename}')
 @router.get('/mp3/preview/{filename}')
 def mp3(filename: str):
     set_id = int(filename.replace('.mp3', ''))
