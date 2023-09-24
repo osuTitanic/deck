@@ -287,17 +287,10 @@ def score_submission(
         score.beatmap.set_id,
     )
 
-    if score.beatmap.status < 0:
-        return Response('error: beatmap')
-
-    if not config.ALLOW_RELAX and score.relaxing:
-        return Response('error: no')
-
     previous_grade = None
     grade = None
 
-    score_count = scores.fetch_count(score.user.id, score.play_mode.value)
-    top_scores = scores.fetch_top_scores(
+    best_scores = scores.fetch_best(
         user_id=score.user.id,
         mode=score.play_mode.value,
         exclude_approved=False
@@ -314,41 +307,30 @@ def score_submission(
             if previous_grade == grade:
                 previous_grade = None
                 grade = None
-
-            # Remove old score
-            if score.beatmap.awards_pp:
-                stats.rscore -= score.personal_best.total_score
         else:
             grade = score.grade
-
-        stats.rscore += score.total_score
 
         # Update max combo
         if score.max_combo > stats.max_combo:
             stats.max_combo = score.max_combo
 
-    if score_count > 0:
+    if len(best_scores) > 0:
         # Update accuracy
+        weighted_acc = sum(score.acc * 0.95**index for index, score in enumerate(best_scores))
+        bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores)))
 
-        total_acc = 0
-        divide_total = 0
-
-        for index, s in enumerate(top_scores):
-            add = 0.95 ** index
-            total_acc    += s.acc * add
-            divide_total += add
-
-        if divide_total != 0:
-            stats.acc = total_acc / divide_total
-        else:
-            stats.acc = 0.0
+        stats.acc = (weighted_acc * bonus_acc) / 100
 
         # Update performance
-
-        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
-        bonus_pp = 416.6667 * (1 - 0.9994**score_count)
+        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(best_scores))
+        bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
 
         stats.pp = weighted_pp + bonus_pp
+
+        # Update rscore
+        stats.rscore = sum(
+            score.total_score for score in best_scores
+        )
 
         leaderboards.update(
             stats.user_id,
@@ -396,6 +378,12 @@ def score_submission(
         'user_update',
         user_id=player.id
     )
+
+    if score.beatmap.status < 0:
+        return Response('error: beatmap')
+
+    if not config.ALLOW_RELAX and score.relaxing:
+        return Response('error: no')
 
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
@@ -686,17 +674,10 @@ def legacy_score_submission(
         score.beatmap.set_id,
     )
 
-    if score.beatmap.status < 0:
-        raise HTTPException(404)
-
-    if not config.ALLOW_RELAX and score.relaxing:
-        raise HTTPException(400)
-
     previous_grade = None
     grade = None
 
-    score_count = scores.fetch_count(score.user.id, score.play_mode.value)
-    top_scores = scores.fetch_top_scores(
+    best_scores = scores.fetch_best(
         user_id=score.user.id,
         mode=score.play_mode.value,
         exclude_approved=False
@@ -704,52 +685,39 @@ def legacy_score_submission(
                          True
     )
 
-    if score.beatmap.is_ranked:
-        if score.status == ScoreStatus.Best:
-            # Update grades
-            if score.personal_best:
-                previous_grade = Grade[score.personal_best.grade]
-                grade = score.grade
+    if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
+        # Update grades
+        if score.personal_best:
+            previous_grade = Grade[score.personal_best.grade]
+            grade = score.grade
 
-                if previous_grade == grade:
-                    previous_grade = None
-                    grade = None
-
-                # Remove old score
-                if score.beatmap.awards_pp:
-                    stats.rscore -= score.personal_best.total_score
-            else:
-                grade = score.grade
-
-            stats.rscore += score.total_score
+            if previous_grade == grade:
+                previous_grade = None
+                grade = None
+        else:
+            grade = score.grade
 
         # Update max combo
-
         if score.max_combo > stats.max_combo:
             stats.max_combo = score.max_combo
 
-    if score_count > 0:
+    if len(best_scores) > 0:
         # Update accuracy
+        weighted_acc = sum(score.acc * 0.95**index for index, score in enumerate(best_scores))
+        bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores)))
 
-        total_acc = 0
-        divide_total = 0
-
-        for index, s in enumerate(top_scores):
-            add = 0.95 ** index
-            total_acc    += s.acc * add
-            divide_total += add
-
-        if divide_total != 0:
-            stats.acc = total_acc / divide_total
-        else:
-            stats.acc = 0.0
+        stats.acc = (weighted_acc * bonus_acc) / 100
 
         # Update performance
-
-        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(top_scores))
-        bonus_pp = 416.6667 * (1 - 0.9994**score_count)
+        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(best_scores))
+        bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
 
         stats.pp = weighted_pp + bonus_pp
+
+        # Update rscore
+        stats.rscore = sum(
+            score.total_score for score in best_scores
+        )
 
         leaderboards.update(
             stats.user_id,
@@ -799,6 +767,12 @@ def legacy_score_submission(
         'user_update',
         user_id=player.id
     )
+
+    if score.beatmap.status < 0:
+        raise HTTPException(400)
+
+    if not config.ALLOW_RELAX and score.relaxing:
+        raise HTTPException(400)
 
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
