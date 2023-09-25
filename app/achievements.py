@@ -87,21 +87,21 @@ def bunny(score: DBScore) -> bool:
 
 @register(name="S-Ranker", category='Hush-Hush', filename='s-ranker.png')
 def sranker(score: DBScore) -> bool:
-    """Get an S rank on 3 different beatmaps in a row"""
+    """Get an S rank on 5 different beatmaps in a row"""
     latest_scores = scores.fetch_recent(
         score.user_id,
         score.mode,
-        limit=3
+        limit=5
     )
 
     beatmaps = {score.beatmap_id for score in latest_scores}
 
-    if len(beatmaps) != 3:
+    if len(beatmaps) != 5:
         # Can't be on same beatmap
         return False
 
     for score in latest_scores:
-        if score.grade != 'S' or score.grade != 'SH':
+        if Grade[score.grade] > Grade.S:
             return False
 
     return True
