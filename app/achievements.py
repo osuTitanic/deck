@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Callable
 
 from app.common.database.repositories import scores, stats
+from app.common.constants import ScoreStatus, Grade
 from app.common.cache import leaderboards
 
 from app.common.database.objects import DBScore
@@ -42,6 +43,25 @@ def register(name: str, category: str, filename: str) -> Callable:
         return a
 
     return wrapper
+
+def check_pack(score: DBScore, beatmap_ids: List[int]) -> bool:
+    if score.beatmap_id not in beatmap_ids:
+        # Score was not set inside this pack
+        return False
+
+    with app.session.database.managed_session() as session:
+        for beatmap_id in beatmap_ids:
+            result = session.query(DBScore) \
+                            .filter(DBScore.beatmap_id == beatmap_id) \
+                            .filter(DBScore.user_id == score.user_id) \
+                            .filter(DBScore.status == 3) \
+                            .first()
+
+            if not result:
+                # User has not completed this beatmap
+                return False
+
+    return True
 
 @register(name='500 Combo  (any song)', category='Skill', filename='combo500.png')
 def combo500(score: DBScore) -> bool:
@@ -86,42 +106,49 @@ def bunny(score: DBScore) -> bool:
 
 @register(name="S-Ranker", category='Hush-Hush', filename='s-ranker.png')
 def sranker(score: DBScore) -> bool:
-    """Get an S rank on 3 different beatmaps in a row"""
+    """Get an S rank on 5 different beatmaps in a row"""
     latest_scores = scores.fetch_recent(
         score.user_id,
         score.mode,
-        limit=3
+        limit=5
     )
 
     beatmaps = {score.beatmap_id for score in latest_scores}
 
-    if len(beatmaps) != 3:
+    if len(beatmaps) != 5:
         # Can't be on same beatmap
         return False
 
     for score in latest_scores:
-        if score.grade != 'S' or score.grade != 'SH':
+        if Grade[score.grade] > Grade.S:
             return False
 
     return True
 
 @register(name="Most Improved", category='Hush-Hush', filename='improved.png')
 def improved(score: DBScore) -> bool:
-    # TODO: Not completely clear what it does
-    # https://i.imgur.com/DgFGiai.png
+    """Set a D Rank then A rank (or higher), in the last day"""
+    if score.status != ScoreStatus.Best:
+        return False
 
-    # if score.status != ScoreStatus.BEST:
-    #     return False
+    with app.session.database.managed_session() as session:
+        # Check if player has set a D Rank in the last 24 hours
+        result = session.query(DBScore) \
+                        .filter(
+                            DBScore.submitted_at > (
+                                datetime.now() - timedelta(days=1)
+                            )
+                        ) \
+                        .filter(DBScore.beatmap_id == score.beatmap_id) \
+                        .filter(DBScore.user_id == score.user_id) \
+                        .filter(DBScore.grade == 'D') \
+                        .first()
 
-    # if not score.personal_best:
-    #     return False
-    #
-    # previous_grade = Grade[score.personal_best.grade].value
-    # new_grade      = Grade[score.grade].value
+    if not result:
+        return False
 
-    # if previous_grade - new_grade >= 2:
-    #     # We need to check that for 10-20 maps
-    #     return True
+    if Grade[score.grade] <= Grade.A:
+        return True
 
     return False
 
@@ -140,17 +167,10 @@ def dancer(score: DBScore) -> bool:
 @register(name='Consolation Prize', category='Hush-Hush', filename='consolationprize.png')
 def prize(score: DBScore) -> bool:
     """Pass the any difficulty of any ranked mapset with below 75% accuracy without no-fail and/or easy mods"""
-    if score.acc > 0.75:
+    if Grade[score.grade] != Grade.D:
         return False
 
-    if not score.beatmap.is_ranked:
-        # Map is not ranked
-        return False
-
-    mods = Mods(score.mods)
-
-    if (Mods.NoFail in mods or
-        Mods.Easy   in mods):
+    if score.mods > 0:
         return False
 
     return True
@@ -460,23 +480,191 @@ def ranking_3(score: DBScore) -> bool:
 
     return True
 
-# TODO
-# 'Video Game Pack vol.1'  'Beatmap Packs' 'gamer1.png'
-# 'Video Game Pack vol.2'  'Beatmap Packs' 'gamer2.png'
-# 'Video Game Pack vol.3'  'Beatmap Packs' 'gamer3.png'
-# 'Video Game Pack vol.4'  'Beatmap Packs' 'gamer4.png'
-# 'Anime Pack vol.1'       'Beatmap Packs' 'anime1.png'
-# 'Anime Pack vol.2'       'Beatmap Packs' 'anime2.png'
-# 'Anime Pack vol.3'       'Beatmap Packs' 'anime3.png'
-# 'Anime Pack vol.4'       'Beatmap Packs' 'anime4.png'
-# 'Internet! Pack vol.1'   'Beatmap Packs' 'lulz1.png'
-# 'Internet! Pack vol.2'   'Beatmap Packs' 'lulz2.png'
-# 'Internet! Pack vol.3'   'Beatmap Packs' 'lulz3.png'
-# 'Internet! Pack vol.4'   'Beatmap Packs' 'lulz4.png'
-# 'Rythm Game Pack vol.1'  'Beatmap Packs' 'rythm1.png'
-# 'Rythm Game Pack vol.2'  'Beatmap Packs' 'rythm2.png'
-# 'Rythm Game Pack vol.3'  'Beatmap Packs' 'rythm3.png'
-# 'Rythm Game Pack vol.4'  'Beatmap Packs' 'rythm4.png'
+@register(name='Video Game Pack vol.1', category='Beatmap Packs', filename='gamer1.png')
+def video_game_1(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            347,
+            348,
+            346
+        ]
+    )
+
+@register(name='Video Game Pack vol.2', category='Beatmap Packs', filename='gamer2.png')
+def video_game_2(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            18925,
+            18917,
+            18929,
+            18930
+        ]
+    )
+
+@register(name='Video Game Pack vol.3', category='Beatmap Packs', filename='gamer3.png')
+def video_game_3(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            21072,
+            21073,
+            21083,
+            21120
+        ]
+    )
+
+@register(name='Video Game Pack vol.4', category='Beatmap Packs', filename='gamer4.png')
+def video_game_4(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            42010,
+            42011,
+            42012
+        ]
+    )
+
+@register(name='Anime Pack vol.1', category='Beatmap Packs', filename='anime1.png')
+def anime_1(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            14584,
+            14586,
+            14585
+        ]
+    )
+
+@register(name='Anime Pack vol.2', category='Beatmap Packs', filename='anime2.png')
+def anime_2(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            6433
+        ]
+    )
+
+@register(name='Anime Pack vol.3', category='Beatmap Packs', filename='anime3.png')
+def anime_3(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            26683,
+            26624,
+            26678
+        ]
+    )
+
+@register(name='Anime Pack vol.4', category='Beatmap Packs', filename='anime4.png')
+def anime_4(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            35909,
+            39888,
+            35809,
+            35893
+        ]
+    )
+
+@register(name='Internet! Pack vol.1', category='Beatmap Packs', filename='lulz1.png')
+def internet_1(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            112700,
+            103281,
+            107409,
+            107410,
+            105037,
+            103282
+        ]
+    )
+
+@register(name='Internet! Pack vol.2', category='Beatmap Packs', filename='lulz2.png')
+def internet_2(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            119080,
+            146247,
+            119081,
+            119082,
+            120348,
+            127560
+        ]
+    )
+
+@register(name='Internet! Pack vol.3', category='Beatmap Packs', filename='lulz3.png')
+def internet_3(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            775072,
+            766689,
+            769513,
+            779447
+        ]
+    )
+
+@register(name='Internet! Pack vol.4', category='Beatmap Packs', filename='lulz4.png')
+def internet_4(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            382275,
+            382963,
+            383456,
+            383457
+        ]
+    )
+
+@register(name='Rhythm Game Pack vol.1', category='Beatmap Packs', filename='rhythm1.png')
+def rhythm_game_1(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            11089,
+            11091,
+            11090
+        ]
+    )
+
+@register(name='Rhythm Game Pack vol.2', category='Beatmap Packs', filename='rhythm2.png')
+def rhythm_game_2(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            21912,
+            21736,
+            21724
+        ]
+    )
+
+@register(name='Rhythm Game Pack vol.3', category='Beatmap Packs', filename='rhythm3.png')
+def rhythm_game_3(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            25463,
+            25427,
+            25428
+        ]
+    )
+
+@register(name='Rhythm Game Pack vol.4', category='Beatmap Packs', filename='rhythm4.png')
+def rhythm_game_4(score: DBScore) -> bool:
+    return check_pack(
+        score,
+        beatmap_ids=[
+            65453,
+            65454,
+            65455,
+            65456
+        ]
+    )
 
 def get_by_name(name: str):
     for achievement in achievements:

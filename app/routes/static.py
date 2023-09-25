@@ -19,13 +19,17 @@ import app
 router = APIRouter()
 
 @router.get('/mt/{id}')
+@router.get('/thumb/{id}')
 @router.get('/images/map-thumb/{id}')
 def direct_cover(id: str):
+    id = id.removesuffix('.jpg')
+
     if not (image := app.session.storage.get_background(id)):
         return
 
     return Response(image)
 
+@router.get('/preview/{filename}')
 @router.get('/mp3/preview/{filename}')
 def mp3(filename: str):
     set_id = int(filename.replace('.mp3', ''))

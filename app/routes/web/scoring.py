@@ -49,7 +49,9 @@ async def get_replay(request: Request):
     score_form = form.getlist('score')
 
     if len(score_form) <= 1:
-        return
+        # Could be a legacy score
+        if not request.query_params.get('score'):
+            return
 
     replay = score_form[-1]
 
