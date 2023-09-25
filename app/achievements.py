@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Callable
 
 from app.common.database.repositories import scores, stats
+from app.common.constants import ScoreStatus, Grade
 from app.common.cache import leaderboards
 
 from app.common.database.objects import DBScore
@@ -107,21 +108,27 @@ def sranker(score: DBScore) -> bool:
 
 @register(name="Most Improved", category='Hush-Hush', filename='improved.png')
 def improved(score: DBScore) -> bool:
-    # TODO: Not completely clear what it does
-    # https://i.imgur.com/DgFGiai.png
+    """Set a D Rank then A rank (or higher), in the last day"""
+    if score.status != ScoreStatus.Best:
+        return False
 
-    # if score.status != ScoreStatus.BEST:
-    #     return False
+    with app.session.database.managed_session() as session:
+        # Check if player has set a D Rank in the last 24 hours
+        result = session.query(DBScore) \
+                        .filter(
+                            DBScore.submitted_at < (
+                                datetime.now() - timedelta(days=1)
+                            )
+                        ) \
+                        .filter(DBScore.beatmap_id == score.beatmap_id) \
+                        .filter(DBScore.grade == 'D') \
+                        .first()
 
-    # if not score.personal_best:
-    #     return False
-    #
-    # previous_grade = Grade[score.personal_best.grade].value
-    # new_grade      = Grade[score.grade].value
+    if not result:
+        return False
 
-    # if previous_grade - new_grade >= 2:
-    #     # We need to check that for 10-20 maps
-    #     return True
+    if Grade[score.grade] <= Grade.A:
+        return True
 
     return False
 
