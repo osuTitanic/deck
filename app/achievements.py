@@ -148,17 +148,10 @@ def dancer(score: DBScore) -> bool:
 @register(name='Consolation Prize', category='Hush-Hush', filename='consolationprize.png')
 def prize(score: DBScore) -> bool:
     """Pass the any difficulty of any ranked mapset with below 75% accuracy without no-fail and/or easy mods"""
-    if score.acc > 0.75:
+    if Grade[score.grade] != Grade.D:
         return False
 
-    if not score.beatmap.is_ranked:
-        # Map is not ranked
-        return False
-
-    mods = Mods(score.mods)
-
-    if (Mods.NoFail in mods or
-        Mods.Easy   in mods):
+    if score.mods > 0:
         return False
 
     return True
