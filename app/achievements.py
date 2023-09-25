@@ -116,11 +116,12 @@ def improved(score: DBScore) -> bool:
         # Check if player has set a D Rank in the last 24 hours
         result = session.query(DBScore) \
                         .filter(
-                            DBScore.submitted_at < (
+                            DBScore.submitted_at > (
                                 datetime.now() - timedelta(days=1)
                             )
                         ) \
                         .filter(DBScore.beatmap_id == score.beatmap_id) \
+                        .filter(DBScore.user_id == score.user_id) \
                         .filter(DBScore.grade == 'D') \
                         .first()
 
