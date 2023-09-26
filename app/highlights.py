@@ -10,9 +10,7 @@ from app.common.database import (
 
 from typing import List, Tuple
 
-import traceback
 import config
-import utils
 import app
 
 def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submit_to_chat: bool = True):
@@ -30,9 +28,9 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submi
                 target='#announce'
             )
         except Exception as e:
-            traceback.print_exc()
             app.session.logger.error(
-                f'Failed to submit highlight message: {e}'
+                f'Failed to submit highlight message: {e}',
+                exc_info=e
             )
 
     try:
@@ -44,9 +42,9 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submi
             '||'.join([a[1] for a in args])
         )
     except Exception as e:
-        traceback.print_exc()
         app.session.logger.error(
-            f'Failed to submit highlight message to database: {e}'
+            f'Failed to submit highlight message to database: {e}',
+            exc_info=e
         )
 
 def check_rank(
