@@ -3,7 +3,7 @@ from . import highlights
 from . import session
 from . import routes
 
-from .logging import Console, File, Discord
+from .logging import Console, File
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
@@ -26,9 +26,7 @@ utils.setup()
 logging.basicConfig(
     format='[%(asctime)s] - <%(name)s> %(levelname)s: %(message)s',
     level=logging.INFO,
-    handlers=[Console, File, Discord]
-             if config.WEBHOOK_URL else
-             [Console, File]
+    handlers=[Console, File]
 )
 
 if logging.getLogger('uvicorn.access').handlers:
