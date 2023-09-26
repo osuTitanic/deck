@@ -31,7 +31,6 @@ from app.common.database.repositories import (
     users
 )
 
-import traceback
 import hashlib
 import base64
 import config
@@ -121,8 +120,10 @@ def score_submission(
         )
     except Exception as e:
         # Failed to parse score
-        traceback.print_exc()
-        app.session.logger.error(f'Failed to parse score data: {e}')
+        app.session.logger.error(
+            f'Failed to parse score data: {e}',
+            exc_info=e
+        )
         raise HTTPException(400, detail='invalid score data')
 
     if not (player := score.user):
@@ -510,8 +511,10 @@ def legacy_score_submission(
         )
     except Exception as e:
         # Failed to parse score
-        traceback.print_exc()
-        app.session.logger.error(f'Failed to parse score data: {e}')
+        app.session.logger.error(
+            f'Failed to parse score data: {e}',
+            exc_info=e
+        )
         raise HTTPException(400, detail='invalid score data')
 
     if not (player := score.user):
