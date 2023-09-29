@@ -20,8 +20,8 @@ def osu_error(
     stacktrace: str = Form(...),
     feedback: Optional[str] = Form(None),
     iltrace: Optional[str] = Form(None),
+    exehash: Optional[str] = Form(None),
     version: str = Form(...),
-    exehash: str = Form(...),
     config: str = Form(...)
 ):
     app.session.logger.warning('\n'.join([
