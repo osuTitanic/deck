@@ -29,7 +29,7 @@ numpy==1.26.0
 oauthlib==3.2.2
 packaging==23.1
 Pillow==10.0.1
-psycopg2==2.9.6
+psycopg2==2.9.8
 py3rijndael==0.3.3
 pydantic==2.4.1
 pydantic-core==2.10.1
