@@ -3,6 +3,7 @@ from .common.cache.events import EventQueue
 from .common.database import Postgres
 from .common.storage import Storage
 
+from concurrent.futures import ThreadPoolExecutor
 from requests import Session
 from redis import Redis
 
@@ -33,4 +34,5 @@ database = Postgres(
     config.POSTGRES_PORT
 )
 
+executor = ThreadPoolExecutor(max_workers=5)
 storage = Storage()
