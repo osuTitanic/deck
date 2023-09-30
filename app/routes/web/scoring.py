@@ -209,6 +209,14 @@ def score_submission(
             return Response('error: ban')
 
     if score.beatmap.is_ranked:
+        # Get old rank before submitting score
+        old_rank = scores.fetch_score_index_by_id(
+                    score.personal_best.id,
+                    score.beatmap.id,
+                    mode=score.play_mode.value
+                   ) \
+                if score.personal_best else 0
+
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = str(client_hash)
@@ -379,8 +387,8 @@ def score_submission(
 
         achievements.create_many(new_achievements, player.id)
 
-    beatmap_rank = scores.fetch_score_index_by_id(
-        score_object.id,
+    beatmap_rank = scores.fetch_score_index_by_tscore(
+        score_object.total_score,
         score.beatmap.id,
         mode=score.play_mode.value
     )
@@ -428,18 +436,7 @@ def score_submission(
     overallChart['toNextRankUser'] = ''
     overallChart['toNextRank'] = '0'
 
-    if score.beatmap.status > 0:
-        old_rank = scores.fetch_score_index_by_id(
-                    score.personal_best.id,
-                    score.beatmap.id,
-                    mode=score.play_mode.value
-                   ) \
-                if score.personal_best else 0
-
-        if beatmap_rank <= 0:
-            # Rank has not changed
-            beatmap_rank = old_rank
-
+    if score.beatmap.is_ranked:
         overallChart.entry(
             'beatmapRanking',
             old_rank,
