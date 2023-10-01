@@ -503,7 +503,7 @@ def legacy_scores_no_personal_best(
 def legacy_scores_status_change(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    skip_scores: str = Query(..., alias='s')
+    skip_scores: Optional[str] = Query(None, alias='s')
 ):
     # TODO: /osu-getscores2.php response format is different in some versions
     #       One method would be to check the client version over the cache
@@ -522,7 +522,8 @@ def legacy_scores_status_change(
     submission_status = LegacyStatus.from_database(beatmap.status)
 
     # Status
-    response.append(str(submission_status.value))
+    if submission_status <= SubmissionStatus.Unknown:
+        response.append(str(submission_status.value))
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))

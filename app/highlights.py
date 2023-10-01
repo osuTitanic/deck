@@ -136,7 +136,7 @@ def check_beatmap(
         score.mode,
         '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
         (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-        (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
+        (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}')
     )
 
 def check_pp(

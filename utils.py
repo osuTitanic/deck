@@ -331,6 +331,6 @@ def resize_image(
     image_buffer = io.BytesIO()
 
     img = img.resize((target_width, target_height))
-    img.save(image_buffer, format='PNG' )
+    img.save(image_buffer, format='PNG')
 
     return image_buffer.getvalue()

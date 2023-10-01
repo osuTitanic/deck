@@ -13,6 +13,7 @@ from . import status
 from . import direct
 from . import error
 from . import title
+from . import login
 from . import maps
 
 router = APIRouter()
@@ -28,4 +29,5 @@ router.include_router(status.router)
 router.include_router(direct.router)
 router.include_router(error.router)
 router.include_router(title.router)
+router.include_router(login.router)
 router.include_router(maps.router)
