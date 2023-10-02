@@ -540,3 +540,5 @@ def legacy_scores_status_change(
         )
 
     return Response('\n'.join(response))
+
+# TODO: osu-getscores.php

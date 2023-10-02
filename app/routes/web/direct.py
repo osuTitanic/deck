@@ -99,7 +99,7 @@ def pickup_info(
         if not player.is_supporter:
             raise HTTPException(401)
     else:
-        # The old clients don't use authentication for direct pickups...
+        # Old clients don't use authentication for direct pickups
         if not config.FREE_SUPPORTER:
             raise HTTPException(401)
 
