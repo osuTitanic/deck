@@ -27,7 +27,7 @@ maxminddb==2.4.0
 multidict==6.0.4
 numpy==1.26.0
 oauthlib==3.2.2
-packaging==23.1
+packaging==23.2
 Pillow==10.0.1
 psycopg2==2.9.8
 py3rijndael==0.3.3
