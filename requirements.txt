@@ -7,9 +7,9 @@ async-timeout==4.0.3
 asyncpg==0.28.0
 attrs==23.1.0
 bcrypt==4.0.1
-boto3==1.28.58
+boto3==1.28.59
 boto3-type-annotations-with-docs==0.3.1
-botocore==1.31.58
+botocore==1.31.59
 certifi==2023.7.22
 chardet==5.2.0
 charset-normalizer==3.3.0
@@ -29,7 +29,7 @@ numpy==1.26.0
 oauthlib==3.2.2
 packaging==23.2
 Pillow==10.0.1
-psycopg2==2.9.8
+psycopg2==2.9.9
 py3rijndael==0.3.3
 pydantic==2.4.2
 pydantic-core==2.10.1
