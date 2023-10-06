@@ -691,17 +691,23 @@ def legacy_score_submission(
 
         grades = {}
 
-        # Update grades
-        for s in best_scores:
-            grade = f'{s.grade.lower()}_count'
-            grades[grade] = grades.get(grade, 0) + 1
+        try:
+            # Update grades
+            for s in best_scores:
+                grade = f'{s.grade.lower()}_count'
+                grades[grade] = grades.get(grade, 0) + 1
 
-        score.session.query(DBStats) \
-            .filter(DBStats.user_id == score.user.id) \
-            .filter(DBStats.mode == score.play_mode.value) \
-            .update(grades)
+            score.session.query(DBStats) \
+                .filter(DBStats.user_id == score.user.id) \
+                .filter(DBStats.mode == score.play_mode.value) \
+                .update(grades)
 
-        score.session.commit()
+            score.session.commit()
+        except Exception as e:
+            app.session.logger.error(
+                'Failed to update user grades!',
+                exc_info=e
+            )
 
         if score.passed:
             histories.update_rank(
