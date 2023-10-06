@@ -340,8 +340,8 @@ def score_submission(
 
         try:
             # Update grades
-            for score in best_scores:
-                grade = f'{score.grade.lower()}_count'
+            for s in best_scores:
+                grade = f'{s.grade.lower()}_count'
                 grades[grade] = grades.get(grade, 0) + 1
 
             score.session.query(DBStats) \
@@ -699,8 +699,8 @@ def legacy_score_submission(
 
         try:
             # Update grades
-            for score in best_scores:
-                grade = f'{score.grade.lower()}_count'
+            for s in best_scores:
+                grade = f'{s.grade.lower()}_count'
                 grades[grade] = grades.get(grade, 0) + 1
 
             score.session.query(DBStats) \
