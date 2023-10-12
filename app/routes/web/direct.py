@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
 from app.common.cache import status
+from app.common.database import DBBeatmapset
 from app.common.constants import DisplayMode
 from app.common.database.repositories import (
     beatmapsets,
@@ -99,7 +100,7 @@ def pickup_info(
         if not player.is_supporter:
             raise HTTPException(401)
     else:
-        # The old clients don't use authentication for direct pickups...
+        # Old clients don't use authentication for direct pickups
         if not config.FREE_SUPPORTER:
             raise HTTPException(401)
 
@@ -110,6 +111,8 @@ def pickup_info(
     if post_id:
         # TODO
         raise HTTPException(404)
+
+    beatmapset: Optional[DBBeatmapset] = None
 
     if beatmap_id:
         beatmap = beatmaps.fetch_by_id(beatmap_id)

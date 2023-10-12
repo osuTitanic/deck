@@ -16,7 +16,6 @@ from fastapi import (
 )
 
 import bcrypt
-import config
 import utils
 import app
 
@@ -42,7 +41,7 @@ def screenshot(
     with memoryview(screenshot_content) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
             raise HTTPException(
-                status_code=404,
+                status_code=400,
                 detail="Screenshot file too large"
             )
 
@@ -82,7 +81,7 @@ def monitor(
     with memoryview(screenshot_content) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
             raise HTTPException(
-                status_code=404,
+                status_code=400,
                 detail="Screenshot file too large."
             )
 

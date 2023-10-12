@@ -1,6 +1,5 @@
 
 from app.common.database.repositories import beatmaps
-from app.common.constants import LegacyStatus
 
 from fastapi import (
     HTTPException,

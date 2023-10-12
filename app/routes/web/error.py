@@ -1,9 +1,18 @@
 
-from fastapi import APIRouter, Response, Form
+from app.common.database.repositories import logs
+from app.common.cache import status
+
 from typing import Optional
+from fastapi import (
+    HTTPException,
+    APIRouter,
+    Response,
+    Form
+)
 
 router = APIRouter()
 
+import json
 import app
 
 @router.post('/osu-error.php')
@@ -24,6 +33,9 @@ def osu_error(
     version: str = Form(...),
     config: str = Form(...)
 ):
+    if not status.exists(user_id):
+        raise HTTPException(400)
+
     app.session.logger.warning('\n'.join([
         f'Client error from "{username}":',
         f'  Version: {version} ({exehash})',
@@ -35,8 +47,23 @@ def osu_error(
         f'  Stacktrace:\n    {stacktrace}'
     ]))
 
-    # TODO: Better formatting
-    # TODO: Submit to database
-    # TODO: Exceptions to #admin
+    logs.create(
+        json.dumps({
+            'user_id': user_id,
+            'version': version,
+            'feedback': feedback,
+            'iltrace': iltrace,
+            'exception': exception,
+            'stacktrace': stacktrace
+        }),
+        'error',
+        'osu-error'
+    )
+
+    app.session.events.submit(
+        'bot_message',
+        message=f'Client error from "{username}". Plase check the logs!',
+        target='#admin'
+    )
 
     return Response('ok')
