@@ -194,10 +194,30 @@ def score_submission(
         return Response('error: ban')
 
     # Check score submission "spam"
-    if (recent_score := scores.fetch_recent(player.id, score.play_mode.value, limit=1)):
-        last_submission = (datetime.now().timestamp() - recent_score[0].submitted_at.timestamp())
+    if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
+        # NOTE: Client should normally submit scores in 8 second intervals
+        # However, this can fail sometimes resulting in an instant ban
 
-        if last_submission <= 8:
+        # I know this looks messy...
+        submission_times = [
+            # Get the time between score submissions
+            (
+                (
+                    recent_scores[index - 1].submitted_at.timestamp()
+                    if index != 0
+                    else datetime.now().timestamp()
+                ) - recent_score.submitted_at.timestamp()
+            )
+            # For every recent score
+            for index, recent_score in enumerate(recent_scores)
+            if index != (len(recent_scores) - 1)
+        ]
+
+        average_submission_time = (
+            sum(submission_times) / len(submission_times)
+        )
+
+        if average_submission_time <= 8 and len(recent_scores) == 5:
             app.session.logger.warning(
                 f'"{score.username}" is spamming score submission.'
             )
@@ -566,13 +586,30 @@ def legacy_score_submission(
         raise HTTPException(401)
 
     # Check score submission "spam"
-    if (recent_score := scores.fetch_recent(player.id, score.play_mode.value, limit=1)):
-        last_submission = (datetime.now().timestamp() - recent_score[0].submitted_at.timestamp())
+    if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
+        # NOTE: Client should normally submit scores in 8 second intervals
+        # However, this can fail sometimes resulting in an instant ban
 
-        if last_submission <= 8:
-            app.session.logger.warning(
-                f'"{score.username}" is spamming score submission.'
+        # I know this looks messy...
+        submission_times = [
+            # Get the time between score submissions
+            (
+                (
+                    recent_scores[index - 1].submitted_at.timestamp()
+                    if index != 0
+                    else datetime.now().timestamp()
+                ) - recent_score.submitted_at.timestamp()
             )
+            # For every recent score
+            for index, recent_score in enumerate(recent_scores)
+            if index != (len(recent_scores) - 1)
+        ]
+
+        average_submission_time = (
+            sum(submission_times) / len(submission_times)
+        )
+
+        if average_submission_time <= 8 and len(recent_scores) == 5:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
