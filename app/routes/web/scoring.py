@@ -334,7 +334,7 @@ def score_submission(
             stats.mode,
             stats.pp,
             stats.rscore,
-            player.country,
+            player.country.lower(),
             stats.tscore
         )
 
@@ -694,7 +694,7 @@ def legacy_score_submission(
             stats.mode,
             stats.pp,
             stats.rscore,
-            player.country,
+            player.country.lower(),
             stats.tscore
         )
 
