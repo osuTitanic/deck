@@ -230,7 +230,7 @@ def score_submission(
         score.session.flush()
 
         # Upload replay
-        if (score.passed and score.status > ScoreStatus.Submitted):
+        if (score.passed and score.status > ScoreStatus.Exited):
             # Check replay size (10mb max)
             if len(replay) < 1e+7:
                 score_rank = scores.fetch_score_index_by_id(
@@ -240,16 +240,22 @@ def score_submission(
                     score_id=score_object.id
                 )
 
-                if score.beatmap.is_ranked:
+                # Replay will be cached temporarily and deleted after
+                app.session.storage.cache_replay(
+                    score_object.id,
+                    replay
+                )
+
+                # Upload event for bot
+                app.session.events.submit(
+                    'userscore',
+                    score_id=score_object.id
+                )
+
+                if score.beatmap.is_ranked and score.status > ScoreStatus.Submitted:
                     # Check if score is inside the leaderboards
                     if score_rank <= config.SCORE_RESPONSE_LIMIT:
                         app.session.storage.upload_replay(
-                            score_object.id,
-                            replay
-                        )
-                    else:
-                        # Replay will be cached temporarily and deleted after
-                        app.session.storage.cache_replay(
                             score_object.id,
                             replay
                         )
@@ -328,7 +334,8 @@ def score_submission(
             stats.mode,
             stats.pp,
             stats.rscore,
-            player.country
+            player.country.lower(),
+            stats.tscore
         )
 
         stats.rank = leaderboards.global_rank(
@@ -338,17 +345,23 @@ def score_submission(
 
         grades = {}
 
-        # Update grades
-        for s in best_scores:
-            grade = f'{s.grade.lower()}_count'
-            grades[grade] = grades.get(grade, 0) + 1
+        try:
+            # Update grades
+            for s in best_scores:
+                grade = f'{s.grade.lower()}_count'
+                grades[grade] = grades.get(grade, 0) + 1
 
-        score.session.query(DBStats) \
-            .filter(DBStats.user_id == score.user.id) \
-            .filter(DBStats.mode == score.play_mode.value) \
-            .update(grades)
+            score.session.query(DBStats) \
+                .filter(DBStats.user_id == score.user.id) \
+                .filter(DBStats.mode == score.play_mode.value) \
+                .update(grades)
 
-        score.session.commit()
+            score.session.commit()
+        except Exception as e:
+            app.session.logger.error(
+                'Failed to update user grades!',
+                exc_info=e
+            )
 
         if score.passed:
             histories.update_rank(
@@ -681,7 +694,8 @@ def legacy_score_submission(
             stats.mode,
             stats.pp,
             stats.rscore,
-            player.country
+            player.country.lower(),
+            stats.tscore
         )
 
         stats.rank = leaderboards.global_rank(
@@ -691,17 +705,23 @@ def legacy_score_submission(
 
         grades = {}
 
-        # Update grades
-        for s in best_scores:
-            grade = f'{s.grade.lower()}_count'
-            grades[grade] = grades.get(grade, 0) + 1
+        try:
+            # Update grades
+            for s in best_scores:
+                grade = f'{s.grade.lower()}_count'
+                grades[grade] = grades.get(grade, 0) + 1
 
-        score.session.query(DBStats) \
-            .filter(DBStats.user_id == score.user.id) \
-            .filter(DBStats.mode == score.play_mode.value) \
-            .update(grades)
+            score.session.query(DBStats) \
+                .filter(DBStats.user_id == score.user.id) \
+                .filter(DBStats.mode == score.play_mode.value) \
+                .update(grades)
 
-        score.session.commit()
+            score.session.commit()
+        except Exception as e:
+            app.session.logger.error(
+                'Failed to update user grades!',
+                exc_info=e
+            )
 
         if score.passed:
             histories.update_rank(

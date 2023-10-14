@@ -1,4 +1,4 @@
-FROM python:3.9-bullseye
+FROM python:3.11-bullseye
 
 # Installing/Updating system dependencies
 RUN apt update -y
