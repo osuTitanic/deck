@@ -230,7 +230,7 @@ def score_submission(
         score.session.flush()
 
         # Upload replay
-        if (score.passed and score.status > ScoreStatus.Submitted):
+        if (score.passed and score.status > ScoreStatus.Exited):
             # Check replay size (10mb max)
             if len(replay) < 1e+7:
                 score_rank = scores.fetch_score_index_by_id(
@@ -240,16 +240,22 @@ def score_submission(
                     score_id=score_object.id
                 )
 
-                if score.beatmap.is_ranked:
+                # Replay will be cached temporarily and deleted after
+                app.session.storage.cache_replay(
+                    score_object.id,
+                    replay
+                )
+
+                # Upload event for bot
+                app.session.events.submit(
+                    'userscore',
+                    score_id=score_object.id
+                )
+
+                if score.beatmap.is_ranked and score.status > ScoreStatus.Submitted:
                     # Check if score is inside the leaderboards
                     if score_rank <= config.SCORE_RESPONSE_LIMIT:
                         app.session.storage.upload_replay(
-                            score_object.id,
-                            replay
-                        )
-                    else:
-                        # Replay will be cached temporarily and deleted after
-                        app.session.storage.cache_replay(
                             score_object.id,
                             replay
                         )
