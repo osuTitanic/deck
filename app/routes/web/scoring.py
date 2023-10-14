@@ -334,7 +334,8 @@ def score_submission(
             stats.mode,
             stats.pp,
             stats.rscore,
-            player.country
+            player.country,
+            stats.tscore
         )
 
         stats.rank = leaderboards.global_rank(
@@ -693,7 +694,8 @@ def legacy_score_submission(
             stats.mode,
             stats.pp,
             stats.rscore,
-            player.country
+            player.country,
+            stats.tscore
         )
 
         stats.rank = leaderboards.global_rank(
