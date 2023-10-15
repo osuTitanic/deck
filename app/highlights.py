@@ -86,7 +86,8 @@ def check_rank(
         )
         return
 
-    if stats.rank >= 10:
+    if previous_stats.rank < 10 \
+       and stats.rank >= 10:
         # Player has risen to the top 10
         submit(
             player.id,
@@ -117,7 +118,7 @@ def check_beatmap(
     # Get short-from mods string (e.g. HDHR)
     mods = Mods(score.mods).short if score.mods > 0 else ""
 
-    if beatmap_rank > config.SCORE_RESPONSE_LIMIT:
+    if beatmap_rank != 1:
         # Score is not on the leaderboards
         # Check if score is in the top 1000
 
