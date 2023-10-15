@@ -33,6 +33,7 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submi
                 exc_info=e
             )
 
+    # TODO: Refactor activities to use json...
     try:
         activities.create(
             user_id,
