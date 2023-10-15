@@ -1,5 +1,6 @@
 
 from app.common.database.repositories import activities
+from app.common.database.repositories import scores
 from app.common.constants import Mods
 from app.common.database import (
     DBBeatmap,
@@ -108,6 +109,7 @@ def check_rank(
 
 def check_beatmap(
     beatmap_rank: int,
+    old_rank: int,
     score: DBScore,
     player: DBUser,
     mode_name: str
@@ -140,6 +142,30 @@ def check_beatmap(
         (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
         (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}')
     )
+
+    if old_rank == beatmap_rank:
+        return
+
+    top_scores = scores.fetch_range_scores(
+        score.beatmap_id,
+        score.mode,
+        limit=2
+    )
+
+    if len(top_scores) <= 1:
+        return
+
+    second_place = top_scores[1]
+
+    submit(
+        second_place.user_id,
+        score.mode,
+        '{} ' + 'has lost first place on' + ' {} ' + f'<{mode_name}>',
+        (second_place.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{second_place.user_id}'),
+        (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
+        submit_to_chat=False
+    )
+
 
 def check_pp(
     score: DBScore,
@@ -199,7 +225,8 @@ def check(
     stats: DBStats,
     previous_stats: DBStats,
     score: DBScore,
-    beatmap_rank: int
+    beatmap_rank: int,
+    old_rank: int
 ) -> None:
     mode_name = {
         0: "osu!",
@@ -217,6 +244,7 @@ def check(
 
     check_beatmap(
         beatmap_rank,
+        old_rank,
         score,
         player,
         mode_name

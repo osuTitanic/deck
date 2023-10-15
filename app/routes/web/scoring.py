@@ -433,7 +433,8 @@ def score_submission(
             stats,
             old_stats,
             score_object,
-            beatmap_rank
+            beatmap_rank,
+            old_rank
         )
 
     # Reload stats on bancho
@@ -618,6 +619,14 @@ def legacy_score_submission(
             raise HTTPException(401)
 
     if score.beatmap.is_ranked:
+        # Get old rank before submitting score
+        old_rank = scores.fetch_score_index_by_id(
+                    score.personal_best.id,
+                    score.beatmap.id,
+                    mode=score.play_mode.value
+                   ) \
+                if score.personal_best else 0
+
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = ''
@@ -820,7 +829,8 @@ def legacy_score_submission(
             stats,
             old_stats,
             score_object,
-            beatmap_rank
+            beatmap_rank,
+            old_rank
         )
 
     # Reload stats on bancho
