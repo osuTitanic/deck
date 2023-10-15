@@ -559,7 +559,7 @@ def legacy_score_submission(
         if duplicate_score:
             if duplicate_score.user_id != player.id:
                 app.session.logger.warning(
-                    f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
+                    f'"{score.username}" submitted duplicate replay in score submission ({replay_hash}).'
                 )
                 app.session.events.submit(
                     'restrict',
@@ -569,7 +569,7 @@ def legacy_score_submission(
                 raise HTTPException(401)
 
             app.session.logger.warning(
-                f'"{score.username}" submitted duplicate replay from themselves ({duplicate_score.replay_md5}).'
+                f'"{score.username}" submitted duplicate replay from themselves ({replay_hash}).'
             )
 
             raise HTTPException(401)
