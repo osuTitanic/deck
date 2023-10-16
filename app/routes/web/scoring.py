@@ -213,20 +213,21 @@ def score_submission(
             if index != (len(recent_scores) - 1)
         ]
 
-        average_submission_time = (
-            sum(submission_times) / len(submission_times)
-        )
+        if len(submission_times) > 0:
+            average_submission_time = (
+                sum(submission_times) / len(submission_times)
+            )
 
-        if average_submission_time <= 8 and len(recent_scores) == 5:
-            app.session.logger.warning(
-                f'"{score.username}" is spamming score submission.'
-            )
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                reason='Spamming score submission'
-            )
-            return Response('error: ban')
+            if average_submission_time <= 8 and len(recent_scores) == 5:
+                app.session.logger.warning(
+                    f'"{score.username}" is spamming score submission.'
+                )
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    reason='Spamming score submission'
+                )
+                return Response('error: ban')
 
     if score.beatmap.is_ranked:
         # Get old rank before submitting score
@@ -606,17 +607,21 @@ def legacy_score_submission(
             if index != (len(recent_scores) - 1)
         ]
 
-        average_submission_time = (
-            sum(submission_times) / len(submission_times)
-        )
-
-        if average_submission_time <= 8 and len(recent_scores) == 5:
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                reason='Spamming score submission'
+        if len(submission_times) > 0:
+            average_submission_time = (
+                sum(submission_times) / len(submission_times)
             )
-            raise HTTPException(401)
+
+            if average_submission_time <= 8 and len(recent_scores) == 5:
+                app.session.logger.warning(
+                    f'"{score.username}" is spamming score submission.'
+                )
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    reason='Spamming score submission'
+                )
+                return Response('error: ban')
 
     if score.beatmap.is_ranked:
         # Get old rank before submitting score
