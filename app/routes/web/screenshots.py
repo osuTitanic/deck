@@ -11,6 +11,8 @@ from fastapi import (
     UploadFile,
     APIRouter, 
     Response,
+    Request,
+    Depends,
     Query, 
     File
 )
@@ -21,9 +23,26 @@ import app
 
 router = APIRouter()
 
+async def read_screenshot(request: Request):
+    form = await request.form()
+
+    if not (screenshot := form.get('ss')):
+        raise HTTPException(
+            status_code=400,
+            detail='File missing'
+        )
+
+    if screenshot.filename not in ('jpg', 'png', 'ss'):
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid screenshot'
+        )
+
+    return await screenshot.read()
+
 @router.post('/osu-screenshot.php')
 def screenshot(
-    screenshot: UploadFile = File(..., alias='ss'),
+    screenshot: bytes = Depends(read_screenshot),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p')
 ):
@@ -36,9 +55,7 @@ def screenshot(
     if not status.exists(player.id):
         raise HTTPException(401)
 
-    screenshot_content = screenshot.read()
-
-    with memoryview(screenshot_content) as screenshot_view:
+    with memoryview(screenshot) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
             raise HTTPException(
                 status_code=400,
@@ -56,14 +73,14 @@ def screenshot(
 
         id = screenshots.create(player.id, hidden=False).id
 
-        app.session.storage.upload_screenshot(id, screenshot_content)
+        app.session.storage.upload_screenshot(id, screenshot)
         app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
 
     return Response(str(id))
 
 @router.post('/osu-ss.php')
 def monitor(
-    screenshot: UploadFile = File(..., alias='ss'),
+    screenshot: bytes = Depends(read_screenshot),
     user_id: int = Query(..., alias='u'),
     password: str = Query(..., alias='h')
 ):
@@ -76,9 +93,7 @@ def monitor(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
-    screenshot_content = screenshot.read()
-
-    with memoryview(screenshot_content) as screenshot_view:
+    with memoryview(screenshot) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
             raise HTTPException(
                 status_code=400,
@@ -96,7 +111,7 @@ def monitor(
 
         id = screenshots.create(player.id, hidden=True).id
 
-        app.session.storage.upload_screenshot(id, screenshot_content)
+        app.session.storage.upload_screenshot(id, screenshot)
         app.session.logger.info(f'{player.name} uploaded a hidden screenshot ({id})')
 
     message = f'{id}'
