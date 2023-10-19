@@ -146,12 +146,18 @@ def get_scores(
     # TODO: Title Configuration?
     response.append(
         '|'.join(
-            [
+            [(
                 '[bold:0,size:20]' +
-                beatmap.beatmapset.artist,
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
                 '[]' +
                 beatmap.beatmapset.title
-            ]
+                if beatmap.beatmapset.title
+                else ''
+            )]
         )
     )
 
@@ -264,12 +270,20 @@ def legacy_scores(
     # Example: https://i.imgur.com/BofeZ2z.png
     # TODO: Title Configuration?
     response.append(
-        '|'.join([
-            '[bold:0,size:20]' +
-            beatmap.beatmapset.artist,
-            '[]' +
-            beatmap.beatmapset.title
-        ])
+        '|'.join(
+            [(
+                '[bold:0,size:20]' +
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
+                '[]' +
+                beatmap.beatmapset.title
+                if beatmap.beatmapset.title
+                else ''
+            )]
+        )
     )
 
     response.append(str(
@@ -354,12 +368,20 @@ def legacy_scores_no_ratings(
     # Example: https://i.imgur.com/BofeZ2z.png
     # TODO: Title Configuration?
     response.append(
-        '|'.join([
-            '[bold:0,size:20]' +
-            beatmap.beatmapset.artist,
-            '[]' +
-            beatmap.beatmapset.title
-        ])
+        '|'.join(
+            [(
+                '[bold:0,size:20]' +
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
+                '[]' +
+                beatmap.beatmapset.title
+                if beatmap.beatmapset.title
+                else ''
+            )]
+        )
     )
 
     personal_best = scores.fetch_personal_best(
