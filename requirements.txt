@@ -7,9 +7,9 @@ async-timeout==4.0.3
 asyncpg==0.28.0
 attrs==23.1.0
 bcrypt==4.0.1
-boto3==1.28.63
+boto3==1.28.66
 boto3-type-annotations-with-docs==0.3.1
-botocore==1.31.63
+botocore==1.31.66
 certifi==2023.7.22
 chardet==5.2.0
 charset-normalizer==3.3.0
@@ -25,10 +25,10 @@ idna==3.4
 jmespath==1.0.1
 maxminddb==2.4.0
 multidict==6.0.4
-numpy==1.26.0
+numpy==1.26.1
 oauthlib==3.2.2
 packaging==23.2
-Pillow==10.0.1
+Pillow==10.1.0
 psycopg2==2.9.9
 py3rijndael==0.3.3
 pydantic==2.4.2
@@ -49,7 +49,7 @@ SQLAlchemy==2.0.22
 starlette==0.27.0
 typing-extensions==4.8.0
 typing-utils==0.1.0
-urllib3==1.26.17
+urllib3==1.26.18
 uvicorn==0.23.2
 wtc==1.2.1
 yarl==1.9.2
