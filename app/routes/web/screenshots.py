@@ -8,13 +8,11 @@ from app.common.database.repositories import (
 from datetime import datetime
 from fastapi import (
     HTTPException,
-    UploadFile,
     APIRouter, 
     Response,
     Request,
     Depends,
-    Query, 
-    File
+    Query
 )
 
 import bcrypt

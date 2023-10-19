@@ -2,26 +2,22 @@
 from starlette.datastructures import FormData
 from fastapi import (
     HTTPException,
-    UploadFile,
     APIRouter,
     Response,
     Request,
     Depends,
     Query,
-    File,
     Form
 )
 
 from typing import Optional, List
 from datetime import datetime
-from threading import Thread
 from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app import achievements as AchievementManager
 from app.common.cache import leaderboards, status
 from app.common.database import DBStats
-from app.common.constants import Grade
 
 from app.common.database.repositories import (
     achievements,
