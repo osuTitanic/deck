@@ -194,19 +194,40 @@ def score_submission(
         return Response('error: ban')
 
     # Check score submission "spam"
-    if (recent_score := scores.fetch_recent(player.id, score.play_mode.value, limit=1)):
-        last_submission = (datetime.now().timestamp() - recent_score[0].submitted_at.timestamp())
+    if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
+        # NOTE: Client should normally submit scores in 8 second intervals
+        # However, this can fail sometimes resulting in an instant ban
 
-        if last_submission <= 8:
-            app.session.logger.warning(
-                f'"{score.username}" is spamming score submission.'
+        # I know this looks messy...
+        submission_times = [
+            # Get the time between score submissions
+            (
+                (
+                    recent_scores[index - 1].submitted_at.timestamp()
+                    if index != 0
+                    else datetime.now().timestamp()
+                ) - recent_score.submitted_at.timestamp()
             )
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                reason='Spamming score submission'
+            # For every recent score
+            for index, recent_score in enumerate(recent_scores)
+            if index != (len(recent_scores) - 1)
+        ]
+
+        if len(submission_times) > 0:
+            average_submission_time = (
+                sum(submission_times) / len(submission_times)
             )
-            return Response('error: ban')
+
+            if average_submission_time <= 8 and len(recent_scores) == 5:
+                app.session.logger.warning(
+                    f'"{score.username}" is spamming score submission.'
+                )
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    reason='Spamming score submission'
+                )
+                return Response('error: ban')
 
     if score.beatmap.is_ranked:
         # Get old rank before submitting score
@@ -413,7 +434,8 @@ def score_submission(
             stats,
             old_stats,
             score_object,
-            beatmap_rank
+            beatmap_rank,
+            old_rank
         )
 
     # Reload stats on bancho
@@ -539,7 +561,7 @@ def legacy_score_submission(
         if duplicate_score:
             if duplicate_score.user_id != player.id:
                 app.session.logger.warning(
-                    f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
+                    f'"{score.username}" submitted duplicate replay in score submission ({replay_hash}).'
                 )
                 app.session.events.submit(
                     'restrict',
@@ -549,7 +571,7 @@ def legacy_score_submission(
                 raise HTTPException(401)
 
             app.session.logger.warning(
-                f'"{score.username}" submitted duplicate replay from themselves ({duplicate_score.replay_md5}).'
+                f'"{score.username}" submitted duplicate replay from themselves ({replay_hash}).'
             )
 
             raise HTTPException(401)
@@ -566,21 +588,50 @@ def legacy_score_submission(
         raise HTTPException(401)
 
     # Check score submission "spam"
-    if (recent_score := scores.fetch_recent(player.id, score.play_mode.value, limit=1)):
-        last_submission = (datetime.now().timestamp() - recent_score[0].submitted_at.timestamp())
+    if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
+        # NOTE: Client should normally submit scores in 8 second intervals
+        # However, this can fail sometimes resulting in an instant ban
 
-        if last_submission <= 8:
-            app.session.logger.warning(
-                f'"{score.username}" is spamming score submission.'
+        # I know this looks messy...
+        submission_times = [
+            # Get the time between score submissions
+            (
+                (
+                    recent_scores[index - 1].submitted_at.timestamp()
+                    if index != 0
+                    else datetime.now().timestamp()
+                ) - recent_score.submitted_at.timestamp()
             )
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                reason='Spamming score submission'
+            # For every recent score
+            for index, recent_score in enumerate(recent_scores)
+            if index != (len(recent_scores) - 1)
+        ]
+
+        if len(submission_times) > 0:
+            average_submission_time = (
+                sum(submission_times) / len(submission_times)
             )
-            raise HTTPException(401)
+
+            if average_submission_time <= 8 and len(recent_scores) == 5:
+                app.session.logger.warning(
+                    f'"{score.username}" is spamming score submission.'
+                )
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    reason='Spamming score submission'
+                )
+                return Response('error: ban')
 
     if score.beatmap.is_ranked:
+        # Get old rank before submitting score
+        old_rank = scores.fetch_score_index_by_id(
+                    score.personal_best.id,
+                    score.beatmap.id,
+                    mode=score.play_mode.value
+                   ) \
+                if score.personal_best else 0
+
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = ''
@@ -783,7 +834,8 @@ def legacy_score_submission(
             stats,
             old_stats,
             score_object,
-            beatmap_rank
+            beatmap_rank,
+            old_rank
         )
 
     # Reload stats on bancho
