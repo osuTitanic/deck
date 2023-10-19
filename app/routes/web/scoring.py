@@ -10,8 +10,8 @@ from fastapi import (
     Form
 )
 
+from datetime import datetime, timedelta
 from typing import Optional, List
-from datetime import datetime
 from copy import copy
 
 from app.objects import Score, ClientHash, ScoreStatus, Chart
@@ -263,12 +263,6 @@ def score_submission(
                     replay
                 )
 
-                # Upload event for bot
-                app.session.events.submit(
-                    'userscore',
-                    score_id=score_object.id
-                )
-
                 if score.beatmap.is_ranked and score.status > ScoreStatus.Submitted:
                     # Check if score is inside the leaderboards
                     if score_rank <= config.SCORE_RESPONSE_LIMIT:
@@ -276,6 +270,13 @@ def score_submission(
                             score_object.id,
                             replay
                         )
+        else:
+            # Cache replay for
+            app.session.storage.cache_replay(
+                id=score_object.id,
+                content=replay,
+                time=timedelta(minutes=30)
+            )
 
         score.session.commit()
 
