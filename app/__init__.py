@@ -3,7 +3,7 @@ from . import highlights
 from . import session
 from . import routes
 
-from .logging import Console, File
+from .common.logging import Console, File
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
