@@ -22,6 +22,7 @@ from .common.constants import (
 )
 
 import hashlib
+import math
 import app
 
 class Chart(dict):
@@ -214,6 +215,10 @@ class Score:
             return 0.0
 
         self._pp = result.pp
+
+        if math.isnan(result.pp):
+            # mfw NaN pp
+            self._pp = 0
 
         return self._pp
 
