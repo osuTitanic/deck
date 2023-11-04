@@ -69,9 +69,9 @@ def osu_error(
     )
 
     app.session.events.submit(
-        'bot_message',
-        message=f'Client error from "{username}". Plase check the logs!',
-        target='#admin'
+        'osu_error',
+        user_id,
+        error_dict
     )
 
-    return Response('ok')
+    return Response()
