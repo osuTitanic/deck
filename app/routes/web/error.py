@@ -42,10 +42,10 @@ def osu_error(
     config = utils.parse_osu_config(config)
 
     if not (user := users.fetch_by_id(user_id)):
-        return
+        raise HTTPException(400)
 
     if not bcrypt.checkpw(config['Password'].encode(), user.bcrypt.encode()):
-        return
+        raise HTTPException(400)
 
     error_dict = {
         'user_id': user_id,
