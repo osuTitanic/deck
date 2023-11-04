@@ -334,3 +334,9 @@ def resize_image(
     img.save(image_buffer, format='PNG')
 
     return image_buffer.getvalue()
+
+def parse_osu_config(config: str) -> dict:
+    return {
+        k.strip():v.strip()
+        for (k, v) in [line.split('=', 1) for line in config.splitlines()]
+    }

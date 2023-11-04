@@ -83,49 +83,7 @@ def monitor(
     password: str = Query(..., alias='h')
 ):
     # This endpoint will be called, when the client receives a
-    # monitor packet from bancho
+    # monitor packet from bancho. This was removed because of
+    # privacy reasons.
 
-    if not (player := users.fetch_by_id(user_id)):
-        raise HTTPException(401)
-
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        raise HTTPException(401)
-
-    with memoryview(screenshot) as screenshot_view:
-        if len(screenshot_view) > (4 * 1024 * 1024):
-            raise HTTPException(
-                status_code=400,
-                detail="Screenshot file too large."
-            )
-
-        if not utils.has_jpeg_headers(screenshot_view) \
-        and not utils.has_png_headers(screenshot_view):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid file type"
-            )
-
-        users.update(player.id, {'latest_activity': datetime.now()})
-
-        id = screenshots.create(player.id, hidden=True).id
-
-        app.session.storage.upload_screenshot(id, screenshot)
-        app.session.logger.info(f'{player.name} uploaded a hidden screenshot ({id})')
-
-    message = f'{id}'
-
-    url = app.session.storage.get_presigned_url(
-        bucket='screenshots',
-        key=id
-    )
-
-    if url:
-        message = f'[{url} View Screenshot]'
-
-    app.session.events.submit(
-        'bot_message',
-        message=f'"{player.name}" was monitored: {message}',
-        target='#admin'
-    )
-
-    return Response('ok')
+    raise HTTPException(status_code=501)
