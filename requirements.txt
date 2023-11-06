@@ -4,7 +4,7 @@ akatsuki-pp-py==0.9.8
 annotated-types==0.6.0
 anyio==3.7.1
 async-timeout==4.0.3
-asyncpg==0.28.0
+asyncpg==0.29.0
 attrs==23.1.0
 bcrypt==4.0.1
 boto3==1.28.78
