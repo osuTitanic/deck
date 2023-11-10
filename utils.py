@@ -21,6 +21,7 @@ REQUIRED_BUCKETS = [
     'assets',
 ]
 
+# TODO: Move to stern & remove "assets" bucket
 ACHIEVEMENTS = [
     'unknown.png',
     'anime1.png',
