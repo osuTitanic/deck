@@ -27,6 +27,6 @@ ENV WEB_PORT $WEB_PORT
 EXPOSE $WEB_PORT
 
 CMD uvicorn app:api \
-        --host ${WEB_HOST} \
-        --port ${WEB_PORT} \
+        --host 0.0.0.0 \
+        --port 80 \
         --log-level info
