@@ -65,7 +65,7 @@ async def get_legacy_replay(request: Request):
     return await replay.read()
 
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
-    ppv1 = performance.calculate_weighted_ppv1(scores)
+    stats.ppv1 = performance.calculate_weighted_ppv1(scores)
 
     leaderboards.update(
         stats.user_id,
@@ -74,7 +74,7 @@ def update_ppv1(scores: DBScore, stats: DBStats, country: str):
         stats.rscore,
         country,
         stats.tscore,
-        ppv1
+        stats.ppv1
     )
 
     histories.update_rank(
@@ -372,7 +372,8 @@ def score_submission(
             stats.pp,
             stats.rscore,
             player.country.lower(),
-            stats.tscore
+            stats.tscore,
+            stats.ppv1
         )
 
         stats.rank = leaderboards.global_rank(
@@ -764,7 +765,8 @@ def legacy_score_submission(
             stats.pp,
             stats.rscore,
             player.country.lower(),
-            stats.tscore
+            stats.tscore,
+            stats.ppv1
         )
 
         stats.rank = leaderboards.global_rank(
