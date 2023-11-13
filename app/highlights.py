@@ -88,9 +88,8 @@ def check_rank(
         )
         return
 
-    if previous_stats.rank < 10 \
-       and stats.rank >= 10:
-        # Player has risen to the top 10
+    if stats.rank >= 10 and stats.rank != 1:
+        # Player has risen to the top 10 or above
         submit(
             player.id,
             stats.mode,
