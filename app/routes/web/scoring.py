@@ -17,7 +17,8 @@ from copy import copy
 from app.objects import Score, ClientHash, ScoreStatus, Chart
 from app import achievements as AchievementManager
 from app.common.cache import leaderboards, status
-from app.common.database import DBStats
+from app.common.database import DBStats, DBScore
+from app.common.helpers import performance
 
 from app.common.database.repositories import (
     achievements,
@@ -62,6 +63,24 @@ async def get_legacy_replay(request: Request):
         return
 
     return await replay.read()
+
+def update_ppv1(scores: DBScore, stats: DBStats, country: str):
+    ppv1 = performance.calculate_weighted_ppv1(scores)
+
+    leaderboards.update(
+        stats.user_id,
+        stats.mode,
+        stats.pp,
+        stats.rscore,
+        country,
+        stats.tscore,
+        ppv1
+    )
+
+    histories.update_rank(
+        stats,
+        country
+    )
 
 @router.post('/osu-submit-modular.php')
 def score_submission(
@@ -382,7 +401,9 @@ def score_submission(
             )
 
         if score.passed:
-            histories.update_rank(
+            app.session.executor.submit(
+                update_ppv1,
+                best_scores,
                 stats,
                 player.country
             )
@@ -772,7 +793,9 @@ def legacy_score_submission(
             )
 
         if score.passed:
-            histories.update_rank(
+            app.session.executor.submit(
+                update_ppv1,
+                best_scores,
                 stats,
                 player.country
             )
