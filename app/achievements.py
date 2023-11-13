@@ -156,10 +156,9 @@ def improved(score: DBScore) -> bool:
 def dancer(score: DBScore) -> bool:
     """Pass Yoko Ishida - paraparaMAX I without No Fail"""
     if (
-        score.beatmap.filename == 'Yoko Ishida - paraparaMAX I (chan) [marathon].osu' and
-        score.passed and
-        Mods.NoFail not in Mods(score.mods)
-       ):
+        score.beatmap.filename == 'Yoko Ishida - paraparaMAX I (chan) [marathon].osu'
+        and Mods.NoFail not in Mods(score.mods)
+    ):
         return True
 
     return False
