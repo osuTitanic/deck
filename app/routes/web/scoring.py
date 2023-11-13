@@ -244,6 +244,8 @@ def score_submission(
                 )
                 return Response('error: ban')
 
+    # TODO: Circleguard Replay Analysis
+
     if score.beatmap.is_ranked:
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
@@ -258,6 +260,8 @@ def score_submission(
         score_object.client_hash = str(client_hash)
         score_object.processes = processes
         score_object.bad_flags = score.flags
+
+        # TODO: Remove processes list from database table
 
         if not config.ALLOW_RELAX and score.relaxing:
             score_object.status = -1
