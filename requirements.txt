@@ -25,7 +25,7 @@ idna==3.4
 jmespath==1.0.1
 maxminddb==2.4.0
 multidict==6.0.4
-numpy==1.26.1
+numpy==1.26.2
 oauthlib==3.2.2
 packaging==23.2
 Pillow==10.1.0
