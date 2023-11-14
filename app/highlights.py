@@ -156,14 +156,15 @@ def check_beatmap(
 
     second_place = top_scores[1]
 
-    submit(
-        second_place.user_id,
-        score.mode,
-        '{} ' + 'has lost first place on' + ' {} ' + f'<{mode_name}>',
-        (second_place.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{second_place.user_id}'),
-        (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
-        submit_to_chat=False
-    )
+    if second_place.user_id != player.id:
+        submit(
+            second_place.user_id,
+            score.mode,
+            '{} ' + 'has lost first place on' + ' {} ' + f'<{mode_name}>',
+            (second_place.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{second_place.user_id}'),
+            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
+            submit_to_chat=False
+        )
 
 
 def check_pp(
