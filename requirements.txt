@@ -7,9 +7,9 @@ async-timeout==4.0.3
 asyncpg==0.29.0
 attrs==23.1.0
 bcrypt==4.0.1
-boto3==1.28.83
+boto3==1.29.0
 boto3-type-annotations-with-docs==0.3.1
-botocore==1.31.83
+botocore==1.32.0
 certifi==2023.7.22
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -23,9 +23,9 @@ greenlet==3.0.1
 h11==0.14.0
 idna==3.4
 jmespath==1.0.1
-maxminddb==2.4.0
+maxminddb==2.5.1
 multidict==6.0.4
-numpy==1.26.1
+numpy==1.26.2
 oauthlib==3.2.2
 packaging==23.2
 Pillow==10.1.0
