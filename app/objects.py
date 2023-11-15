@@ -151,6 +151,11 @@ class Score:
         self.user = users.fetch_by_name(username)
         self.pp = self.calculate_ppv2()
 
+        if passed:
+            # "Fix" for old clients
+            self.failtime = None
+            self.exited = None
+
         if self.beatmap:
             self.personal_best = scores.fetch_personal_best(
                 self.beatmap.id,
