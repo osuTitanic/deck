@@ -132,10 +132,19 @@ class Score:
         self.flags     = flags
 
         self.replay = replay
-        self.personal_best: Optional[DBScore] = None
         self.status = ScoreStatus.Submitted
         self.pp = 0.0
 
+        # Optional
+        self.personal_best: Optional[DBScore] = None
+        self.fun_spoiler: Optional[str] = None
+        self.client_hash: Optional[str] = None
+        self.processes: Optional[str] = None
+
+        # TODO: Scores should have a reference to the hardware id
+        #       the user was using at the time
+
+        # TODO: Refactor that?
         # Beatmap needs to be bound to session
         self.session = app.session.database.session
         self.beatmap = self.session.query(DBBeatmap) \
