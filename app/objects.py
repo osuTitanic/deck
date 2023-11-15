@@ -102,8 +102,8 @@ class Score:
         date: datetime,
         version: int,
         flags: BadFlags,
-        exited: bool,
-        failtime: int,
+        exited: Optional[bool],
+        failtime: Optional[int],
         replay: Optional[bytes]
     ) -> None:
         self.file_checksum  = file_checksum
@@ -140,9 +140,6 @@ class Score:
         self.fun_spoiler: Optional[str] = None
         self.client_hash: Optional[str] = None
         self.processes: Optional[str] = None
-
-        # TODO: Scores should have a reference to the hardware id
-        #       the user was using at the time
 
         # TODO: Refactor that?
         # Beatmap needs to be bound to session
@@ -346,8 +343,8 @@ class Score:
         cls,
         formatted_string: str,
         replay: Optional[bytes],
-        exited: bool,
-        failtime: int
+        exited: Optional[bool],
+        failtime: Optional[int]
     ):
         """Parse a score string"""
         items = formatted_string.split(':')
