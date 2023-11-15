@@ -133,6 +133,13 @@ async def parse_score_data(request: Request) -> Score:
 
 def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
     """Validate the score submission requests and return an error if the validation fails"""
+    if score.total_hits <= 0:
+        # This could still be a false-positive
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with total_hits <= 0.'
+        )
+        return Response('error: no')
+
     if score.passed:
         # Check for replay
         if not score.replay:
@@ -215,7 +222,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 )
                 return Response('error: ban')
 
-    # TODO: Circleguard Replay Analysis
+    # TODO: Circleguard replay analysis
+    # TODO: Client hash validation
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
