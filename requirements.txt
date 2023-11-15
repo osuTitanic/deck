@@ -23,7 +23,7 @@ greenlet==3.0.1
 h11==0.14.0
 idna==3.4
 jmespath==1.0.1
-maxminddb==2.4.0
+maxminddb==2.5.1
 multidict==6.0.4
 numpy==1.26.1
 oauthlib==3.2.2
