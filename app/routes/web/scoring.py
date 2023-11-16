@@ -664,8 +664,6 @@ def legacy_score_submission(
         score.session.close()
         return
 
-    # TODO: This part seems to be taking a loooong time...?
-
     achievement_response: List[str] = []
     response: List[Chart] = []
 
