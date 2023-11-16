@@ -37,14 +37,6 @@ import app
 
 router = APIRouter()
 
-async def get_legacy_replay(request: Request):
-    form = await request.form()
-
-    if not (replay := form.get('score')):
-        return
-
-    return await replay.read()
-
 async def parse_score_data(request: Request) -> Score:
     """Parse the score submission request and return a score object"""
     query = request.query_params
