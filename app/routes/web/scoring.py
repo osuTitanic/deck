@@ -79,7 +79,12 @@ async def parse_score_data(request: Request) -> Score:
 
     # NOTE: The form data can contain two "score" sections, where
     #       one of them is the score data, and the other is the replay
-    score_form = form.getlist('score')
+
+    if not (score_form := form.getlist('score')):
+        app.session.logger.warning(
+            'Got score submission without score data!'
+        )
+        raise HTTPException(400)
 
     score_data = score_form[0]
     fun_spoiler = form.get('fs')
