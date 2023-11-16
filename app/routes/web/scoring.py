@@ -603,7 +603,7 @@ def legacy_score_submission(
     users.update(player.id, {'latest_activity': datetime.now()})
 
     if (error := perform_score_validation(score, player)) != None:
-        return error
+        raise HTTPException(400, detail=error.body)
 
     if score.beatmap.is_ranked:
         # Get old rank before submitting score
