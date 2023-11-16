@@ -156,10 +156,9 @@ def improved(score: DBScore) -> bool:
 def dancer(score: DBScore) -> bool:
     """Pass Yoko Ishida - paraparaMAX I without No Fail"""
     if (
-        score.beatmap.filename == 'Yoko Ishida - paraparaMAX I (chan) [marathon].osu' and
-        score.passed and
-        Mods.NoFail not in Mods(score.mods)
-       ):
+        score.beatmap.filename == 'Yoko Ishida - paraparaMAX I (chan) [marathon].osu'
+        and Mods.NoFail not in Mods(score.mods)
+    ):
         return True
 
     return False
@@ -249,9 +248,8 @@ def nonstop(score: DBScore) -> bool:
 @register(name='Jack of All Trades', category='Hush-Hush', filename='jack.png')
 def allmodes(score: DBScore) -> bool:
     """Reach a play count of at least 5,000 in all osu!Standard, osu!Taiko, osu!CtB and osu!Mania"""
-    all_stats = stats.fetch_all(score.user_id)
 
-    playcounts = [stats.playcount for stats in all_stats]
+    playcounts = [stats.playcount for stats in score.user.stats]
 
     for plays in playcounts:
         if plays < 5000:
@@ -276,7 +274,7 @@ def osuhits_1(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 0)
+    s = score.user.stats[0]
 
     if s.playcount < 5000:
         return False
@@ -289,7 +287,7 @@ def osuhits_2(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 0)
+    s = score.user.stats[0]
 
     if s.playcount < 15000:
         return False
@@ -302,7 +300,7 @@ def osuhits_3(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 0)
+    s = score.user.stats[0]
 
     if s.playcount < 25000:
         return False
@@ -315,7 +313,7 @@ def osuhits_4(score: DBScore) -> bool:
     if score.mode != 0:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 0)
+    s = score.user.stats[0]
 
     if s.playcount < 50000:
         return False
@@ -329,7 +327,7 @@ def taikohits_1(score: DBScore) -> bool:
     if score.mode != 1:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 1)
+    s = score.user.stats[1]
 
     if s.playcount < 30000:
         return False
@@ -342,7 +340,7 @@ def taikohits_2(score: DBScore) -> bool:
     if score.mode != 1:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 1)
+    s = score.user.stats[1]
 
     if s.playcount < 300000:
         return False
@@ -355,7 +353,7 @@ def taikohits_3(score: DBScore) -> bool:
     if score.mode != 1:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 1)
+    s = score.user.stats[1]
 
     if s.playcount < 3000000:
         return False
@@ -368,7 +366,7 @@ def fruitshits_1(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 2)
+    s = score.user.stats[2]
 
     if s.playcount < 20000:
         return False
@@ -381,7 +379,7 @@ def fruitshits_2(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 2)
+    s = score.user.stats[2]
 
     if s.playcount < 200000:
         return False
@@ -394,7 +392,7 @@ def fruitshits_3(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 2)
+    s = score.user.stats[2]
 
     if s.playcount < 2000000:
         return False
@@ -407,7 +405,7 @@ def maniahits_1(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 3)
+    s = score.user.stats[3]
 
     if s.playcount < 40000:
         return False
@@ -420,7 +418,7 @@ def maniahits_2(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 3)
+    s = score.user.stats[3]
 
     if s.playcount < 400000:
         return False
@@ -433,7 +431,7 @@ def maniahits_3(score: DBScore) -> bool:
     if score.mode != 2:
         return False
 
-    s = stats.fetch_by_mode(score.user_id, 3)
+    s = score.user.stats[3]
 
     if s.playcount < 4000000:
         return False
@@ -674,6 +672,10 @@ def get_by_name(name: str):
 
 def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achievement]:
     new_achievements = []
+
+    score.user.stats.sort(
+        key=lambda x: x.mode
+    )
 
     for achievement in achievements:
         if achievement.filename in ignore_list:

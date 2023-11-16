@@ -1,12 +1,10 @@
 
 from py3rijndael import RijndaelCbc, Pkcs7Padding
-from datetime import datetime
 from typing import Optional
 from PIL import Image
 
 from app.common.database import DBScore, DBBeatmapset
 
-import hashlib
 import config
 import base64
 import app
@@ -18,70 +16,12 @@ REQUIRED_BUCKETS = [
     'beatmaps',
     'avatars',
     'replays',
-    'assets',
 ]
-
-# TODO: Move to stern & remove "assets" bucket
-ACHIEVEMENTS = [
-    'unknown.png',
-    'anime1.png',
-    'anime2.png',
-    'anime3.png',
-    'anime4.png',
-    'bunny.png',
-    'challengeaccepted.png',
-    'combo500.png',
-    'combo750.png',
-    'combo1000.png',
-    'combo2000.png',
-    'consolationprize.png',
-    'dancer.png',
-    'gamer1.png',
-    'gamer2.png',
-    'gamer3.png',
-    'gamer4.png',
-    'plays1.png',
-    'plays2.png',
-    'plays3.png',
-    'plays4.png',
-    'fruitod.png',
-    'fruitsalad.png',
-    'fruitplatter.png',
-    'jack.png',
-    'jackpot.png',
-    'lulz1.png',
-    'lulz2.png',
-    'lulz3.png',
-    'lulz4.png',
-    'maniahits1.png',
-    'maniahits2.png',
-    'maniahits3.png',
-    'meganekko.png',
-    'high-ranker-1.png',
-    'high-ranker-2.png',
-    'high-ranker-3.png',
-    'high-ranker-4.png',
-    'improved.png',
-    'nonstop.png',
-    'obsessed.png',
-    'quickdraw.png',
-    'rhythm1.png',
-    'rhythm2.png',
-    'rhythm3.png',
-    'rhythm4.png',
-    's-ranker.png',
-    'stumbler.png',
-    'taiko1.png',
-    'taiko2.png',
-    'taiko3.png'
-]
-
-ACHIEVEMENTS_BASEURL = "https://s.ppy.sh/images/achievements/"
 
 def download(path: str, url: str):
     if not os.path.isfile(path):
         response = app.session.requests.get(url)
-        
+
         if not response.ok:
             app.session.logger.error(f'Failed to download file: {url}')
             return
@@ -114,15 +54,6 @@ def setup():
 
             download(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
             download(f'{config.DATA_PATH}/avatars/1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
-
-        if not os.listdir(f'{config.DATA_PATH}/images/achievements'):
-            app.session.logger.info('Downloading achievements...')
-
-            for image in ACHIEVEMENTS:
-                download(
-                    f'{config.DATA_PATH}/images/achievements/{image}', 
-                    ACHIEVEMENTS_BASEURL + image
-                )
     else:
         s3 = app.session.storage.s3
 
@@ -138,17 +69,7 @@ def setup():
             app.session.logger.info(f'Creating bucket: "{bucket}"')
             s3.create_bucket(Bucket=bucket)
 
-            if bucket == 'assets':
-                app.session.logger.info('Downloading achievements...')
-
-                for image in ACHIEVEMENTS:
-                    download_to_s3(
-                        'assets',
-                        f'images/achievements/{image}',
-                        ACHIEVEMENTS_BASEURL + image
-                    )
-
-            elif bucket == 'avatars':
+            if bucket == 'avatars':
                 app.session.logger.info('Downloading avatars...')
 
                 download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')

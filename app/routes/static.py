@@ -71,13 +71,6 @@ def osz(
 
     return StreamingResponse(osz)
 
-@router.get('/images/achievements/{filename}')
-def achievement_image(filename: str):
-    if not (image := app.session.storage.get_achievement(filename)):
-        raise HTTPException(404)
-
-    return Response(image)
-
 @router.get('/forum/download.php')
 def legacy_avatar(request: Request):
     args = request.query_params
@@ -86,5 +79,3 @@ def legacy_avatar(request: Request):
         return avatar.default_avatar()
 
     return avatar.avatar(str(filename), None, None)
-
-# TODO: Move to seperate server
