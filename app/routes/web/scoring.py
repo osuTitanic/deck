@@ -104,7 +104,7 @@ async def parse_score_data(request: Request) -> Score:
             fun_spoiler = utils.decrypt_string(fun_spoiler, iv)
             score_data  = utils.decrypt_string(score_data, iv)
             processes   = utils.decrypt_string(processes, iv)
-        except UnicodeDecodeError as e:
+        except (UnicodeDecodeError, TypeError) as e:
             # Most likely an invalid score encryption key
             app.session.logger.warning(f'Could not decrypt score data: {e}')
             raise HTTPException(400)
@@ -123,6 +123,7 @@ async def parse_score_data(request: Request) -> Score:
         )
         raise HTTPException(400)
 
+    # TODO: Validate these arguments?
     score.fun_spoiler = fun_spoiler
     score.client_hash = client_hash
     score.processes = processes
