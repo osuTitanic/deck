@@ -477,12 +477,6 @@ def score_submission(
 
     new_stats, old_stats = update_stats(score, player)
 
-    # Reload stats on bancho
-    app.session.events.submit(
-        'user_update',
-        user_id=player.id
-    )
-
     if not score.beatmap.is_ranked:
         score.session.close()
         return Response('error: beatmap')
@@ -573,6 +567,12 @@ def score_submission(
             beatmap_rank,
             old_rank
         )
+
+    # Reload stats on bancho
+    app.session.events.submit(
+        'user_update',
+        user_id=player.id
+    )
 
     return Response('\n'.join([chart.get() for chart in response]))
 
