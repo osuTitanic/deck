@@ -502,7 +502,8 @@ def score_submission(
         new_achievements = AchievementManager.check(score_object, ignore_list)
         achievement_response = [a.filename for a in new_achievements]
 
-        achievements.create_many(new_achievements, player.id)
+        if new_achievements:
+            achievements.create_many(new_achievements, player.id)
 
     beatmap_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
@@ -675,7 +676,8 @@ def legacy_score_submission(
         new_achievements = AchievementManager.check(score_object, ignore_list)
         achievement_response = [a.filename for a in new_achievements]
 
-        achievements.create_many(new_achievements, player.id)
+        if new_achievements:
+            achievements.create_many(new_achievements, player.id)
 
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
