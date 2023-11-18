@@ -1,5 +1,4 @@
 
-from starlette.datastructures import FormData
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -11,7 +10,7 @@ from fastapi import (
 )
 
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, List, Callable
+from typing import Optional, Tuple, List
 from copy import copy
 
 from app.common.database import DBStats, DBScore, DBUser
@@ -19,6 +18,7 @@ from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
+from app.common.constants import GameMode
 
 from app.common.database.repositories import (
     achievements,
@@ -136,6 +136,11 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         app.session.logger.warning(
             f'"{score.username}" submitted score with total_hits <= 0.'
         )
+        return Response('error: no')
+
+    if score.beatmap.mode > 0 and score.play_mode == GameMode.Osu:
+        # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
+        # This can happen in old clients, where these modes were not implemented
         return Response('error: no')
 
     if score.passed:
