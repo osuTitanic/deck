@@ -340,13 +340,16 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             stats.mode
         )
 
-        grades = {}
-
         try:
+            grades = {}
+
             # Update grades
             for s in best_scores:
                 grade = f'{s.grade.lower()}_count'
                 grades[grade] = grades.get(grade, 0) + 1
+
+            for grade, count in grades.items():
+                setattr(stats, grade, count)
 
             score.session.query(DBStats) \
                 .filter(DBStats.user_id == score.user.id) \
