@@ -337,7 +337,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             stats.rscore,
             player.country.lower(),
             stats.tscore,
-            stats.ppv1
+            stats.ppv1,
+            stats.playcount
         )
 
         stats.rank = leaderboards.global_rank(
@@ -401,7 +402,8 @@ def update_ppv1(scores: DBScore, stats: DBStats, country: str):
         stats.rscore,
         country,
         stats.tscore,
-        stats.ppv1
+        stats.ppv1,
+        stats.playcount
     )
 
     histories.update_rank(
