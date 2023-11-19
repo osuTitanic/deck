@@ -331,14 +331,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         )
 
         leaderboards.update(
-            stats.user_id,
-            stats.mode,
-            stats.pp,
-            stats.rscore,
-            player.country.lower(),
-            stats.tscore,
-            stats.ppv1,
-            stats.playcount
+            stats,
+            player.country.lower()
         )
 
         stats.rank = leaderboards.global_rank(
@@ -395,21 +389,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
     stats.ppv1 = performance.calculate_weighted_ppv1(scores)
 
-    leaderboards.update(
-        stats.user_id,
-        stats.mode,
-        stats.pp,
-        stats.rscore,
-        country,
-        stats.tscore,
-        stats.ppv1,
-        stats.playcount
-    )
-
-    histories.update_rank(
-        stats,
-        country
-    )
+    leaderboards.update(stats, country)
+    histories.update_rank(stats, country)
 
 @router.post('/osu-submit-modular.php')
 def score_submission(
