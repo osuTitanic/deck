@@ -58,7 +58,13 @@ def avatar(
         width = None if width is not None and width <= 0 else width
 
     if height or width:
-        image = utils.resize_image(image, width, height)
+        image = utils.resize_image(
+            image,
+            width,
+            height,
+            max_width=height,
+            max_height=width,
+        )
 
     return Response(
         image,

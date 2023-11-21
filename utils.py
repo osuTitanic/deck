@@ -212,7 +212,9 @@ def update_osz_filesize(set_id: int, has_video: bool = False):
 def resize_image(
     image: bytes,
     target_width: Optional[int] = None,
-    target_height: Optional[int] = None
+    target_height: Optional[int] = None,
+    max_width: Optional[int] = None,
+    max_height: Optional[int] = None
 ) -> bytes:
     img = Image.open(io.BytesIO(image))
     image_width, image_height = img.size
@@ -228,6 +230,9 @@ def resize_image(
             raise ValueError('At least one value must be given.')
 
     image_buffer = io.BytesIO()
+
+    target_width = min(max_height, target_height) if max_height else target_height
+    target_width = min(max_width, target_width) if max_width else target_width
 
     img = img.resize((target_width, target_height))
     img.save(image_buffer, format='PNG')
