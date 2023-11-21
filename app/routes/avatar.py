@@ -38,7 +38,8 @@ def default_avatar(
 def avatar(
     filename: str,
     height: Optional[int] = Query(None, alias='h'),
-    width: Optional[int] = Query(None, alias='w')
+    width: Optional[int] = Query(None, alias='w'),
+    keep_ratio: Optional[bool] = Query(False, alias='ratio')
 ):
     # Workaround for older clients
     user_id = int(
@@ -62,8 +63,7 @@ def avatar(
             image,
             width,
             height,
-            max_width=height,
-            max_height=width,
+            max_width=height if not keep_ratio else None,
         )
 
     return Response(
