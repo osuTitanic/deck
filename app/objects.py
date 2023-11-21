@@ -270,12 +270,12 @@ class Score:
             app.session.logger.warning('Failed to calculate pp: No result')
             return 0.0
 
-        if math.isnan(result.pp):
-            app.session.logger.warning(f'Failed to calculate pp: {result.pp} value')
+        if math.isnan(result):
+            app.session.logger.warning(f'Failed to calculate pp: {result} value')
             # mfw NaN pp
             return 0.0
 
-        return result.pp
+        return result
 
     def get_status(self) -> ScoreStatus:
         """Set the status of this score, and the personal best of the user
