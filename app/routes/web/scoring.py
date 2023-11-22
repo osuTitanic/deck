@@ -448,10 +448,7 @@ def score_submission(
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = score.client_hash
-        score_object.processes = score.processes
         score_object.bad_flags = score.flags
-
-        # TODO: Remove processes list from database table
 
         if not config.ALLOW_RELAX and score.relaxing:
             score_object.status = -1
@@ -609,7 +606,6 @@ def legacy_score_submission(
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = ''
-        score_object.processes = '' # TODO: Remove this
         score_object.bad_flags = score.flags
 
         if not config.ALLOW_RELAX and score.relaxing:
