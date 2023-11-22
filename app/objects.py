@@ -22,6 +22,7 @@ from .common.constants import (
 )
 
 import hashlib
+import math
 import app
 
 class Chart(dict):
@@ -68,6 +69,7 @@ class ClientHash:
                 uninstall_id = args[3]
                 diskdrive_signature = args[4]
             except IndexError:
+                # Hardware IDs are not supported
                 pass
 
         return ClientHash(
@@ -100,8 +102,8 @@ class Score:
         date: datetime,
         version: int,
         flags: BadFlags,
-        exited: bool,
-        failtime: int,
+        exited: Optional[bool],
+        failtime: Optional[int],
         replay: Optional[bytes]
     ) -> None:
         self.file_checksum  = file_checksum
@@ -130,12 +132,16 @@ class Score:
         self.flags     = flags
 
         self.replay = replay
-
-        self.personal_best: Optional[DBScore] = None
-        self._pp: Optional[float] = None
-
         self.status = ScoreStatus.Submitted
+        self.pp = 0.0
 
+        # Optional
+        self.personal_best: Optional[DBScore] = None
+        self.fun_spoiler: Optional[str] = None
+        self.client_hash: Optional[str] = None
+        self.processes: Optional[str] = None
+
+        # TODO: Refactor that?
         # Beatmap needs to be bound to session
         self.session = app.session.database.session
         self.beatmap = self.session.query(DBBeatmap) \
@@ -143,6 +149,12 @@ class Score:
                         .first()
 
         self.user = users.fetch_by_name(username)
+        self.pp = self.calculate_ppv2()
+
+        if passed:
+            # "Fix" for old clients
+            self.failtime = None
+            self.exited = None
 
         if self.beatmap:
             self.personal_best = scores.fetch_personal_best(
@@ -200,25 +212,8 @@ class Score:
         return (Mods.Relax in self.enabled_mods) or (Mods.Autopilot in self.enabled_mods)
 
     @property
-    def pp(self) -> float:
-        if self._pp is not None:
-            return self._pp
-
-        self._pp = 0.0
-
-        score = self.to_database()
-        result = performance.calculate_ppv2(score)
-
-        if result is None:
-            app.session.logger.warning('Failed to calculate pp: No result')
-            return 0.0
-
-        self._pp = result.pp
-
-        return self._pp
-
-    @property
     def has_invalid_mods(self) -> bool:
+        """Check if score has invalid mod combinations, like DTHT, HREZ, etc..."""
         if not self.enabled_mods:
             # No mods are enabled
             return False
@@ -261,12 +256,37 @@ class Score:
         return False
 
     def check_mods(self, mods: Mods) -> bool:
+        """Check if score has a combination of mods enabled"""
         if not self.enabled_mods:
             return False
 
         return True if mods in self.enabled_mods else False
 
+    def calculate_ppv2(self) -> float:
+        score = self.to_database()
+        result = performance.calculate_ppv2(score)
+
+        if result is None:
+            app.session.logger.warning('Failed to calculate pp: No result')
+            return 0.0
+
+        if math.isnan(result):
+            app.session.logger.warning(f'Failed to calculate pp: {result} value')
+            # mfw NaN pp
+            return 0.0
+
+        return result
+
     def get_status(self) -> ScoreStatus:
+        """Set the status of this score, and the personal best of the user
+
+        The score "status" determines if a score is a
+        - Personal best
+        - Personal best with mod combination
+        - Submitted score
+        - Failed/Exited score
+        - Hidden score
+        """
         if not self.passed:
             return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
 
@@ -300,6 +320,7 @@ class Score:
             if self.total_score < mods_pb.total_score:
                 return ScoreStatus.Submitted
 
+            # Change status for old personal best
             self.session.query(DBScore) \
                    .filter(DBScore.id == mods_pb.id) \
                    .update(
@@ -327,9 +348,10 @@ class Score:
         cls,
         formatted_string: str,
         replay: Optional[bytes],
-        exited: bool,
-        failtime: int
+        exited: Optional[bool],
+        failtime: Optional[int]
     ):
+        """Parse a score string"""
         items = formatted_string.split(':')
 
         try:
@@ -375,6 +397,7 @@ class Score:
         )
 
     def to_database(self) -> DBScore:
+        """Turn this score into a `DBScore` object, which can be used with sqlalchemy"""
         return DBScore(
             beatmap_id = self.beatmap.id,
             user_id = self.user.id,

@@ -73,7 +73,9 @@ def get_scores(
     users.update(player.id, {'latest_activity': datetime.now()})
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1|false') # Not Submitted
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash)):
+            return Response('-1|false') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1|false') # Update Available
@@ -146,12 +148,18 @@ def get_scores(
     # TODO: Title Configuration?
     response.append(
         '|'.join(
-            [
+            [(
                 '[bold:0,size:20]' +
-                beatmap.beatmapset.artist,
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
                 '[]' +
                 beatmap.beatmapset.title
-            ]
+                if beatmap.beatmapset.title
+                else ''
+            )]
         )
     )
 
@@ -239,7 +247,9 @@ def legacy_scores(
         raise HTTPException(401)
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1') # Not Submitted
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash)):
+            return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -264,12 +274,20 @@ def legacy_scores(
     # Example: https://i.imgur.com/BofeZ2z.png
     # TODO: Title Configuration?
     response.append(
-        '|'.join([
-            '[bold:0,size:20]' +
-            beatmap.beatmapset.artist,
-            '[]' +
-            beatmap.beatmapset.title
-        ])
+        '|'.join(
+            [(
+                '[bold:0,size:20]' +
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
+                '[]' +
+                beatmap.beatmapset.title
+                if beatmap.beatmapset.title
+                else ''
+            )]
+        )
     )
 
     response.append(str(
@@ -329,7 +347,9 @@ def legacy_scores_no_ratings(
         raise HTTPException(401)
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1') # Not Submitted
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash)):
+            return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -354,12 +374,20 @@ def legacy_scores_no_ratings(
     # Example: https://i.imgur.com/BofeZ2z.png
     # TODO: Title Configuration?
     response.append(
-        '|'.join([
-            '[bold:0,size:20]' +
-            beatmap.beatmapset.artist,
-            '[]' +
-            beatmap.beatmapset.title
-        ])
+        '|'.join(
+            [(
+                '[bold:0,size:20]' +
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
+                '[]' +
+                beatmap.beatmapset.title
+                if beatmap.beatmapset.title
+                else ''
+            )]
+        )
     )
 
     personal_best = scores.fetch_personal_best(
@@ -411,7 +439,9 @@ def legacy_scores_no_beatmap_data(
         raise HTTPException(401)
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1') # Not Submitted
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash)):
+            return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -471,7 +501,9 @@ def legacy_scores_no_personal_best(
     mode = GameMode.Osu
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1') # Not Submitted
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash)):
+            return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -512,7 +544,9 @@ def legacy_scores_status_change(
     mode = GameMode.Osu
 
     if not (beatmap := beatmaps.fetch_by_file(beatmap_file)):
-        return Response('-1') # Not Submitted
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash)):
+            return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available

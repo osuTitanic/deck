@@ -1,5 +1,5 @@
 
-from app.common.database.repositories import logs
+from app.common.database.repositories import logs, users
 from app.common.cache import status
 
 from typing import Optional
@@ -12,6 +12,8 @@ from fastapi import (
 
 router = APIRouter()
 
+import bcrypt
+import utils
 import json
 import app
 
@@ -36,34 +38,40 @@ def osu_error(
     if not status.exists(user_id):
         raise HTTPException(400)
 
-    app.session.logger.warning('\n'.join([
-        f'Client error from "{username}":',
-        f'  Version: {version} ({exehash})',
-        f'  Mode: {mode}',
-        f'  Language: {language}',
-        f'  Feedback: {feedback}',
-        f'  Iltrace: {iltrace}',
-        f'  Exception: {exception}',
-        f'  Stacktrace:\n    {stacktrace}'
-    ]))
+    # Parse config to get password
+    config = utils.parse_osu_config(config)
+
+    if not (user := users.fetch_by_id(user_id)):
+        raise HTTPException(400)
+
+    if not bcrypt.checkpw(config['Password'].encode(), user.bcrypt.encode()):
+        raise HTTPException(400)
+
+    error_dict = {
+        'user_id': user_id,
+        'version': version,
+        'feedback': feedback,
+        'iltrace': iltrace,
+        'exception': exception,
+        'stacktrace': stacktrace,
+        'exehash': exehash
+    }
+
+    app.session.logger.warning(
+        f'Client error from "{username}":\n'
+        f'{json.dumps(error_dict, indent=4)}'
+    )
 
     logs.create(
-        json.dumps({
-            'user_id': user_id,
-            'version': version,
-            'feedback': feedback,
-            'iltrace': iltrace,
-            'exception': exception,
-            'stacktrace': stacktrace
-        }),
+        json.dumps(error_dict),
         'error',
         'osu-error'
     )
 
     app.session.events.submit(
-        'bot_message',
-        message=f'Client error from "{username}". Plase check the logs!',
-        target='#admin'
+        'osu_error',
+        user_id,
+        error_dict
     )
 
-    return Response('ok')
+    return Response()

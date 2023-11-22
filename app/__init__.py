@@ -3,7 +3,7 @@ from . import highlights
 from . import session
 from . import routes
 
-from .logging import Console, File
+from .common.logging import Console, File
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
@@ -19,7 +19,6 @@ import logging
 import uvicorn
 import config
 import utils
-import time
 
 utils.setup()
 
@@ -43,16 +42,6 @@ api = FastAPI(
     debug=True if config.DEBUG else False
 )
 
-@api.middleware('http')
-def get_process_time(request: Request, call_next):
-    start = time.time()
-    response = call_next(request)
-    total_time = time.time() - start
-    session.logger.debug(
-        f'Processing Time: ~{round(total_time, 4)} seconds'
-    )
-    return response
-
 @api.exception_handler(HTTPException)
 def exception_handler(request: Request, exc: HTTPException):
     headers = exc.headers if exc.headers else {}
@@ -72,6 +61,7 @@ def exception_handler(request: Request, exc: StarletteHTTPException):
 
 @api.exception_handler(RequestValidationError)
 def validation_error(request: Request, exc: RequestValidationError):
+    session.logger.error(f"Validation error: {exc.errors()}")
     return Response(
         status_code=400,
         content='no'
