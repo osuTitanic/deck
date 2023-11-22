@@ -1,5 +1,4 @@
 
-from starlette.datastructures import FormData
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -11,7 +10,7 @@ from fastapi import (
 )
 
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, List, Callable
+from typing import Optional, Tuple, List
 from copy import copy
 
 from app.common.database import DBStats, DBScore, DBUser
@@ -19,6 +18,7 @@ from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
+from app.common.constants import GameMode
 
 from app.common.database.repositories import (
     achievements,
@@ -136,6 +136,11 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         app.session.logger.warning(
             f'"{score.username}" submitted score with total_hits <= 0.'
         )
+        return Response('error: no')
+
+    if score.beatmap.mode > 0 and score.play_mode == GameMode.Osu:
+        # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
+        # This can happen in old clients, where these modes were not implemented
         return Response('error: no')
 
     if score.passed:
@@ -326,13 +331,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         )
 
         leaderboards.update(
-            stats.user_id,
-            stats.mode,
-            stats.pp,
-            stats.rscore,
-            player.country.lower(),
-            stats.tscore,
-            stats.ppv1
+            stats,
+            player.country.lower()
         )
 
         stats.rank = leaderboards.global_rank(
@@ -340,13 +340,16 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             stats.mode
         )
 
-        grades = {}
-
         try:
+            grades = {}
+
             # Update grades
             for s in best_scores:
                 grade = f'{s.grade.lower()}_count'
                 grades[grade] = grades.get(grade, 0) + 1
+
+            for grade, count in grades.items():
+                setattr(stats, grade, count)
 
             score.session.query(DBStats) \
                 .filter(DBStats.user_id == score.user.id) \
@@ -389,20 +392,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
     stats.ppv1 = performance.calculate_weighted_ppv1(scores)
 
-    leaderboards.update(
-        stats.user_id,
-        stats.mode,
-        stats.pp,
-        stats.rscore,
-        country,
-        stats.tscore,
-        stats.ppv1
-    )
-
-    histories.update_rank(
-        stats,
-        country
-    )
+    leaderboards.update(stats, country)
+    histories.update_rank(stats, country)
 
 @router.post('/osu-submit-modular.php')
 def score_submission(
