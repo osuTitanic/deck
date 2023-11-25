@@ -218,7 +218,9 @@ class Score:
             # No mods are enabled
             return False
 
-        # NOTE: There is a bug, where DT/NC, PF/SD are enabled at the same time
+        # NOTE: The client is somehow sending these kinds of mod values.
+        #       I don't know if this is however... The wiki says, its normal:
+        #       https://github.com/ppy/osu-api/wiki#mods
 
         if self.check_mods(Mods.DoubleTime|Mods.Nightcore):
             self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
