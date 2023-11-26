@@ -1,9 +1,10 @@
 
+from concurrent.futures import Future, TimeoutError
 from datetime import datetime, timedelta
 from typing import List, Callable
 
-from app.common.database.repositories import scores, stats
 from app.common.constants import ScoreStatus, Grade
+from app.common.database.repositories import scores
 from app.common.cache import leaderboards
 
 from app.common.database.objects import DBScore
@@ -671,7 +672,8 @@ def get_by_name(name: str):
     return None
 
 def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achievement]:
-    new_achievements = []
+    new_achievements: List[Achievement] = []
+    futures: List[Future] = []
 
     score.user.stats.sort(
         key=lambda x: x.mode
@@ -681,7 +683,19 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
         if achievement.filename in ignore_list:
             continue
 
-        if achievement.check(score):
+        futures.append(
+            app.session.executor.submit(
+                achievement.check,
+                score
+            )
+        )
+
+    for future in futures:
+        try:
+            if not future.result(timeout=15):
+                # Achievement was not unlocked
+                continue
+
             new_achievements.append(achievement)
 
             app.session.logger.info(f'Player {score.user} unlocked achievement: {achievement.name}')
@@ -691,5 +705,11 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
                 '{}' + f' unlocked an achievement: {achievement.name}',
                 (score.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{score.user_id}')
             )
+        except TimeoutError as e:
+            app.session.logger.error(
+                f'Achievement check for "{future.__class__.__name__}" timed out: {e}',
+                exc_info=e
+            )
+            continue
 
     return new_achievements

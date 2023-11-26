@@ -457,7 +457,8 @@ def score_submission(
         score.session.flush()
 
         # Try to upload replay
-        upload_replay(
+        app.session.executor.submit(
+            upload_replay,
             score,
             score_object.id
         )
@@ -615,7 +616,8 @@ def legacy_score_submission(
         score.session.flush()
 
         # Try to upload replay
-        upload_replay(
+        app.session.executor.submit(
+            upload_replay,
             score,
             score_object.id
         )

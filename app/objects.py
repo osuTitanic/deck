@@ -218,7 +218,9 @@ class Score:
             # No mods are enabled
             return False
 
-        # NOTE: There is a bug, where DT/NC, PF/SD are enabled at the same time
+        # NOTE: The client is somehow sending these kinds of mod values.
+        #       I don't know if this is however... The wiki says, its normal:
+        #       https://github.com/ppy/osu-api/wiki#mods
 
         if self.check_mods(Mods.DoubleTime|Mods.Nightcore):
             self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
@@ -295,12 +297,15 @@ class Score:
 
         if (Mods.Relax in self.enabled_mods or
             Mods.Autopilot in self.enabled_mods):
-            # PP will be used for rx/ap
+            # PP will be used for rx/ap no matter what
             better_score = self.pp > self.personal_best.pp
 
         else:
-            # Total Score will be used for non-rx
-            better_score = self.total_score > self.personal_best.total_score
+            # The score with the most performance points will be used
+            # as long its a different mod combination from the pb
+            better_score = self.pp > self.personal_best.pp \
+                if self.enabled_mods.value != self.personal_best.pp \
+                else self.total_score > self.personal_best.total_score
 
         if not better_score:
             if self.enabled_mods.value == self.personal_best.mods:
@@ -322,10 +327,10 @@ class Score:
 
             # Change status for old personal best
             self.session.query(DBScore) \
-                   .filter(DBScore.id == mods_pb.id) \
-                   .update(
-                       {'status': ScoreStatus.Submitted.value}
-                   )
+                    .filter(DBScore.id == mods_pb.id) \
+                    .update({
+                        'status': ScoreStatus.Submitted.value
+                    })
             self.session.commit()
 
             return ScoreStatus.Mods
@@ -336,9 +341,8 @@ class Score:
                  {'status': ScoreStatus.Mods.value}
 
         self.session.query(DBScore) \
-               .filter(DBScore.id == self.personal_best.id) \
-               .update(status)
-
+                .filter(DBScore.id == self.personal_best.id) \
+                .update(status)
         self.session.commit()
 
         return ScoreStatus.Best
