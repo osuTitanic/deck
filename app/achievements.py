@@ -270,7 +270,7 @@ def nekko(score: DBScore) -> bool:
     return True
 
 @register(name='5,000 Plays (osu! mode)', category='Dedication', filename='plays1.png')
-def osuhits_1(score: DBScore) -> bool:
+def osuplays_1(score: DBScore) -> bool:
     """Get a Play Count of 5,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -283,7 +283,7 @@ def osuhits_1(score: DBScore) -> bool:
     return True
 
 @register(name='15,000 Plays (osu! mode)', category='Dedication', filename='plays2.png')
-def osuhits_2(score: DBScore) -> bool:
+def osuplays_2(score: DBScore) -> bool:
     """Get a Play Count of 15,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -296,7 +296,7 @@ def osuhits_2(score: DBScore) -> bool:
     return True
 
 @register(name='25,000 Plays (osu! mode)', category='Dedication', filename='plays3.png')
-def osuhits_3(score: DBScore) -> bool:
+def osuplays_3(score: DBScore) -> bool:
     """Get a Play Count of 25,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -309,7 +309,7 @@ def osuhits_3(score: DBScore) -> bool:
     return True
 
 @register(name='50,000 Plays (osu! mode)', category='Dedication', filename='plays4.png')
-def osuhits_4(score: DBScore) -> bool:
+def osuplays_4(score: DBScore) -> bool:
     """Get a Play Count of 50,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -330,7 +330,7 @@ def taikohits_1(score: DBScore) -> bool:
 
     s = score.user.stats[1]
 
-    if s.playcount < 30000:
+    if s.total_hits < 30000:
         return False
 
     return True
@@ -343,7 +343,7 @@ def taikohits_2(score: DBScore) -> bool:
 
     s = score.user.stats[1]
 
-    if s.playcount < 300000:
+    if s.total_hits < 300000:
         return False
 
     return True
@@ -356,7 +356,7 @@ def taikohits_3(score: DBScore) -> bool:
 
     s = score.user.stats[1]
 
-    if s.playcount < 3000000:
+    if s.total_hits < 3000000:
         return False
 
     return True
@@ -369,7 +369,7 @@ def fruitshits_1(score: DBScore) -> bool:
 
     s = score.user.stats[2]
 
-    if s.playcount < 20000:
+    if s.total_hits < 20000:
         return False
 
     return True
@@ -382,7 +382,7 @@ def fruitshits_2(score: DBScore) -> bool:
 
     s = score.user.stats[2]
 
-    if s.playcount < 200000:
+    if s.total_hits < 200000:
         return False
 
     return True
@@ -395,7 +395,7 @@ def fruitshits_3(score: DBScore) -> bool:
 
     s = score.user.stats[2]
 
-    if s.playcount < 2000000:
+    if s.total_hits < 2000000:
         return False
 
     return True
@@ -408,7 +408,7 @@ def maniahits_1(score: DBScore) -> bool:
 
     s = score.user.stats[3]
 
-    if s.playcount < 40000:
+    if s.total_hits < 40000:
         return False
 
     return True
@@ -421,7 +421,7 @@ def maniahits_2(score: DBScore) -> bool:
 
     s = score.user.stats[3]
 
-    if s.playcount < 400000:
+    if s.total_hits < 400000:
         return False
 
     return True
@@ -434,7 +434,7 @@ def maniahits_3(score: DBScore) -> bool:
 
     s = score.user.stats[3]
 
-    if s.playcount < 4000000:
+    if s.total_hits < 4000000:
         return False
 
     return True
