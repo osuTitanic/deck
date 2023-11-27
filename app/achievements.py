@@ -683,12 +683,13 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
         if achievement.filename in ignore_list:
             continue
 
-        futures.append(
+        futures.append((
             app.session.executor.submit(
                 achievement.check,
                 score
-            )
-        )
+            ),
+            achievement
+        ))
 
     for future, achievement in futures:
         try:
