@@ -672,7 +672,7 @@ def get_by_name(name: str):
     return None
 
 def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achievement]:
-    futures: List[Tuple[Future, Achievement]] = []
+    results: List[Tuple[Future, Achievement]] = []
     new_achievements: List[Achievement] = []
 
     score.user.stats.sort(
@@ -683,7 +683,7 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
         if achievement.filename in ignore_list:
             continue
 
-        futures.append((
+        results.append((
             app.session.executor.submit(
                 achievement.check,
                 score
@@ -691,7 +691,7 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
             achievement
         ))
 
-    for future, achievement in futures:
+    for future, achievement in results:
         try:
             if not future.result(timeout=15):
                 # Achievement was not unlocked
