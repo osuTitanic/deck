@@ -121,7 +121,7 @@ def sranker(score: DBScore) -> bool:
         return False
 
     for score in latest_scores:
-        if Grade[score.grade] > Grade.S:
+        if Grade[score.grade] >= Grade.S:
             return False
 
     return True
