@@ -7,7 +7,7 @@ from app.common.constants import ScoreStatus, Grade
 from app.common.database.repositories import scores
 from app.common.cache import leaderboards
 
-from app.common.database.objects import DBScore
+from app.common.database.objects import DBScore, DBBeatmap
 from app.common.constants import Mods
 
 import config
@@ -45,15 +45,16 @@ def register(name: str, category: str, filename: str) -> Callable:
 
     return wrapper
 
-def check_pack(score: DBScore, beatmap_ids: List[int]) -> bool:
-    if score.beatmap_id not in beatmap_ids:
+def check_pack(score: DBScore, beatmapset_ids: List[int]) -> bool:
+    if score.beatmap.set_id not in beatmapset_ids:
         # Score was not set inside this pack
         return False
 
     with app.session.database.managed_session() as session:
-        for beatmap_id in beatmap_ids:
+        for set_id in beatmapset_ids:
             result = session.query(DBScore) \
-                            .filter(DBScore.beatmap_id == beatmap_id) \
+                            .join(DBBeatmap) \
+                            .filter(DBBeatmap.set_id == set_id) \
                             .filter(DBScore.user_id == score.user_id) \
                             .filter(DBScore.status == 3) \
                             .first()
@@ -485,10 +486,20 @@ def ranking_3(score: DBScore) -> bool:
 def video_game_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            347,
-            348,
-            346
+        beatmapset_ids=[
+            1092,
+            1211,
+            1231,
+            125,
+            1281,
+            154,
+            1635,
+            25,
+            312,
+            633,
+            688,
+            704,
+            92
         ]
     )
 
@@ -496,11 +507,20 @@ def video_game_1(score: DBScore) -> bool:
 def video_game_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            18925,
-            18917,
-            18929,
-            18930
+        beatmapset_ids=[
+            1044,
+            1123,
+            1367,
+            1525,
+            1818,
+            2008,
+            2128,
+            2147,
+            2404,
+            2420,
+            243,
+            2619,
+            628
         ]
     )
 
@@ -508,11 +528,20 @@ def video_game_2(score: DBScore) -> bool:
 def video_game_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            21072,
-            21073,
-            21083,
-            21120
+        beatmapset_ids=[
+            1890,
+            2085,
+            2490,
+            2983,
+            3150,
+            3221,
+            3384,
+            3511,
+            3613,
+            4033,
+            4299,
+            4305,
+            4629
         ]
     )
 
@@ -520,10 +549,19 @@ def video_game_3(score: DBScore) -> bool:
 def video_game_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            42010,
-            42011,
-            42012
+        beatmapset_ids=[
+            10104,
+            10880,
+            13489,
+            14205,
+            14458,
+            16669,
+            17373,
+            21836,
+            23073,
+            7077,
+            9580,
+            9668
         ]
     )
 
@@ -531,10 +569,20 @@ def video_game_4(score: DBScore) -> bool:
 def anime_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            14584,
-            14586,
-            14585
+        beatmapset_ids=[
+            1005,
+            1377,
+            1414,
+            1464,
+            147,
+            1806,
+            301,
+            35,
+            442,
+            511,
+            584,
+            842,
+            897
         ]
     )
 
@@ -542,8 +590,20 @@ def anime_1(score: DBScore) -> bool:
 def anime_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            6433
+        beatmapset_ids=[
+            150,
+            162,
+            205,
+            212,
+            2207,
+            2267,
+            2329,
+            2425,
+            302,
+            496,
+            521,
+            86,
+            956
         ]
     )
 
@@ -551,10 +611,20 @@ def anime_2(score: DBScore) -> bool:
 def anime_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            26683,
-            26624,
-            26678
+        beatmapset_ids=[
+            2618,
+            3030,
+            4851,
+            4994,
+            5010,
+            5235,
+            5410,
+            5480,
+            5963,
+            6037,
+            6257,
+            6535,
+            6557
         ]
     )
 
@@ -562,11 +632,20 @@ def anime_3(score: DBScore) -> bool:
 def anime_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            35909,
-            39888,
-            35809,
-            35893
+        beatmapset_ids= [
+            12982,
+            13036,
+            13673,
+            14256,
+            14694,
+            16252,
+            21197,
+            516,
+            5438,
+            6301,
+            8422,
+            8829,
+            9556
         ]
     )
 
@@ -574,13 +653,21 @@ def anime_4(score: DBScore) -> bool:
 def internet_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            112700,
-            103281,
-            107409,
-            107410,
-            105037,
-            103282
+        beatmapset_ids=[
+            102615,
+            116487,
+            13177,
+            148979,
+            17217,
+            17724,
+            18568,
+            23754,
+            239262,
+            31419,
+            31811,
+            332436,
+            45341,
+            76115
         ]
     )
 
@@ -588,13 +675,18 @@ def internet_1(score: DBScore) -> bool:
 def internet_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            119080,
-            146247,
-            119081,
-            119082,
-            120348,
-            127560
+        beatmapset_ids=[
+            106500,
+            119980,
+            130725,
+            24152,
+            25198,
+            31471,
+            36920,
+            53810,
+            54631,
+            63500,
+            74110
         ]
     )
 
@@ -602,11 +694,15 @@ def internet_2(score: DBScore) -> bool:
 def internet_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            775072,
-            766689,
-            769513,
-            779447
+        beatmapset_ids=[
+            105186,
+            28222,
+            28799,
+            36225,
+            47517,
+            53363,
+            53569,
+            70259
         ]
     )
 
@@ -614,11 +710,17 @@ def internet_3(score: DBScore) -> bool:
 def internet_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            382275,
-            382963,
-            383456,
-            383457
+        beatmapset_ids=[
+            13885,
+            14672,
+            21581,
+            22252,
+            23058,
+            24084,
+            25154,
+            37563,
+            45698,
+            47078
         ]
     )
 
@@ -626,10 +728,18 @@ def internet_4(score: DBScore) -> bool:
 def rhythm_game_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            11089,
-            11091,
-            11090
+        beatmapset_ids=[
+            1078,
+            1201,
+            1300,
+            1317,
+            1338,
+            210,
+            296,
+            540,
+            564,
+            74,
+            96
         ]
     )
 
@@ -637,10 +747,20 @@ def rhythm_game_1(score: DBScore) -> bool:
 def rhythm_game_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            21912,
-            21736,
-            21724
+        beatmapset_ids=[
+            1207,
+            1567,
+            2534,
+            3302,
+            3435,
+            3499,
+            4887,
+            5087,
+            5177,
+            5275,
+            5321,
+            5349,
+            5577
         ]
     )
 
@@ -648,10 +768,18 @@ def rhythm_game_2(score: DBScore) -> bool:
 def rhythm_game_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            25463,
-            25427,
-            25428
+        beatmapset_ids=[
+            1206,
+            4357,
+            4617,
+            4954,
+            5180,
+            5672,
+            5696,
+            6598,
+            7094,
+            7237,
+            7983
         ]
     )
 
@@ -659,11 +787,19 @@ def rhythm_game_3(score: DBScore) -> bool:
 def rhythm_game_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            65453,
-            65454,
-            65455,
-            65456
+        beatmapset_ids=[
+            10842,
+            11135,
+            11488,
+            12052,
+            12710,
+            13249,
+            14572,
+            14778,
+            15241,
+            18492,
+            19809,
+            22401
         ]
     )
 
