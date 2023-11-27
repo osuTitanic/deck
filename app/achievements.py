@@ -1,7 +1,7 @@
 
 from concurrent.futures import Future, TimeoutError
 from datetime import datetime, timedelta
-from typing import List, Callable
+from typing import List, Callable, Tuple
 
 from app.common.constants import ScoreStatus, Grade
 from app.common.database.repositories import scores
@@ -672,8 +672,8 @@ def get_by_name(name: str):
     return None
 
 def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achievement]:
+    futures: List[Tuple[Future, Achievement]] = []
     new_achievements: List[Achievement] = []
-    futures: List[Future] = []
 
     score.user.stats.sort(
         key=lambda x: x.mode
@@ -690,7 +690,7 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
             )
         )
 
-    for future in futures:
+    for future, achievement in futures:
         try:
             if not future.result(timeout=15):
                 # Achievement was not unlocked
