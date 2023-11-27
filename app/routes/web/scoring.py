@@ -131,6 +131,8 @@ async def parse_score_data(request: Request) -> Score:
 
 def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
     """Validate the score submission requests and return an error if the validation fails"""
+    app.session.logger.debug('Performing score validation...')
+
     if score.total_hits <= 0:
         # This could still be a false-positive
         app.session.logger.warning(
@@ -230,6 +232,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
+        app.session.logger.debug('Uploading replay...')
+
         # Check replay size (10mb max)
         if len(score.replay) < 1e+7:
             score_rank = scores.fetch_score_index_by_id(
@@ -262,6 +266,7 @@ def upload_replay(score: Score, score_id: int) -> None:
 
 def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     """Update the users and beatmaps stats. It will return the old & new stats for the user"""
+    app.session.logger.debug('Updating user stats...')
 
     # Update beatmap stats
     score.beatmap.playcount += 1
@@ -390,6 +395,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     return stats, old_stats
 
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
+    app.session.logger.debug('Updating ppv1...')
     stats.ppv1 = performance.calculate_weighted_ppv1(scores)
 
     leaderboards.update(stats, country)

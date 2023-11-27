@@ -672,6 +672,8 @@ def get_by_name(name: str):
     return None
 
 def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achievement]:
+    app.session.logger.debug('Checking for new achievements...')
+
     results: List[Tuple[Future, Achievement]] = []
     new_achievements: List[Achievement] = []
 
