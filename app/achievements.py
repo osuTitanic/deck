@@ -170,7 +170,9 @@ def prize(score: DBScore) -> bool:
     if Grade[score.grade] != Grade.D:
         return False
 
-    if score.mods > 0:
+    mods = Mods(score.mods)
+
+    if (Mods.Easy in mods) or (Mods.NoFail in mods):
         return False
 
     return True
