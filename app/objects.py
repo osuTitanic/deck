@@ -304,7 +304,7 @@ class Score:
             # The score with the most performance points will be used
             # as long its a different mod combination from the pb
             better_score = self.pp > self.personal_best.pp \
-                if self.enabled_mods.value != self.personal_best.pp \
+                if self.enabled_mods.value != self.personal_best.mods \
                 else self.total_score > self.personal_best.total_score
 
         if not better_score:
