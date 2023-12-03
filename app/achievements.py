@@ -487,7 +487,6 @@ def video_game_1(score: DBScore) -> bool:
     return check_pack(
         score,
         beatmapset_ids=[
-            9854,
             1635,
             1211,
             1231,
@@ -562,7 +561,8 @@ def video_game_4(score: DBScore) -> bool:
             23073,
             7077,
             9580,
-            9668
+            9668,
+            9854
         ]
     )
 
