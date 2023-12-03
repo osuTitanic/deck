@@ -738,8 +738,8 @@ def rhythm_game_1(score: DBScore) -> bool:
     return check_pack(
         score,
         beatmapset_ids=[
+            1452,
             1450,
-            1425,
             1078,
             1201,
             1300,
