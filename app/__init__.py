@@ -24,7 +24,7 @@ utils.setup()
 
 logging.basicConfig(
     format='[%(asctime)s] - <%(name)s> %(levelname)s: %(message)s',
-    level=logging.INFO,
+    level=logging.DEBUG if config.DEBUG else logging.INFO,
     handlers=[Console, File]
 )
 
