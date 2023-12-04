@@ -435,9 +435,11 @@ def score_submission(
     )
 
     if flashlight_screenshot:
+        # TODO: Find out when this gets triggered
         app.session.logger.warning(
             f"{player.name} submitted score with a flashlight screenshot!"
         )
+        return Response("error: no")
 
     if (error := perform_score_validation(score, player)) != None:
         return error
