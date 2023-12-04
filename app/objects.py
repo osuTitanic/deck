@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from .common.database.repositories import scores, users
+from .common.database.repositories import scores
 from .common.helpers import performance
 
 from .common.database import (
