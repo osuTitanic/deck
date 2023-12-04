@@ -2,15 +2,13 @@
 from datetime import datetime
 from typing import Optional
 
-from app.common.helpers import performance
-from app.common.database.repositories import (
-    scores,
-    users
-)
+from .common.database.repositories import scores, users
+from .common.helpers import performance
 
 from .common.database import (
     DBBeatmap,
-    DBScore
+    DBScore,
+    DBUser
 )
 
 from .common.constants import (
@@ -122,6 +120,7 @@ class Score:
         self.perfect      = perfect
         self.grade        = grade
         self.enabled_mods = enabled_mods
+        self.username     = username
 
         self.passed    = passed
         self.play_mode = play_mode
@@ -141,29 +140,15 @@ class Score:
         self.client_hash: Optional[str] = None
         self.processes: Optional[str] = None
 
-        # TODO: Refactor that?
-        # Beatmap needs to be bound to session
         self.session = app.session.database.session
-        self.beatmap = self.session.query(DBBeatmap) \
-                        .filter(DBBeatmap.md5 == file_checksum) \
-                        .first()
-
-        self.user = users.fetch_by_name(username)
-        self.pp = self.calculate_ppv2()
+        self.personal_best: Optional[DBScore] = None
+        self.beatmap: Optional[DBBeatmap] = None
+        self.user: Optional[DBUser] = None
 
         if passed:
             # "Fix" for old clients
             self.failtime = None
             self.exited = None
-
-        if self.beatmap:
-            self.personal_best = scores.fetch_personal_best(
-                self.beatmap.id,
-                self.user.id,
-                self.play_mode.value
-            )
-
-            self.status = self.get_status()
 
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'

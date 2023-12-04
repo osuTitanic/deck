@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
-from app.common.database import DBStats, DBScore, DBUser
+from app.common.database import DBStats, DBScore, DBUser, DBBeatmap
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
@@ -409,6 +409,7 @@ def score_submission(
     score: Score = Depends(parse_score_data),
 ):
     password = legacy_password or password
+    score.user = users.fetch_by_name(score.username)
 
     if not (player := score.user):
         return Response('error: nouser')
@@ -422,6 +423,11 @@ def score_submission(
     if player.restricted:
         return Response('error: ban')
 
+    # Beatmap must be bound to session
+    score.beatmap = score.session.query(DBBeatmap) \
+        .filter(DBBeatmap.md5 == score.file_checksum) \
+        .first()
+
     if not score.beatmap:
         return Response('error: beatmap')
 
@@ -434,6 +440,8 @@ def score_submission(
         {'latest_activity': datetime.now()}
     )
 
+    score.pp = score.calculate_ppv2()
+
     if flashlight_screenshot:
         # TODO: Find out when this gets triggered
         app.session.logger.warning(
@@ -445,6 +453,14 @@ def score_submission(
         return error
 
     if score.beatmap.is_ranked:
+        score.personal_best = scores.fetch_personal_best(
+            score.beatmap.id,
+            score.user.id,
+            score.play_mode.value
+        )
+
+        score.status = score.get_status()
+
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
@@ -580,6 +596,8 @@ def legacy_score_submission(
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
 ):
+    score.user = users.fetch_by_name(score.username)
+
     if not (player := score.user):
         raise HTTPException(401)
 
@@ -592,18 +610,36 @@ def legacy_score_submission(
     if player.restricted:
         raise HTTPException(401)
 
+    # Beatmap must be bound to session
+    score.beatmap = score.session.query(DBBeatmap) \
+        .filter(DBBeatmap.md5 == score.file_checksum) \
+        .first()
+
     if not score.beatmap:
         raise HTTPException(404)
 
     if not status.exists(player.id):
         return Response('')
 
-    users.update(player.id, {'latest_activity': datetime.now()})
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()}
+    )
+
+    score.pp = score.calculate_ppv2()
 
     if (error := perform_score_validation(score, player)) != None:
         raise HTTPException(400, detail=error.body)
 
     if score.beatmap.is_ranked:
+        score.personal_best = scores.fetch_personal_best(
+            score.beatmap.id,
+            score.user.id,
+            score.play_mode.value
+        )
+
+        score.status = score.get_status()
+
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
