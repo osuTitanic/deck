@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
+from app.common.helpers.score import calculate_rx_score
 from app.common.database import DBStats, DBScore, DBUser, DBBeatmap
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
@@ -452,6 +453,13 @@ def score_submission(
     if (error := perform_score_validation(score, player)) != None:
         return error
 
+    if score.relaxing:
+        # Recalculate rx total score
+        score.total_score = calculate_rx_score(
+            score.to_database(),
+            score.beatmap
+        )
+
     if score.beatmap.is_ranked:
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
@@ -542,7 +550,7 @@ def score_submission(
     overallChart.entry('accuracy', round(old_stats.acc, 4), round(new_stats.acc, 4))
     overallChart.entry('playCount', old_stats.playcount, new_stats.playcount)
 
-    overallChart['onlineScoreId']  = score_object.id
+    overallChart['onlineScoreId'] = score_object.id
     overallChart['toNextRankUser'] = ''
     overallChart['toNextRank'] = '0'
 
@@ -630,6 +638,13 @@ def legacy_score_submission(
 
     if (error := perform_score_validation(score, player)) != None:
         raise HTTPException(400, detail=error.body)
+
+    if score.relaxing:
+        # Recalculate rx total score
+        object = score.to_database()
+        object.beatmap = score.beatmap
+        object.user = score.user
+        score.total_score = calculate_rx_score(object)
 
     if score.beatmap.is_ranked:
         score.personal_best = scores.fetch_personal_best(
