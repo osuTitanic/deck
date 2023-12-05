@@ -221,12 +221,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 app.session.logger.warning(
                     f'"{score.username}" is spamming score submission.'
                 )
-                app.session.events.submit(
-                    'restrict',
-                    user_id=player.id,
-                    reason='Spamming score submission'
-                )
-                return Response('error: ban')
+                return Response('error: no')
 
     # TODO: Circleguard replay analysis
     # TODO: Client hash validation
