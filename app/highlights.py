@@ -64,13 +64,16 @@ def check_rank(
         if ranks_gained <= 0:
             return
 
+    if previous_stats.rank <= 0:
+        return
+
     if previous_stats.rank < 1000 \
        and stats.rank >= 1000:
         # Player has risen to the top 1000
         submit(
             player.id,
             stats.mode,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained == 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
@@ -82,7 +85,7 @@ def check_rank(
         submit(
             player.id,
             stats.mode,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained == 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
@@ -93,7 +96,7 @@ def check_rank(
         submit(
             player.id,
             stats.mode,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained > 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained == 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
         )
 
