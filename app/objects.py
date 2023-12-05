@@ -34,50 +34,6 @@ class Chart(dict):
     def __repr__(self) -> str:
         return "|".join(f"{str(k)}:{str(v)}" for k, v in self.items())
 
-class ClientHash:
-    def __init__(self, md5: str, adapters: str, adapters_md5: str, uninstall_id: str, diskdrive_signature: str) -> None:
-        self.diskdrive_signature = diskdrive_signature
-        self.uninstall_id = uninstall_id
-        self.adapters_md5 = adapters_md5
-        self.adapters = adapters
-        self.md5 = md5
-
-    @property
-    def string(self) -> str:
-        return f'{self.md5}:{self.adapters}:{self.adapters_md5}:{self.uninstall_id}:{self.diskdrive_signature}'
-
-    def __repr__(self) -> str:
-        return self.string
-
-    @classmethod
-    def from_string(cls, string: str):
-        try:
-            md5, adapters, adapters_md5, uninstall_id, diskdrive_signature = string.split(':')
-        except ValueError:
-            args = string.split(':')
-
-            md5 = args[0]
-            adapters = args[1]
-            adapters_md5 = args[2]
-
-            diskdrive_signature = hashlib.md5(b'unknown').hexdigest()
-            uninstall_id = hashlib.md5(b'unknown').hexdigest()
-
-            try:
-                uninstall_id = args[3]
-                diskdrive_signature = args[4]
-            except IndexError:
-                # Hardware IDs are not supported
-                pass
-
-        return ClientHash(
-            md5,
-            adapters,
-            adapters_md5,
-            uninstall_id,
-            diskdrive_signature
-        )
-
 class Score:
     def __init__(
         self,
