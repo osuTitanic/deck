@@ -146,6 +146,15 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         # This can happen in old clients, where these modes were not implemented
         return Response('error: no')
 
+    client_hash = status.client_hash(player.id)
+
+    if (score.client_hash != None) and (score.client_hash != client_hash):
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with client hash mismatch.'
+        )
+        # TODO: Ban user?
+        return Response('error: no')
+
     if score.passed:
         # Check for replay
         if not score.replay:
