@@ -752,7 +752,7 @@ def legacy_score_submission(
         score.play_mode.value
     )
 
-    response.append(str(difference))
+    response.append(str(round(difference)))
     response.append(' '.join(achievement_response))
 
     score.session.close()
