@@ -54,7 +54,7 @@ def search(
     except ValueError:
         return "-1\nno."
 
-    if len(query) < 3:
+    if len(query) < 2:
         return "-1\nQuery is too short."
 
     response = []
