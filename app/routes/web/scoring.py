@@ -402,7 +402,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
     # Update preferred mode
     if player.preferred_mode != score.play_mode.value:
-        recent_scores = scores.fetch_recent(
+        recent_scores = scores.fetch_recent_all(
             player.id,
             limit=30
         )
