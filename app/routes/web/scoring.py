@@ -15,11 +15,11 @@ from copy import copy
 
 from app.common.helpers.score import calculate_rx_score
 from app.common.database import DBStats, DBScore, DBUser, DBBeatmap
+from app.common.constants import GameMode, BadFlags
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
-from app.common.constants import GameMode
 
 from app.common.database.repositories import (
     achievements,
@@ -203,10 +203,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     # Check score submission "spam"
     if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
-        # NOTE: Client should normally submit scores in 8 second intervals.
-        #       However, this can fail sometimes resulting in an instant ban...
-
-        # I know this looks messy...
+        # TODO: Refactor this mess...
         submission_times = [
             # Get the time between score submissions
             (
@@ -231,6 +228,26 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                     f'"{score.username}" is spamming score submission.'
                 )
                 return Response('error: no')
+
+    flags = [
+        BadFlags.FlashLightImageHack,
+        BadFlags.SpinnerHack,
+        BadFlags.TransparentWindow,
+        BadFlags.FastPress,
+        BadFlags.FlashlightChecksumIncorrect,
+        BadFlags.ChecksumFailure
+    ]
+
+    if any(flag in score.flags for flag in flags):
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with bad flags: {score.flags}'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            reason=f'Hacking/Cheating ({score.flags.value})'
+        )
+        return Response('error: ban')
 
     # TODO: Circleguard replay analysis
 
