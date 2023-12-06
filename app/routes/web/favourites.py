@@ -27,7 +27,7 @@ def add_favourite(
 ):
     if not (player := users.fetch_by_name(username)):
         raise HTTPException(401)
-    
+
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 

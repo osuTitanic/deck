@@ -20,7 +20,7 @@ def default_avatar(
 ):
     if not (image := app.session.storage.get_avatar('unknown')):
         raise HTTPException(500, 'Default avatar not found')
-    
+
     if height is None:
         # Default height for avatars
         height = 128
