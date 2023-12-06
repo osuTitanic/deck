@@ -233,7 +233,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 return Response('error: no')
 
     # TODO: Circleguard replay analysis
-    # TODO: Client hash validation
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
