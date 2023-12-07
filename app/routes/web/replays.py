@@ -38,13 +38,16 @@ def get_replay(
         if not status.exists(player.id):
             raise HTTPException(401)
 
+        app.session.logger.info(f'"{player.name}" requested replay for "{score_id}".')
         users.update(player.id, {'latest_activity': datetime.now()})
     else:
+        app.session.logger.info(f'Player requested replay for "{score_id}".')
         player = None
 
-    # Old clients don't have authentication for this...
+    # NOTE: Old clients don't have authentication for this...
 
     if not (score := scores.fetch_by_id(score_id)):
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Not found')
         raise HTTPException(404)
 
     if player and player.id != score.user.id:
@@ -56,9 +59,11 @@ def get_replay(
 
     if score.status <= 0:
         # Score is hidden
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Hidden Score')
         raise HTTPException(403)
 
     if not (replay := app.session.storage.get_replay(score_id)):
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Not found on storage')
         raise HTTPException(404)
 
     return Response(replay)

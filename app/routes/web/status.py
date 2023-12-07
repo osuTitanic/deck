@@ -8,6 +8,8 @@ from fastapi import (
     Query
 )
 
+import app
+
 router = APIRouter()
 
 @router.get('/osu-getstatus.php')
@@ -21,6 +23,8 @@ def get_beatmaps(
     # Check md5 size
     if any([len(checksum) != 32 for checksum in checksums if checksum]):
         raise HTTPException(400)
+
+    app.session.logger.info(f"Got beatmap status request for {len(checksums)} beatmaps.")
 
     response = []
 

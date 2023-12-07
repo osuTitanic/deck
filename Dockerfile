@@ -16,17 +16,20 @@ WORKDIR /deck
 # Install python dependencies
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
+RUN pip install gunicorn
 
 # Copy source code
 COPY . .
 
 # Get config for deployment
+ENV WEB_WORKERS $WEB_WORKERS
 ENV WEB_HOST $WEB_HOST
 ENV WEB_PORT $WEB_PORT
 
 EXPOSE $WEB_PORT
 
-CMD uvicorn app:api \
-        --host 0.0.0.0 \
-        --port 80 \
-        --log-level info
+CMD gunicorn \
+        -b 0.0.0.0:80 \
+        -w $WEB_WORKERS \
+        -k uvicorn.workers.UvicornWorker \
+        app:api

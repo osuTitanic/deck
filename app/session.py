@@ -34,5 +34,5 @@ database = Postgres(
     config.POSTGRES_PORT
 )
 
-executor = ThreadPoolExecutor(max_workers=5)
+executor = ThreadPoolExecutor(max_workers=12)
 storage = Storage()

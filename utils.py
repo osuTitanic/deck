@@ -173,7 +173,7 @@ def has_png_headers(data_view: memoryview) -> bool:
     )
 
 def get_osz_size(set_id: int, no_video: bool = False) -> int:
-    r = app.session.requests.head(f'https://osu.direct/d/{set_id}{"noVideo=" if no_video else ""}')
+    r = app.session.requests.head(f'https://api.osu.direct/d/{set_id}{"noVideo=" if no_video else ""}')
 
     if not r.ok:
         app.session.logger.error(

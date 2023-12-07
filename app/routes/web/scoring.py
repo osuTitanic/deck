@@ -13,12 +13,13 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
-from app.common.database import DBStats, DBScore, DBUser
+from app.common.helpers.score import calculate_rx_score
+from app.common.database import DBStats, DBScore, DBUser, DBBeatmap
+from app.common.constants import GameMode, BadFlags
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
-from app.common.constants import GameMode
 
 from app.common.database.repositories import (
     achievements,
@@ -131,6 +132,8 @@ async def parse_score_data(request: Request) -> Score:
 
 def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
     """Validate the score submission requests and return an error if the validation fails"""
+    app.session.logger.debug('Performing score validation...')
+
     if score.total_hits <= 0:
         # This could still be a false-positive
         app.session.logger.warning(
@@ -141,6 +144,15 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     if score.beatmap.mode > 0 and score.play_mode == GameMode.Osu:
         # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
         # This can happen in old clients, where these modes were not implemented
+        return Response('error: no')
+
+    client_hash = status.client_hash(player.id)
+
+    if (score.client_hash != None) and (score.client_hash != client_hash):
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with client hash mismatch.'
+        )
+        # TODO: Ban user?
         return Response('error: no')
 
     if score.passed:
@@ -191,10 +203,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     # Check score submission "spam"
     if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
-        # NOTE: Client should normally submit scores in 8 second intervals.
-        #       However, this can fail sometimes resulting in an instant ban...
-
-        # I know this looks messy...
+        # TODO: Refactor this mess...
         submission_times = [
             # Get the time between score submissions
             (
@@ -218,18 +227,34 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 app.session.logger.warning(
                     f'"{score.username}" is spamming score submission.'
                 )
-                app.session.events.submit(
-                    'restrict',
-                    user_id=player.id,
-                    reason='Spamming score submission'
-                )
-                return Response('error: ban')
+                return Response('error: no')
+
+    flags = [
+        BadFlags.FlashLightImageHack,
+        BadFlags.SpinnerHack,
+        BadFlags.TransparentWindow,
+        BadFlags.FastPress,
+        BadFlags.FlashlightChecksumIncorrect,
+        BadFlags.ChecksumFailure
+    ]
+
+    if any(flag in score.flags for flag in flags):
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with bad flags: {score.flags}'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            reason=f'Hacking/Cheating ({score.flags.value})'
+        )
+        return Response('error: ban')
 
     # TODO: Circleguard replay analysis
-    # TODO: Client hash validation
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
+        app.session.logger.debug('Uploading replay...')
+
         # Check replay size (10mb max)
         if len(score.replay) < 1e+7:
             score_rank = scores.fetch_score_index_by_id(
@@ -262,6 +287,7 @@ def upload_replay(score: Score, score_id: int) -> None:
 
 def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     """Update the users and beatmaps stats. It will return the old & new stats for the user"""
+    app.session.logger.debug('Updating user stats...')
 
     # Update beatmap stats
     score.beatmap.playcount += 1
@@ -376,9 +402,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
     # Update preferred mode
     if player.preferred_mode != score.play_mode.value:
-        recent_scores = scores.fetch_recent_top_scores(
+        recent_scores = scores.fetch_recent_all(
             player.id,
-            limit=15
+            limit=30
         )
 
         if len({s.mode for s in recent_scores}) == 1:
@@ -390,6 +416,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     return stats, old_stats
 
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
+    app.session.logger.debug('Updating ppv1...')
     stats.ppv1 = performance.calculate_weighted_ppv1(scores)
 
     leaderboards.update(stats, country)
@@ -403,20 +430,31 @@ def score_submission(
     score: Score = Depends(parse_score_data),
 ):
     password = legacy_password or password
+    score.user = users.fetch_by_name(score.username)
 
     if not (player := score.user):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         return Response('error: nouser')
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         return Response('error: pass')
 
     if not player.activated:
+        app.session.logger.warning(f'Failed to submit score: Inactive')
         return Response('error: inactive')
 
     if player.restricted:
+        app.session.logger.warning(f'Failed to submit score: Restricted')
         return Response('error: ban')
 
+    # Beatmap must be bound to session
+    score.beatmap = score.session.query(DBBeatmap) \
+        .filter(DBBeatmap.md5 == score.file_checksum) \
+        .first()
+
     if not score.beatmap:
+        app.session.logger.warning(f'Failed to submit score: Beatmap not found')
         return Response('error: beatmap')
 
     if not status.exists(player.id):
@@ -428,15 +466,34 @@ def score_submission(
         {'latest_activity': datetime.now()}
     )
 
-    if flashlight_screenshot:
-        app.session.logger.warning(
-            f"{player.name} submitted score with a flashlight screenshot!"
-        )
+    score.pp = score.calculate_ppv2()
 
     if (error := perform_score_validation(score, player)) != None:
         return error
 
+    if flashlight_screenshot:
+        # This will get sent when the "FlashLightImageHack" flag is triggered
+        app.session.logger.warning(
+            f"{player.name} submitted score with a flashlight screenshot!"
+        )
+        return Response("error: no")
+
+    if score.relaxing:
+        # Recalculate rx total score
+        score.total_score = calculate_rx_score(
+            score.to_database(),
+            score.beatmap
+        )
+
     if score.beatmap.is_ranked:
+        score.personal_best = scores.fetch_personal_best(
+            score.beatmap.id,
+            score.user.id,
+            score.play_mode.value
+        )
+
+        score.status = score.get_status()
+
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
@@ -448,10 +505,7 @@ def score_submission(
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = score.client_hash
-        score_object.processes = score.processes
         score_object.bad_flags = score.flags
-
-        # TODO: Remove processes list from database table
 
         if not config.ALLOW_RELAX and score.relaxing:
             score_object.status = -1
@@ -460,7 +514,8 @@ def score_submission(
         score.session.flush()
 
         # Try to upload replay
-        upload_replay(
+        app.session.executor.submit(
+            upload_replay,
             score,
             score_object.id
         )
@@ -470,11 +525,17 @@ def score_submission(
     new_stats, old_stats = update_stats(score, player)
 
     if not score.beatmap.is_ranked:
-        score.session.close()
+        app.session.events.submit(
+            'user_update',
+            user_id=player.id
+        )
         return Response('error: beatmap')
 
     if not config.ALLOW_RELAX and score.relaxing:
-        score.session.close()
+        app.session.events.submit(
+            'user_update',
+            user_id=player.id
+        )
         return Response('error: no')
 
     achievement_response: List[str] = []
@@ -520,7 +581,7 @@ def score_submission(
     overallChart.entry('accuracy', round(old_stats.acc, 4), round(new_stats.acc, 4))
     overallChart.entry('playCount', old_stats.playcount, new_stats.playcount)
 
-    overallChart['onlineScoreId']  = score_object.id
+    overallChart['onlineScoreId'] = score_object.id
     overallChart['toNextRankUser'] = ''
     overallChart['toNextRank'] = '0'
 
@@ -574,30 +635,62 @@ def legacy_score_submission(
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
 ):
+    score.user = users.fetch_by_name(score.username)
+
     if not (player := score.user):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         raise HTTPException(401)
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         raise HTTPException(401)
 
     if not player.activated:
+        app.session.logger.warning(f'Failed to submit score: Inactive')
         raise HTTPException(401)
 
     if player.restricted:
+        app.session.logger.warning(f'Failed to submit score: Restricted')
         raise HTTPException(401)
 
+    # Beatmap must be bound to session
+    score.beatmap = score.session.query(DBBeatmap) \
+        .filter(DBBeatmap.md5 == score.file_checksum) \
+        .first()
+
     if not score.beatmap:
+        app.session.logger.warning(f'Failed to submit score: Beatmap not found')
         raise HTTPException(404)
 
     if not status.exists(player.id):
         return Response('')
 
-    users.update(player.id, {'latest_activity': datetime.now()})
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()}
+    )
+
+    score.pp = score.calculate_ppv2()
 
     if (error := perform_score_validation(score, player)) != None:
         raise HTTPException(400, detail=error.body)
 
+    if score.relaxing:
+        # Recalculate rx total score
+        object = score.to_database()
+        object.beatmap = score.beatmap
+        object.user = score.user
+        score.total_score = calculate_rx_score(object)
+
     if score.beatmap.is_ranked:
+        score.personal_best = scores.fetch_personal_best(
+            score.beatmap.id,
+            score.user.id,
+            score.play_mode.value
+        )
+
+        score.status = score.get_status()
+
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
@@ -609,7 +702,6 @@ def legacy_score_submission(
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = ''
-        score_object.processes = '' # TODO: Remove this
         score_object.bad_flags = score.flags
 
         if not config.ALLOW_RELAX and score.relaxing:
@@ -619,7 +711,8 @@ def legacy_score_submission(
         score.session.flush()
 
         # Try to upload replay
-        upload_replay(
+        app.session.executor.submit(
+            upload_replay,
             score,
             score_object.id
         )
@@ -633,7 +726,6 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
-        score.session.close()
         return
 
     if not config.ALLOW_RELAX and score.relaxing:
@@ -641,7 +733,6 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
-        score.session.close()
         return
 
     app.session.logger.info(
@@ -691,7 +782,7 @@ def legacy_score_submission(
         score.play_mode.value
     )
 
-    response.append(str(difference))
+    response.append(str(round(difference)))
     response.append(' '.join(achievement_response))
 
     score.session.close()

@@ -49,13 +49,18 @@ def search(
         if not player.is_supporter:
             return "-1\nWhy are you here?"
 
-    try:
-        display_mode = DisplayMode(display_mode)
-    except ValueError:
-        return "-1\nno."
+    if display_mode not in DisplayMode._value2member_map_:
+        return "-1\nInvalid display mode"
 
-    if len(query) < 3:
+    display_mode = DisplayMode(display_mode)
+
+    if len(query) < 2:
         return "-1\nQuery is too short."
+
+    app.session.logger.info(
+        f'Got osu!direct search request: "{query}" '
+        f'from "{player.name}"' if player else ''
+    )
 
     response = []
 
@@ -126,7 +131,13 @@ def pickup_info(
         beatmapset = beatmapsets.fetch_one(set_id)
 
     if not beatmapset:
+        app.session.logger.warning("osu!direct pickup request failed: Not found")
         raise HTTPException(404)
+
+    app.session.logger.info(
+        f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
+        f'from "{player.name}"' if player else ''
+    )
 
     if not beatmapset.osz_filesize:
         utils.update_osz_filesize(

@@ -27,7 +27,7 @@ def add_favourite(
 ):
     if not (player := users.fetch_by_name(username)):
         raise HTTPException(401)
-    
+
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         raise HTTPException(401)
 
@@ -39,12 +39,15 @@ def add_favourite(
     count = favourites.fetch_count(player.id)
 
     if count > 49:
+        app.session.logger.warning("Failed to add favourite: Too many favourites")
         return 'You have too many favourite maps. Please go to your profile and delete some first.'
 
     if not (beatmap_set := beatmapsets.fetch_one(set_id)):
+        app.session.logger.warning("Failed to add favourite: Beatmap not found")
         raise HTTPException(404)
 
     if not favourites.create(player.id, beatmap_set.id):
+        app.session.logger.warning("Failed to add favourite: Already favourited")
         return 'You have already favourited this map...'
 
     count += 1
@@ -69,5 +72,9 @@ def get_favourites(
     users.update(player.id, {'latest_activity': datetime.now()})
 
     player_favourites = favourites.fetch_many(player.id)
+
+    app.session.logger.info(
+        f'Got favourites request from "{username}" ({len(player_favourites)})'
+    )
 
     return '\n'.join([str(favourite.set_id) for favourite in player_favourites])

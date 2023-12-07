@@ -2,15 +2,13 @@
 from datetime import datetime
 from typing import Optional
 
-from app.common.helpers import performance
-from app.common.database.repositories import (
-    scores,
-    users
-)
+from .common.database.repositories import scores
+from .common.helpers import performance
 
 from .common.database import (
     DBBeatmap,
-    DBScore
+    DBScore,
+    DBUser
 )
 
 from .common.constants import (
@@ -35,50 +33,6 @@ class Chart(dict):
 
     def __repr__(self) -> str:
         return "|".join(f"{str(k)}:{str(v)}" for k, v in self.items())
-
-class ClientHash:
-    def __init__(self, md5: str, adapters: str, adapters_md5: str, uninstall_id: str, diskdrive_signature: str) -> None:
-        self.diskdrive_signature = diskdrive_signature
-        self.uninstall_id = uninstall_id
-        self.adapters_md5 = adapters_md5
-        self.adapters = adapters
-        self.md5 = md5
-
-    @property
-    def string(self) -> str:
-        return f'{self.md5}:{self.adapters}:{self.adapters_md5}:{self.uninstall_id}:{self.diskdrive_signature}'
-
-    def __repr__(self) -> str:
-        return self.string
-
-    @classmethod
-    def from_string(cls, string: str):
-        try:
-            md5, adapters, adapters_md5, uninstall_id, diskdrive_signature = string.split(':')
-        except ValueError:
-            args = string.split(':')
-
-            md5 = args[0]
-            adapters = args[1]
-            adapters_md5 = args[2]
-
-            diskdrive_signature = hashlib.md5(b'unknown').hexdigest()
-            uninstall_id = hashlib.md5(b'unknown').hexdigest()
-
-            try:
-                uninstall_id = args[3]
-                diskdrive_signature = args[4]
-            except IndexError:
-                # Hardware IDs are not supported
-                pass
-
-        return ClientHash(
-            md5,
-            adapters,
-            adapters_md5,
-            uninstall_id,
-            diskdrive_signature
-        )
 
 class Score:
     def __init__(
@@ -122,6 +76,7 @@ class Score:
         self.perfect      = perfect
         self.grade        = grade
         self.enabled_mods = enabled_mods
+        self.username     = username
 
         self.passed    = passed
         self.play_mode = play_mode
@@ -141,29 +96,15 @@ class Score:
         self.client_hash: Optional[str] = None
         self.processes: Optional[str] = None
 
-        # TODO: Refactor that?
-        # Beatmap needs to be bound to session
         self.session = app.session.database.session
-        self.beatmap = self.session.query(DBBeatmap) \
-                        .filter(DBBeatmap.md5 == file_checksum) \
-                        .first()
-
-        self.user = users.fetch_by_name(username)
-        self.pp = self.calculate_ppv2()
+        self.personal_best: Optional[DBScore] = None
+        self.beatmap: Optional[DBBeatmap] = None
+        self.user: Optional[DBUser] = None
 
         if passed:
             # "Fix" for old clients
             self.failtime = None
             self.exited = None
-
-        if self.beatmap:
-            self.personal_best = scores.fetch_personal_best(
-                self.beatmap.id,
-                self.user.id,
-                self.play_mode.value
-            )
-
-            self.status = self.get_status()
 
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
@@ -218,7 +159,9 @@ class Score:
             # No mods are enabled
             return False
 
-        # NOTE: There is a bug, where DT/NC, PF/SD are enabled at the same time
+        # NOTE: The client is somehow sending these kinds of mod values.
+        #       I don't know if this is however... The wiki says, its normal:
+        #       https://github.com/ppy/osu-api/wiki#mods
 
         if self.check_mods(Mods.DoubleTime|Mods.Nightcore):
             self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
@@ -295,12 +238,15 @@ class Score:
 
         if (Mods.Relax in self.enabled_mods or
             Mods.Autopilot in self.enabled_mods):
-            # PP will be used for rx/ap
+            # PP will be used for rx/ap no matter what
             better_score = self.pp > self.personal_best.pp
 
         else:
-            # Total Score will be used for non-rx
-            better_score = self.total_score > self.personal_best.total_score
+            # The score with the most performance points will be used
+            # as long its a different mod combination from the pb
+            better_score = self.pp > self.personal_best.pp \
+                if self.enabled_mods.value != self.personal_best.mods \
+                else self.total_score > self.personal_best.total_score
 
         if not better_score:
             if self.enabled_mods.value == self.personal_best.mods:
@@ -322,10 +268,10 @@ class Score:
 
             # Change status for old personal best
             self.session.query(DBScore) \
-                   .filter(DBScore.id == mods_pb.id) \
-                   .update(
-                       {'status': ScoreStatus.Submitted.value}
-                   )
+                    .filter(DBScore.id == mods_pb.id) \
+                    .update({
+                        'status': ScoreStatus.Submitted.value
+                    })
             self.session.commit()
 
             return ScoreStatus.Mods
@@ -336,9 +282,8 @@ class Score:
                  {'status': ScoreStatus.Mods.value}
 
         self.session.query(DBScore) \
-               .filter(DBScore.id == self.personal_best.id) \
-               .update(status)
-
+                .filter(DBScore.id == self.personal_best.id) \
+                .update(status)
         self.session.commit()
 
         return ScoreStatus.Best

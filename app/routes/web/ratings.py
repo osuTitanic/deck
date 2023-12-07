@@ -25,7 +25,7 @@ def rate(
 ):
     if not (player := users.fetch_by_name(username)):
         return Response('auth fail')
-    
+
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         return Response('auth fail')
 
@@ -33,7 +33,7 @@ def rate(
         return Response('auth fail')
 
     users.update(player.id, {'latest_activity': datetime.now()})
-    
+
     if not (beatmap := beatmaps.fetch_by_checksum(beatmap_md5)):
         return Response('no exist')
 
@@ -45,14 +45,14 @@ def rate(
         return Response('owner')
 
     previous_rating = ratings.fetch_one(beatmap.md5, player.id)
-        
+
     if previous_rating:
         return Response(
             '\n'.join([
                 'alreadyvoted',
                 str(ratings.fetch_average(beatmap.md5))
             ]))
-    
+
     if rating is None:
         return Response('ok')
 
