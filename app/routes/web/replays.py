@@ -38,13 +38,16 @@ def get_replay(
         if not status.exists(player.id):
             raise HTTPException(401)
 
+        app.session.logger.info(f'"{player.name}" requested replay for "{score_id}".')
         users.update(player.id, {'latest_activity': datetime.now()})
     else:
+        app.session.logger.info(f'Player requested replay for "{score_id}".')
         player = None
 
-    # Old clients don't have authentication for this...
+    # NOTE: Old clients don't have authentication for this...
 
     if not (score := scores.fetch_by_id(score_id)):
+        app.session.logger.warning(f'Replay with id "{score_id}" doesnt exist!')
         raise HTTPException(404)
 
     if player and player.id != score.user.id:
