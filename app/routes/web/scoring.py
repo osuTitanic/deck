@@ -433,15 +433,19 @@ def score_submission(
     score.user = users.fetch_by_name(score.username)
 
     if not (player := score.user):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         return Response('error: nouser')
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         return Response('error: pass')
 
     if not player.activated:
+        app.session.logger.warning(f'Failed to submit score: Inactive')
         return Response('error: inactive')
 
     if player.restricted:
+        app.session.logger.warning(f'Failed to submit score: Restricted')
         return Response('error: ban')
 
     # Beatmap must be bound to session
@@ -450,6 +454,7 @@ def score_submission(
         .first()
 
     if not score.beatmap:
+        app.session.logger.warning(f'Failed to submit score: Beatmap not found')
         return Response('error: beatmap')
 
     if not status.exists(player.id):
@@ -463,15 +468,15 @@ def score_submission(
 
     score.pp = score.calculate_ppv2()
 
+    if (error := perform_score_validation(score, player)) != None:
+        return error
+
     if flashlight_screenshot:
-        # TODO: Find out when this gets triggered
+        # This will get sent when the "FlashLightImageHack" flag is triggered
         app.session.logger.warning(
             f"{player.name} submitted score with a flashlight screenshot!"
         )
         return Response("error: no")
-
-    if (error := perform_score_validation(score, player)) != None:
-        return error
 
     if score.relaxing:
         # Recalculate rx total score
@@ -520,11 +525,17 @@ def score_submission(
     new_stats, old_stats = update_stats(score, player)
 
     if not score.beatmap.is_ranked:
-        score.session.close()
+        app.session.events.submit(
+            'user_update',
+            user_id=player.id
+        )
         return Response('error: beatmap')
 
     if not config.ALLOW_RELAX and score.relaxing:
-        score.session.close()
+        app.session.events.submit(
+            'user_update',
+            user_id=player.id
+        )
         return Response('error: no')
 
     achievement_response: List[str] = []
@@ -627,15 +638,19 @@ def legacy_score_submission(
     score.user = users.fetch_by_name(score.username)
 
     if not (player := score.user):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         raise HTTPException(401)
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        app.session.logger.warning(f'Failed to submit score: Authentication')
         raise HTTPException(401)
 
     if not player.activated:
+        app.session.logger.warning(f'Failed to submit score: Inactive')
         raise HTTPException(401)
 
     if player.restricted:
+        app.session.logger.warning(f'Failed to submit score: Restricted')
         raise HTTPException(401)
 
     # Beatmap must be bound to session
@@ -644,6 +659,7 @@ def legacy_score_submission(
         .first()
 
     if not score.beatmap:
+        app.session.logger.warning(f'Failed to submit score: Beatmap not found')
         raise HTTPException(404)
 
     if not status.exists(player.id):
@@ -710,7 +726,6 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
-        score.session.close()
         return
 
     if not config.ALLOW_RELAX and score.relaxing:
@@ -718,7 +733,6 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
-        score.session.close()
         return
 
     app.session.logger.info(

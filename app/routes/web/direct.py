@@ -131,6 +131,7 @@ def pickup_info(
         beatmapset = beatmapsets.fetch_one(set_id)
 
     if not beatmapset:
+        app.session.logger.warning("osu!direct pickup request failed: Not found")
         raise HTTPException(404)
 
     app.session.logger.info(

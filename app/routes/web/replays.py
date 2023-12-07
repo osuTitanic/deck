@@ -47,7 +47,7 @@ def get_replay(
     # NOTE: Old clients don't have authentication for this...
 
     if not (score := scores.fetch_by_id(score_id)):
-        app.session.logger.warning(f'Replay with id "{score_id}" doesnt exist!')
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Not found')
         raise HTTPException(404)
 
     if player and player.id != score.user.id:
@@ -59,9 +59,11 @@ def get_replay(
 
     if score.status <= 0:
         # Score is hidden
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Hidden Score')
         raise HTTPException(403)
 
     if not (replay := app.session.storage.get_replay(score_id)):
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Not found on storage')
         raise HTTPException(404)
 
     return Response(replay)

@@ -39,12 +39,15 @@ def add_favourite(
     count = favourites.fetch_count(player.id)
 
     if count > 49:
+        app.session.logger.warning("Failed to add favourite: Too many favourites")
         return 'You have too many favourite maps. Please go to your profile and delete some first.'
 
     if not (beatmap_set := beatmapsets.fetch_one(set_id)):
+        app.session.logger.warning("Failed to add favourite: Beatmap not found")
         raise HTTPException(404)
 
     if not favourites.create(player.id, beatmap_set.id):
+        app.session.logger.warning("Failed to add favourite: Already favourited")
         return 'You have already favourited this map...'
 
     count += 1

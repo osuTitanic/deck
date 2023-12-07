@@ -25,12 +25,14 @@ async def read_screenshot(request: Request):
     form = await request.form()
 
     if not (screenshot := form.get('ss')):
+        app.session.logger.warning('Failed to upload screenshot: Missing file')
         raise HTTPException(
             status_code=400,
             detail='File missing'
         )
 
     if screenshot.filename not in ('jpg', 'png', 'ss'):
+        app.session.logger.warning('Failed to upload screenshot: Invalid filename')
         raise HTTPException(
             status_code=400,
             detail='Invalid screenshot'
@@ -55,6 +57,7 @@ def screenshot(
 
     with memoryview(screenshot) as screenshot_view:
         if len(screenshot_view) > (4 * 1024 * 1024):
+            app.session.logger.warning('Failed to upload screenshot: Too large')
             raise HTTPException(
                 status_code=400,
                 detail="Screenshot file too large"
@@ -62,6 +65,7 @@ def screenshot(
 
         if not utils.has_jpeg_headers(screenshot_view) \
         and not utils.has_png_headers(screenshot_view):
+            app.session.logger.warning('Failed to upload screenshot: Invalid filetype')
             raise HTTPException(
                 status_code=400,
                 detail="Invalid file type"
