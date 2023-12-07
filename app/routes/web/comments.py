@@ -38,12 +38,15 @@ def get_comments(
     target: Optional[str] = Form(None),
 ):
     if not (user := users.fetch_by_name(username)):
+        app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
 
     if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
+        app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
 
     if not status.exists(user.id):
+        app.session.logger.warning("Failed to submit comment: Not logged in")
         raise HTTPException(401, detail='Bancho')
 
     users.update(user.id, {'latest_activity': datetime.now()})
@@ -87,12 +90,15 @@ def get_comments(
             target = CommentTarget.Map
 
         if not (content):
+            app.session.logger.warning("Failed to submit comment: No content")
             raise HTTPException(400, detail="No content")
 
         if len(content) > 80:
+            app.session.logger.warning("Failed to submit comment: Too large")
             raise HTTPException(400, detail="Content size")
 
         if not (beatmap := beatmaps.fetch_by_id(beatmap_id)):
+            app.session.logger.warning("Failed to submit comment: Beatmap not found")
             raise HTTPException(404, detail="Beatmap not found")
 
         content = content.replace('\t', '') \
