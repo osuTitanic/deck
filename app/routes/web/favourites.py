@@ -70,4 +70,8 @@ def get_favourites(
 
     player_favourites = favourites.fetch_many(player.id)
 
+    app.session.logger.info(
+        f'Got favourites request from "{username}" ({len(player_favourites)})'
+    )
+
     return '\n'.join([str(favourite.set_id) for favourite in player_favourites])
