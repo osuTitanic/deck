@@ -148,7 +148,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     client_hash = status.client_hash(player.id)
 
-    if (score.client_hash != None) and (not score.client_hash.startswith(client_hash)):
+    if (score.client_hash != None) and (not client_hash.startswith(score.client_hash)):
         app.session.logger.warning(
             f'"{score.username}" submitted score with client hash mismatch. ({score.client_hash} -> {client_hash})'
         )
