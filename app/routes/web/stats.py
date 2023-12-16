@@ -37,7 +37,7 @@ def legacy_user_stats(
 
     return '|'.join([
         str(current_score),
-        str(current_acc),
+        str(round(current_acc, 5)),
         str(current_rank),
         str(user_id) # Avatar Filename
     ])
