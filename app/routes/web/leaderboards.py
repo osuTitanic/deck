@@ -163,8 +163,14 @@ def get_scores(
         )
     )
 
+    # response.append(str(
+    #     ratings.fetch_average(beatmap.md5)
+    # ))
+
+    # NOTE: This was actually used for ratings, but
+    #       we are using the new star ratings instead
     response.append(str(
-        ratings.fetch_average(beatmap.md5)
+        beatmap.diff
     ))
 
     if personal_best:
@@ -290,8 +296,14 @@ def legacy_scores(
         )
     )
 
+    # response.append(str(
+    #     ratings.fetch_average(beatmap.md5)
+    # ))
+
+    # NOTE: This was actually used for ratings, but
+    #       we are using the new star ratings instead
     response.append(str(
-        ratings.fetch_average(beatmap.md5)
+        beatmap.diff
     ))
 
     personal_best = scores.fetch_personal_best(
