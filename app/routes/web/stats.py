@@ -1,6 +1,6 @@
 
 from app.common.database.repositories import users
-from app.common.cache import status, leaderboards
+from app.common.cache import leaderboards
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -27,17 +27,17 @@ def legacy_user_stats(
         app.session.logger.warning('Failed to send stats: User not found!')
         raise HTTPException(404)
 
-    if not (s := status.get(user_id)):
-        app.session.logger.warning('Failed to send stats: User not online!')
-        raise HTTPException(404)
+    # TODO: Check if user is online?
 
-    current_rank = leaderboards.global_rank(user_id, s.mode.value)
-    current_acc = leaderboards.accuracy(user_id, s.mode.value)
-    current_score = leaderboards.score(user_id, s.mode.value)
+    current_rank = leaderboards.global_rank(user_id, mode=0)
+    current_acc = leaderboards.accuracy(user_id, mode=0)
+    current_score = leaderboards.score(user_id, mode=0)
 
     return '|'.join([
         str(current_score),
-        str(round(current_acc, 5)),
+        str(current_acc),
+        "", # TODO
+        "", # TODO
         str(current_rank),
         str(user_id) # Avatar Filename
     ])
