@@ -448,6 +448,10 @@ def score_submission(
         app.session.logger.warning(f'Failed to submit score: Restricted')
         return Response('error: ban')
 
+    if player.is_bot:
+        app.session.logger.warning(f'Failed to submit score: Bot account')
+        return Response('error: inactive')
+
     # Beatmap must be bound to session
     score.beatmap = score.session.query(DBBeatmap) \
         .filter(DBBeatmap.md5 == score.file_checksum) \
