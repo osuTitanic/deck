@@ -26,13 +26,13 @@ def search(
     password: str = Query(None, alias='h'),
     query: str = Query(..., alias='q')
 ):
+    player = None
+
     with app.session.database.managed_session() as session:
         if legacy_password is None and password is None:
-            # Legacy clients don't have authentication for osu! direct
+            # NOTE: Old clients don't have authentication for osu! direct
             if not config.FREE_SUPPORTER:
                 return '-1\nThis version of osu! does not support osu!direct'
-
-            player = None
 
         else:
             if not (player := users.fetch_by_name(username, session)):
@@ -109,7 +109,7 @@ def pickup_info(
             if not player.is_supporter:
                 raise HTTPException(401)
         else:
-            # Old clients don't use authentication for direct pickups
+            # NOTE: Old clients don't use authentication for direct pickups
             if not config.FREE_SUPPORTER:
                 raise HTTPException(401)
 
