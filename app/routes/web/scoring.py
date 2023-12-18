@@ -538,7 +538,7 @@ def score_submission(
             upload_replay,
             score,
             score_object.id
-        )
+        ).add_done_callback(utils.thread_callback)
 
         score.session.commit()
 

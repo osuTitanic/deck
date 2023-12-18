@@ -1,5 +1,6 @@
 
 from py3rijndael import RijndaelCbc, Pkcs7Padding
+from concurrent.futures import Future
 from fastapi import Request
 from typing import Optional
 from PIL import Image
@@ -261,3 +262,16 @@ def resolve_ip_address(request: Request):
         ip = request.client.host
 
     return ip.strip()
+
+def thread_callback(future: Future):
+    if (e := future.exception()):
+        app.session.database.logger.error(
+            f'Failed to execute thread: {e}',
+            exc_info=e
+        )
+        return
+
+    app.session.database.logger.debug(
+        f'Thread completed: {e}',
+        exc_info=e
+    )
