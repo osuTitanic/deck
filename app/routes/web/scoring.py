@@ -537,7 +537,9 @@ def score_submission(
             upload_replay,
             score,
             score_object.id
-        ).add_done_callback(utils.thread_callback)
+        ).add_done_callback(
+            utils.thread_callback
+        )
 
         score.session.commit()
 
@@ -645,6 +647,8 @@ def score_submission(
             score_object,
             beatmap_rank,
             old_rank
+        ).add_done_callback(
+            utils.thread_callback
         )
 
     # Reload stats on bancho
@@ -744,6 +748,8 @@ def legacy_score_submission(
             upload_replay,
             score,
             score_object.id
+        ).add_done_callback(
+            utils.thread_callback
         )
 
         score.session.commit()
@@ -827,6 +833,8 @@ def legacy_score_submission(
             score_object,
             beatmap_rank,
             old_rank
+        ).add_done_callback(
+            utils.thread_callback
         )
 
     return '\n'.join(response)
