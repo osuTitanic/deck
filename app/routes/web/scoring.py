@@ -268,8 +268,7 @@ def upload_replay(score: Score, score_id: int) -> None:
                 mods=score.enabled_mods.value,
                 beatmap_id=score.beatmap.id,
                 mode=score.play_mode.value,
-                score_id=score_id,
-                session=score.session
+                score_id=score_id
             )
 
             # Replay will be cached temporarily and deleted after
