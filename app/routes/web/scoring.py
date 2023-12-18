@@ -170,7 +170,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
         # Check for duplicate score
         replay_hash = hashlib.md5(score.replay).hexdigest()
-        duplicate_score = scores.fetch_by_replay_checksum(replay_hash)
+        duplicate_score = scores.fetch_by_replay_checksum(replay_hash, score.session)
 
         if duplicate_score:
             if duplicate_score.user_id != player.id:
@@ -201,8 +201,15 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
+    recent_scores = scores.fetch_recent(
+        player.id,
+        score.play_mode.value,
+        limit=5,
+        session=score.session
+    )
+
     # Check score submission "spam"
-    if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
+    if recent_scores:
         # TODO: Refactor this mess...
         submission_times = [
             # Get the time between score submissions
@@ -261,7 +268,8 @@ def upload_replay(score: Score, score_id: int) -> None:
                 mods=score.enabled_mods.value,
                 beatmap_id=score.beatmap.id,
                 mode=score.play_mode.value,
-                score_id=score_id
+                score_id=score_id,
+                session=score.session
             )
 
             # Replay will be cached temporarily and deleted after
@@ -278,7 +286,7 @@ def upload_replay(score: Score, score_id: int) -> None:
                         score.replay
                     )
     else:
-        # Cache replay for
+        # Cache replay for 30 minutes
         app.session.storage.cache_replay(
             id=score_id,
             content=score.replay,
@@ -315,7 +323,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
     histories.update_plays(
         stats.user_id,
-        stats.mode
+        stats.mode,
+        score.session
     )
 
     plays.update(
@@ -323,6 +332,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         score.beatmap.id,
         score.user.id,
         score.beatmap.set_id,
+        session=score.session
     )
 
     best_scores = scores.fetch_best(
@@ -330,7 +340,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         mode=score.play_mode.value,
         exclude_approved=False
                          if config.APPROVED_MAP_REWARDS else
-                         True
+                         True,
+        session=score.session
     )
 
     if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
@@ -404,13 +415,15 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     if player.preferred_mode != score.play_mode.value:
         recent_scores = scores.fetch_recent_all(
             player.id,
-            limit=30
+            limit=30,
+            session=score.session
         )
 
         if len({s.mode for s in recent_scores}) == 1:
             users.update(
                 player.id,
-                {'preferred_mode': score.play_mode.value}
+                {'preferred_mode': score.play_mode.value},
+                score.session
             )
 
     return stats, old_stats
@@ -430,7 +443,7 @@ def score_submission(
     score: Score = Depends(parse_score_data),
 ):
     password = legacy_password or password
-    score.user = users.fetch_by_name(score.username)
+    score.user = users.fetch_by_name(score.username, score.session)
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
@@ -467,7 +480,8 @@ def score_submission(
 
     users.update(
         player.id,
-        {'latest_activity': datetime.now()}
+        {'latest_activity': datetime.now()},
+        score.session
     )
 
     score.pp = score.calculate_ppv2()
@@ -493,7 +507,8 @@ def score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value
+            score.play_mode.value,
+            session=score.session
         )
 
         score.status = score.get_status()
@@ -502,7 +517,8 @@ def score_submission(
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value
+                    mode=score.play_mode.value,
+                    session=score.session
                    ) \
                 if score.personal_best else 0
 
@@ -529,6 +545,7 @@ def score_submission(
     new_stats, old_stats = update_stats(score, player)
 
     if not score.beatmap.is_ranked:
+        score.session.close()
         app.session.events.submit(
             'user_update',
             user_id=player.id
@@ -536,6 +553,7 @@ def score_submission(
         return Response('error: beatmap')
 
     if not config.ALLOW_RELAX and score.relaxing:
+        score.session.close()
         app.session.events.submit(
             'user_update',
             user_id=player.id
@@ -547,19 +565,24 @@ def score_submission(
 
     # TODO: Enable achievements for relax?
     if score.passed and not score.relaxing:
-        unlocked_achievements = achievements.fetch_many(player.id)
+        unlocked_achievements = achievements.fetch_many(player.id, score.session)
         ignore_list = [a.filename for a in unlocked_achievements]
 
         new_achievements = AchievementManager.check(score_object, ignore_list)
         achievement_response = [a.filename for a in new_achievements]
 
         if new_achievements:
-            achievements.create_many(new_achievements, player.id)
+            achievements.create_many(
+                new_achievements,
+                player.id,
+                score.session
+            )
 
     beatmap_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
         score.beatmap.id,
-        mode=score.play_mode.value
+        mode=score.play_mode.value,
+        session=score.session
     )
 
     beatmapInfo = Chart()
@@ -639,7 +662,7 @@ def legacy_score_submission(
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
 ):
-    score.user = users.fetch_by_name(score.username)
+    score.user = users.fetch_by_name(score.username, score.session)
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
@@ -671,7 +694,8 @@ def legacy_score_submission(
 
     users.update(
         player.id,
-        {'latest_activity': datetime.now()}
+        {'latest_activity': datetime.now()},
+        score.session
     )
 
     score.pp = score.calculate_ppv2()
@@ -690,7 +714,8 @@ def legacy_score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value
+            score.play_mode.value,
+            session=score.session
         )
 
         score.status = score.get_status()
@@ -699,7 +724,8 @@ def legacy_score_submission(
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value
+                    mode=score.play_mode.value,
+                    session=score.session
                    ) \
                 if score.personal_best else 0
 
@@ -767,7 +793,8 @@ def legacy_score_submission(
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
         score.beatmap.id,
-        mode=score.play_mode.value
+        mode=score.play_mode.value,
+        session=score.session
     )
 
     # Reload stats on bancho

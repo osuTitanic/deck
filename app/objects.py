@@ -247,7 +247,8 @@ class Score:
                 self.beatmap.id,
                 self.user.id,
                 self.play_mode.value,
-                self.enabled_mods.value
+                self.enabled_mods.value,
+                self.session
             )
 
             if not mods_pb:
