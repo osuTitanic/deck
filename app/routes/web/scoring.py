@@ -164,6 +164,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
+                autoban=True,
                 reason='Score submission without replay'
             )
             return Response('error: ban')
@@ -180,6 +181,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 app.session.events.submit(
                     'restrict',
                     user_id=player.id,
+                    autoban=True,
                     reason='Duplicate replay in score submission'
                 )
                 return Response('error: ban')
@@ -197,6 +199,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         app.session.events.submit(
             'restrict',
             user_id=player.id,
+            autoban=True,
             reason='Invalid mods on score submission'
         )
         return Response('error: ban')
@@ -252,6 +255,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         app.session.events.submit(
             'restrict',
             user_id=player.id,
+            autoban=True,
             reason=f'Hacking/Cheating ({score.flags.value})'
         )
         return Response('error: ban')
