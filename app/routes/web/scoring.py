@@ -408,6 +408,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
                 best_scores,
                 stats,
                 player.country
+            ).add_done_callback(
+                utils.thread_callback
             )
 
     # Update preferred mode
