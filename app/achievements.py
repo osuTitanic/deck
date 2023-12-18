@@ -842,7 +842,7 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
             continue
 
         results.append((
-            app.session.executor.submit(
+            app.session.achievement_executor.submit(
                 achievement.check,
                 score
             ),
