@@ -1,6 +1,5 @@
 
 from app.common.database.repositories import logs, users
-from app.common.cache import status
 
 from typing import Optional
 from fastapi import (
@@ -35,18 +34,18 @@ def osu_error(
     version: str = Form(...),
     config: str = Form(...)
 ):
-    if not status.exists(user_id):
-        raise HTTPException(400)
-
     # Parse config to get password
     config = utils.parse_osu_config(config)
 
     with app.session.database.managed_session() as session:
         if not (user := users.fetch_by_id(user_id, session)):
-            raise HTTPException(400)
+            raise HTTPException(401)
 
         if not bcrypt.checkpw(config['Password'].encode(), user.bcrypt.encode()):
-            raise HTTPException(400)
+            raise HTTPException(401)
+
+        if user.restricted or not user.activated:
+            raise HTTPException(401)
 
         error_dict = {
             'user_id': user_id,

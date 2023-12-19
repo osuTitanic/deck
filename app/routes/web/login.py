@@ -26,6 +26,9 @@ def legacy_login(
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
         return "0"
 
+    if player.restricted or not player.activated:
+        return "0"
+
     users.update(player.id, {'latest_activity': datetime.now()})
 
     app.session.logger.info(
