@@ -123,27 +123,18 @@ def check_beatmap(
     # Get short-from mods string (e.g. HDHR)
     mods = Mods(score.mods).short if score.mods > 0 else ""
 
+    if beatmap_rank >= 1000:
+        submit(
+            player.id,
+            score.mode,
+            '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
+            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
+            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+            submit_to_chat=(beatmap_rank >= 5)
+        )
+
     if beatmap_rank != 1:
-        # Score is not on the leaderboards
-        # Check if score is in the top 1000
-
-        if beatmap_rank >= 1000:
-            submit(
-                player.id,
-                score.mode,
-                '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
-                (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-                (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
-                submit_to_chat=False
-            )
-
-    submit(
-        player.id,
-        score.mode,
-        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
-        (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-        (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}')
-    )
+        return
 
     if old_rank == beatmap_rank:
         return
@@ -168,7 +159,6 @@ def check_beatmap(
             (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
             submit_to_chat=False
         )
-
 
 def check_pp(
     score: DBScore,
