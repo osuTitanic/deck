@@ -123,14 +123,14 @@ def check_beatmap(
     # Get short-from mods string (e.g. HDHR)
     mods = Mods(score.mods).short if score.mods > 0 else ""
 
-    if beatmap_rank >= 1000:
+    if beatmap_rank <= 1000:
         submit(
             player.id,
             score.mode,
             '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
-            submit_to_chat=(beatmap_rank >= 5)
+            submit_to_chat=(beatmap_rank <= 5)
         )
 
     if beatmap_rank != 1:
