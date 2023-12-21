@@ -11,6 +11,7 @@ from fastapi import (
 from app.common.database.repositories import (
     beatmaps,
     comments,
+    groups,
     users
 )
 
@@ -111,7 +112,9 @@ def get_comments(
                 CommentTarget.Song: set_id
             }[target]
 
-            permissions = Permissions(user.permissions)
+            permissions = Permissions(
+                groups.get_player_permissions(user.id, session)
+            )
 
             if Permissions.Supporter not in permissions:
                 color = None
