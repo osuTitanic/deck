@@ -14,7 +14,6 @@ from app.common.cache import status
 from app.common.database.repositories import (
     relationships,
     beatmaps,
-    ratings,
     scores,
     users
 )
