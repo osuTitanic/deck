@@ -90,16 +90,16 @@ class Score:
         self.status = ScoreStatus.Submitted
         self.pp = 0.0
 
+        self.session = app.session.database.session
+        self.personal_best: Optional[DBScore] = None
+        self.beatmap: Optional[DBBeatmap] = None
+        self.user: Optional[DBUser] = None
+
         # Optional
         self.personal_best: Optional[DBScore] = None
         self.fun_spoiler: Optional[str] = None
         self.client_hash: Optional[str] = None
         self.processes: Optional[str] = None
-
-        self.session = app.session.database.session
-        self.personal_best: Optional[DBScore] = None
-        self.beatmap: Optional[DBBeatmap] = None
-        self.user: Optional[DBUser] = None
 
         if passed:
             # "Fix" for old clients

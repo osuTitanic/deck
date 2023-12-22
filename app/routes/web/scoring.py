@@ -24,9 +24,11 @@ from app.common.helpers import performance
 from app.common.database.repositories import (
     achievements,
     histories,
+    beatmaps,
     scores,
     plays,
-    users
+    users,
+    stats
 )
 
 import hashlib
@@ -310,27 +312,28 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     score.session.commit()
 
     # Update user stats
-    stats: DBStats = score.session.query(DBStats) \
-            .filter(DBStats.user_id == player.id) \
-            .filter(DBStats.mode == score.play_mode.value) \
-            .first()
+    user_stats = stats.fetch_by_mode(
+        score.user.id,
+        score.play_mode.value,
+        score.session
+    )
 
-    old_stats = copy(stats)
+    old_stats = copy(user_stats)
 
-    stats.playcount += 1
-    stats.playtime += score.beatmap.total_length \
+    user_stats.playcount += 1
+    user_stats.playtime += score.beatmap.total_length \
                       if score.passed else \
                       score.failtime / 1000
 
     if score.status != ScoreStatus.Failed:
-        stats.tscore += score.total_score
-        stats.total_hits += score.total_hits
+        user_stats.tscore += score.total_score
+        user_stats.total_hits += score.total_hits
 
     score.session.commit()
 
     histories.update_plays(
-        stats.user_id,
-        stats.mode,
+        user_stats.user_id,
+        user_stats.mode,
         score.session
     )
 
@@ -353,35 +356,35 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
     if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
         # Update max combo
-        if score.max_combo > stats.max_combo:
-            stats.max_combo = score.max_combo
+        if score.max_combo > user_stats.max_combo:
+            user_stats.max_combo = score.max_combo
 
     if best_scores:
         # Update accuracy
         weighted_acc = sum(score.acc * 0.95**index for index, score in enumerate(best_scores))
         bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores)))
 
-        stats.acc = (weighted_acc * bonus_acc) / 100
+        user_stats.acc = (weighted_acc * bonus_acc) / 100
 
         # Update performance
         weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(best_scores))
         bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
 
-        stats.pp = weighted_pp + bonus_pp
+        user_stats.pp = weighted_pp + bonus_pp
 
         # Update rscore
-        stats.rscore = sum(
+        user_stats.rscore = sum(
             score.total_score for score in best_scores
         )
 
         leaderboards.update(
-            stats,
+            user_stats,
             player.country.lower()
         )
 
-        stats.rank = leaderboards.global_rank(
-            stats.user_id,
-            stats.mode
+        user_stats.rank = leaderboards.global_rank(
+            user_stats.user_id,
+            user_stats.mode
         )
 
         try:
@@ -393,14 +396,14 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
                 grades[grade] = grades.get(grade, 0) + 1
 
             for grade, count in grades.items():
-                setattr(stats, grade, count)
+                setattr(user_stats, grade, count)
 
-            score.session.query(DBStats) \
-                .filter(DBStats.user_id == score.user.id) \
-                .filter(DBStats.mode == score.play_mode.value) \
-                .update(grades)
-
-            score.session.commit()
+            stats.update(
+                user_stats.user_id,
+                user_stats.mode,
+                grades,
+                score.session
+            )
         except Exception as e:
             app.session.logger.error(
                 'Failed to update user grades!',
@@ -414,7 +417,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             app.session.executor.submit(
                 update_ppv1,
                 best_scores,
-                stats,
+                user_stats,
                 player.country
             ).add_done_callback(
                 utils.thread_callback
@@ -435,7 +438,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
                 score.session
             )
 
-    return stats, old_stats
+    return user_stats, old_stats
 
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
     app.session.logger.debug('Updating ppv1...')
@@ -452,7 +455,11 @@ def score_submission(
     score: Score = Depends(parse_score_data),
 ):
     password = legacy_password or password
-    score.user = users.fetch_by_name(score.username, score.session)
+
+    score.user = users.fetch_by_name(
+        score.username,
+        score.session
+    )
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
@@ -474,10 +481,10 @@ def score_submission(
         app.session.logger.warning(f'Failed to submit score: Bot account')
         return Response('error: inactive')
 
-    # Beatmap must be bound to session
-    score.beatmap = score.session.query(DBBeatmap) \
-        .filter(DBBeatmap.md5 == score.file_checksum) \
-        .first()
+    score.beatmap = beatmaps.fetch_by_checksum(
+        score.file_checksum,
+        score.session
+    )
 
     if not score.beatmap:
         app.session.logger.warning(f'Failed to submit score: Beatmap not found')
@@ -675,7 +682,10 @@ def legacy_score_submission(
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
 ):
-    score.user = users.fetch_by_name(score.username, score.session)
+    score.user = users.fetch_by_name(
+        score.username,
+        score.session
+    )
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
@@ -693,10 +703,10 @@ def legacy_score_submission(
         app.session.logger.warning(f'Failed to submit score: Restricted')
         raise HTTPException(401)
 
-    # Beatmap must be bound to session
-    score.beatmap = score.session.query(DBBeatmap) \
-        .filter(DBBeatmap.md5 == score.file_checksum) \
-        .first()
+    score.beatmap = beatmaps.fetch_by_checksum(
+        score.file_checksum,
+        score.session
+    )
 
     if not score.beatmap:
         app.session.logger.warning(f'Failed to submit score: Beatmap not found')
@@ -771,6 +781,7 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
+        score.session.close()
         return
 
     if not config.ALLOW_RELAX and score.relaxing:
@@ -778,6 +789,7 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
+        score.session.close()
         return
 
     app.session.logger.info(
