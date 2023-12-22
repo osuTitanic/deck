@@ -69,7 +69,7 @@ def osz(
             })
         instance.commit()
 
-        if filesize <= 0:
+        if len(filesize) <= 0:
             # Why does this happen?
             raise HTTPException(500)
 
