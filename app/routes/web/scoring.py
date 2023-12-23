@@ -22,6 +22,7 @@ from app.common.cache import leaderboards, status
 from app.common.helpers import performance
 
 from app.common.database.repositories import (
+    notifications,
     achievements,
     histories,
     beatmaps,
@@ -445,6 +446,28 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
     return user_stats, old_stats
 
+def unlock_achievements(
+    score: Score,
+    score_object: DBScore,
+    player: DBUser
+) -> List[str]:
+    app.session.logger.debug('Checking achievements...')
+
+    unlocked_achievements = achievements.fetch_many(player.id, score.session)
+    ignore_list = [a.filename for a in unlocked_achievements]
+
+    new_achievements = AchievementManager.check(score_object, ignore_list)
+    achievement_response = [a.filename for a in new_achievements]
+
+    if new_achievements:
+        achievements.create_many(
+            new_achievements,
+            player.id,
+            score.session
+        )
+
+    return achievement_response
+
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
     app.session.logger.debug('Updating ppv1...')
     stats.ppv1 = performance.calculate_weighted_ppv1(scores)
@@ -588,18 +611,11 @@ def score_submission(
 
     # TODO: Enable achievements for relax?
     if score.passed and not score.relaxing:
-        unlocked_achievements = achievements.fetch_many(player.id, score.session)
-        ignore_list = [a.filename for a in unlocked_achievements]
-
-        new_achievements = AchievementManager.check(score_object, ignore_list)
-        achievement_response = [a.filename for a in new_achievements]
-
-        if new_achievements:
-            achievements.create_many(
-                new_achievements,
-                player.id,
-                score.session
-            )
+        achievement_response = unlock_achievements(
+            score,
+            score_object,
+            player
+        )
 
     beatmap_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
@@ -813,14 +829,11 @@ def legacy_score_submission(
     response: List[Chart] = []
 
     if not score.relaxing:
-        unlocked_achievements = achievements.fetch_many(player.id)
-        ignore_list = [a.filename for a in unlocked_achievements]
-
-        new_achievements = AchievementManager.check(score_object, ignore_list)
-        achievement_response = [a.filename for a in new_achievements]
-
-        if new_achievements:
-            achievements.create_many(new_achievements, player.id)
+        achievement_response = unlock_achievements(
+            score,
+            score_object,
+            player
+        )
 
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
