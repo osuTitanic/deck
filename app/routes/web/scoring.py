@@ -13,9 +13,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
+from app.common.constants import GameMode, BadFlags, NotificationType
+from app.common.database import DBStats, DBScore, DBUser
 from app.common.helpers.score import calculate_rx_score
-from app.common.database import DBStats, DBScore, DBUser, DBBeatmap
-from app.common.constants import GameMode, BadFlags
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
@@ -464,6 +464,31 @@ def unlock_achievements(
             new_achievements,
             player.id,
             score.session
+        )
+
+        # Send notification
+        if len(new_achievements) > 1:
+            names = [f'"{a.name}"' for a in new_achievements]
+            achievement_names = ', '.join(name for name in names[:-1])
+            notification_header = 'Achievements Unlocked!'
+            notification_message = (
+                'Congratulations for unlocking the '
+                f'{achievement_names} and {names[-1]} achievements!'
+            )
+
+        else:
+            notification_header = 'Achievement Unlocked!'
+            notification_message = (
+                'Congratulations for unlocking the '
+                f'"{new_achievements[0].name}" achievement!'
+            )
+
+        notifications.create(
+            player.id,
+            NotificationType.Achievement.value,
+            notification_header,
+            notification_message,
+            link=f'https://osu.{config.DOMAIN_NAME}/u/{player.id}#achievements'
         )
 
     return achievement_response
