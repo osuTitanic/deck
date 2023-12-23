@@ -387,6 +387,11 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             user_stats.mode
         )
 
+        histories.update_rank(
+            user_stats,
+            player.country
+        )
+
         try:
             grades = {}
 
