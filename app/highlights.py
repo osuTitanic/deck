@@ -1,7 +1,6 @@
 
-from app.common.database.repositories import activities
-from app.common.database.repositories import scores
-from app.common.constants import Mods
+from app.common.database.repositories import notifications, activities, scores
+from app.common.constants import Mods, NotificationType
 from app.common.database import (
     DBBeatmap,
     DBScore,
@@ -34,7 +33,7 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submi
                 exc_info=e
             )
 
-    # TODO: Refactor activities to use json...
+    # TODO: Refactor activities to use markdown links!
     try:
         activities.create(
             user_id,
@@ -107,6 +106,15 @@ def check_rank(
             stats.mode,
             '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
+        )
+
+        notifications.create(
+            player.id,
+            NotificationType.Other.value,
+            'Welcome to the top!',
+            f'Congratulations for reaching the #1 global rank in {mode_name}.'
+            ' Your incredible skill and dedication have set you apart as the absolute best in the game.'
+            ' Best of luck on your continued journey at the top!'
         )
 
 def check_beatmap(
