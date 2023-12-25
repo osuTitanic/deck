@@ -1,4 +1,6 @@
-.data
 .github
 .vscode
+.data
+.git
+.env
 venv
