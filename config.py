@@ -22,6 +22,13 @@ REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
 SENDGRID_EMAIL = os.environ.get('SENDGRID_EMAIL')
 
+MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY')
+MAILGUN_EMAIL = os.environ.get('MAILGUN_EMAIL')
+MAILGUN_DOMAIN = MAILGUN_EMAIL.split('@')[-1]
+
+EMAILS_ENABLED = MAILGUN_API_KEY is not None or SENDGRID_API_KEY is not None
+EMAIL = MAILGUN_EMAIL or SENDGRID_EMAIL
+
 WEB_HOST = os.environ.get('WEB_HOST')
 WEB_PORT = int(os.environ.get('WEB_PORT', 80))
 
