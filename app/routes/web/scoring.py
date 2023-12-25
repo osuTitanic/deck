@@ -13,20 +13,23 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
+from app.common.constants import GameMode, BadFlags, NotificationType
+from app.common.database import DBStats, DBScore, DBUser
 from app.common.helpers.score import calculate_rx_score
-from app.common.database import DBStats, DBScore, DBUser, DBBeatmap
-from app.common.constants import GameMode, BadFlags
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
 
 from app.common.database.repositories import (
+    notifications,
     achievements,
     histories,
+    beatmaps,
     scores,
     plays,
-    users
+    users,
+    stats
 )
 
 import hashlib
@@ -148,9 +151,13 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     client_hash = status.client_hash(player.id)
 
-    if (score.client_hash != None) and (score.client_hash != client_hash):
+    if (
+        score.client_hash is not None
+        and client_hash is not None
+        and not client_hash.startswith(score.client_hash)
+    ):
         app.session.logger.warning(
-            f'"{score.username}" submitted score with client hash mismatch.'
+            f'"{score.username}" submitted score with client hash mismatch. ({score.client_hash} -> {client_hash})'
         )
         # TODO: Ban user?
         return Response('error: no')
@@ -164,13 +171,14 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
+                autoban=True,
                 reason='Score submission without replay'
             )
             return Response('error: ban')
 
         # Check for duplicate score
         replay_hash = hashlib.md5(score.replay).hexdigest()
-        duplicate_score = scores.fetch_by_replay_checksum(replay_hash)
+        duplicate_score = scores.fetch_by_replay_checksum(replay_hash, score.session)
 
         if duplicate_score:
             if duplicate_score.user_id != player.id:
@@ -180,6 +188,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 app.session.events.submit(
                     'restrict',
                     user_id=player.id,
+                    autoban=True,
                     reason='Duplicate replay in score submission'
                 )
                 return Response('error: ban')
@@ -197,12 +206,20 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         app.session.events.submit(
             'restrict',
             user_id=player.id,
+            autoban=True,
             reason='Invalid mods on score submission'
         )
         return Response('error: ban')
 
+    recent_scores = scores.fetch_recent(
+        player.id,
+        score.play_mode.value,
+        limit=5,
+        session=score.session
+    )
+
     # Check score submission "spam"
-    if (recent_scores := scores.fetch_recent(player.id, score.play_mode.value, limit=5)):
+    if recent_scores:
         # TODO: Refactor this mess...
         submission_times = [
             # Get the time between score submissions
@@ -245,6 +262,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         app.session.events.submit(
             'restrict',
             user_id=player.id,
+            autoban=True,
             reason=f'Hacking/Cheating ({score.flags.value})'
         )
         return Response('error: ban')
@@ -278,7 +296,7 @@ def upload_replay(score: Score, score_id: int) -> None:
                         score.replay
                     )
     else:
-        # Cache replay for
+        # Cache replay for 30 minutes
         app.session.storage.cache_replay(
             id=score_id,
             content=score.replay,
@@ -295,27 +313,29 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     score.session.commit()
 
     # Update user stats
-    stats: DBStats = score.session.query(DBStats) \
-            .filter(DBStats.user_id == player.id) \
-            .filter(DBStats.mode == score.play_mode.value) \
-            .first()
+    user_stats = stats.fetch_by_mode(
+        score.user.id,
+        score.play_mode.value,
+        score.session
+    )
 
-    old_stats = copy(stats)
+    old_stats = copy(user_stats)
 
-    stats.playcount += 1
-    stats.playtime += score.beatmap.total_length \
+    user_stats.playcount += 1
+    user_stats.playtime += score.beatmap.total_length \
                       if score.passed else \
                       score.failtime / 1000
 
     if score.status != ScoreStatus.Failed:
-        stats.tscore += score.total_score
-        stats.total_hits += score.total_hits
+        user_stats.tscore += score.total_score
+        user_stats.total_hits += score.total_hits
 
     score.session.commit()
 
     histories.update_plays(
-        stats.user_id,
-        stats.mode
+        user_stats.user_id,
+        user_stats.mode,
+        score.session
     )
 
     plays.update(
@@ -323,6 +343,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         score.beatmap.id,
         score.user.id,
         score.beatmap.set_id,
+        session=score.session
     )
 
     best_scores = scores.fetch_best(
@@ -330,40 +351,46 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         mode=score.play_mode.value,
         exclude_approved=False
                          if config.APPROVED_MAP_REWARDS else
-                         True
+                         True,
+        session=score.session
     )
 
     if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
         # Update max combo
-        if score.max_combo > stats.max_combo:
-            stats.max_combo = score.max_combo
+        if score.max_combo > user_stats.max_combo:
+            user_stats.max_combo = score.max_combo
 
     if best_scores:
         # Update accuracy
         weighted_acc = sum(score.acc * 0.95**index for index, score in enumerate(best_scores))
         bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores)))
 
-        stats.acc = (weighted_acc * bonus_acc) / 100
+        user_stats.acc = (weighted_acc * bonus_acc) / 100
 
         # Update performance
         weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(best_scores))
         bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
 
-        stats.pp = weighted_pp + bonus_pp
+        user_stats.pp = weighted_pp + bonus_pp
 
         # Update rscore
-        stats.rscore = sum(
+        user_stats.rscore = sum(
             score.total_score for score in best_scores
         )
 
         leaderboards.update(
-            stats,
+            user_stats,
             player.country.lower()
         )
 
-        stats.rank = leaderboards.global_rank(
-            stats.user_id,
-            stats.mode
+        user_stats.rank = leaderboards.global_rank(
+            user_stats.user_id,
+            user_stats.mode
+        )
+
+        histories.update_rank(
+            user_stats,
+            player.country
         )
 
         try:
@@ -375,14 +402,14 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
                 grades[grade] = grades.get(grade, 0) + 1
 
             for grade, count in grades.items():
-                setattr(stats, grade, count)
+                setattr(user_stats, grade, count)
 
-            score.session.query(DBStats) \
-                .filter(DBStats.user_id == score.user.id) \
-                .filter(DBStats.mode == score.play_mode.value) \
-                .update(grades)
-
-            score.session.commit()
+            stats.update(
+                user_stats.user_id,
+                user_stats.mode,
+                grades,
+                score.session
+            )
         except Exception as e:
             app.session.logger.error(
                 'Failed to update user grades!',
@@ -396,24 +423,75 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             app.session.executor.submit(
                 update_ppv1,
                 best_scores,
-                stats,
+                user_stats,
                 player.country
+            ).add_done_callback(
+                utils.thread_callback
             )
 
     # Update preferred mode
     if player.preferred_mode != score.play_mode.value:
         recent_scores = scores.fetch_recent_all(
             player.id,
-            limit=30
+            limit=30,
+            session=score.session
         )
 
         if len({s.mode for s in recent_scores}) == 1:
             users.update(
                 player.id,
-                {'preferred_mode': score.play_mode.value}
+                {'preferred_mode': score.play_mode.value},
+                score.session
             )
 
-    return stats, old_stats
+    return user_stats, old_stats
+
+def unlock_achievements(
+    score: Score,
+    score_object: DBScore,
+    player: DBUser
+) -> List[str]:
+    app.session.logger.debug('Checking achievements...')
+
+    unlocked_achievements = achievements.fetch_many(player.id, score.session)
+    ignore_list = [a.filename for a in unlocked_achievements]
+
+    new_achievements = AchievementManager.check(score_object, ignore_list)
+    achievement_response = [a.filename for a in new_achievements]
+
+    if new_achievements:
+        achievements.create_many(
+            new_achievements,
+            player.id,
+            score.session
+        )
+
+        # Send notification
+        if len(new_achievements) > 1:
+            names = [f'"{a.name}"' for a in new_achievements]
+            achievement_names = ', '.join(name for name in names[:-1])
+            notification_header = 'Achievements Unlocked!'
+            notification_message = (
+                'Congratulations for unlocking the '
+                f'{achievement_names} and {names[-1]} achievements!'
+            )
+
+        else:
+            notification_header = 'Achievement Unlocked!'
+            notification_message = (
+                'Congratulations for unlocking the '
+                f'"{new_achievements[0].name}" achievement!'
+            )
+
+        notifications.create(
+            player.id,
+            NotificationType.Achievement.value,
+            notification_header,
+            notification_message,
+            link=f'https://osu.{config.DOMAIN_NAME}/u/{player.id}#achievements'
+        )
+
+    return achievement_response
 
 def update_ppv1(scores: DBScore, stats: DBStats, country: str):
     app.session.logger.debug('Updating ppv1...')
@@ -430,7 +508,11 @@ def score_submission(
     score: Score = Depends(parse_score_data),
 ):
     password = legacy_password or password
-    score.user = users.fetch_by_name(score.username)
+
+    score.user = users.fetch_by_name(
+        score.username,
+        score.session
+    )
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
@@ -448,10 +530,14 @@ def score_submission(
         app.session.logger.warning(f'Failed to submit score: Restricted')
         return Response('error: ban')
 
-    # Beatmap must be bound to session
-    score.beatmap = score.session.query(DBBeatmap) \
-        .filter(DBBeatmap.md5 == score.file_checksum) \
-        .first()
+    if player.is_bot:
+        app.session.logger.warning(f'Failed to submit score: Bot account')
+        return Response('error: inactive')
+
+    score.beatmap = beatmaps.fetch_by_checksum(
+        score.file_checksum,
+        score.session
+    )
 
     if not score.beatmap:
         app.session.logger.warning(f'Failed to submit score: Beatmap not found')
@@ -463,7 +549,8 @@ def score_submission(
 
     users.update(
         player.id,
-        {'latest_activity': datetime.now()}
+        {'latest_activity': datetime.now()},
+        score.session
     )
 
     score.pp = score.calculate_ppv2()
@@ -489,7 +576,8 @@ def score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value
+            score.play_mode.value,
+            session=score.session
         )
 
         score.status = score.get_status()
@@ -498,7 +586,8 @@ def score_submission(
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value
+                    mode=score.play_mode.value,
+                    session=score.session
                    ) \
                 if score.personal_best else 0
 
@@ -518,6 +607,8 @@ def score_submission(
             upload_replay,
             score,
             score_object.id
+        ).add_done_callback(
+            utils.thread_callback
         )
 
         score.session.commit()
@@ -525,6 +616,7 @@ def score_submission(
     new_stats, old_stats = update_stats(score, player)
 
     if not score.beatmap.is_ranked:
+        score.session.close()
         app.session.events.submit(
             'user_update',
             user_id=player.id
@@ -532,6 +624,7 @@ def score_submission(
         return Response('error: beatmap')
 
     if not config.ALLOW_RELAX and score.relaxing:
+        score.session.close()
         app.session.events.submit(
             'user_update',
             user_id=player.id
@@ -543,19 +636,17 @@ def score_submission(
 
     # TODO: Enable achievements for relax?
     if score.passed and not score.relaxing:
-        unlocked_achievements = achievements.fetch_many(player.id)
-        ignore_list = [a.filename for a in unlocked_achievements]
-
-        new_achievements = AchievementManager.check(score_object, ignore_list)
-        achievement_response = [a.filename for a in new_achievements]
-
-        if new_achievements:
-            achievements.create_many(new_achievements, player.id)
+        achievement_response = unlock_achievements(
+            score,
+            score_object,
+            player
+        )
 
     beatmap_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
         score.beatmap.id,
-        mode=score.play_mode.value
+        mode=score.play_mode.value,
+        session=score.session
     )
 
     beatmapInfo = Chart()
@@ -619,6 +710,8 @@ def score_submission(
             score_object,
             beatmap_rank,
             old_rank
+        ).add_done_callback(
+            utils.thread_callback
         )
 
     # Reload stats on bancho
@@ -635,7 +728,10 @@ def legacy_score_submission(
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
 ):
-    score.user = users.fetch_by_name(score.username)
+    score.user = users.fetch_by_name(
+        score.username,
+        score.session
+    )
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
@@ -653,10 +749,10 @@ def legacy_score_submission(
         app.session.logger.warning(f'Failed to submit score: Restricted')
         raise HTTPException(401)
 
-    # Beatmap must be bound to session
-    score.beatmap = score.session.query(DBBeatmap) \
-        .filter(DBBeatmap.md5 == score.file_checksum) \
-        .first()
+    score.beatmap = beatmaps.fetch_by_checksum(
+        score.file_checksum,
+        score.session
+    )
 
     if not score.beatmap:
         app.session.logger.warning(f'Failed to submit score: Beatmap not found')
@@ -667,7 +763,8 @@ def legacy_score_submission(
 
     users.update(
         player.id,
-        {'latest_activity': datetime.now()}
+        {'latest_activity': datetime.now()},
+        score.session
     )
 
     score.pp = score.calculate_ppv2()
@@ -686,7 +783,8 @@ def legacy_score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value
+            score.play_mode.value,
+            session=score.session
         )
 
         score.status = score.get_status()
@@ -695,7 +793,8 @@ def legacy_score_submission(
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value
+                    mode=score.play_mode.value,
+                    session=score.session
                    ) \
                 if score.personal_best else 0
 
@@ -715,6 +814,8 @@ def legacy_score_submission(
             upload_replay,
             score,
             score_object.id
+        ).add_done_callback(
+            utils.thread_callback
         )
 
         score.session.commit()
@@ -726,6 +827,7 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
+        score.session.close()
         return
 
     if not config.ALLOW_RELAX and score.relaxing:
@@ -733,6 +835,7 @@ def legacy_score_submission(
             'user_update',
             user_id=player.id
         )
+        score.session.close()
         return
 
     app.session.logger.info(
@@ -751,19 +854,17 @@ def legacy_score_submission(
     response: List[Chart] = []
 
     if not score.relaxing:
-        unlocked_achievements = achievements.fetch_many(player.id)
-        ignore_list = [a.filename for a in unlocked_achievements]
-
-        new_achievements = AchievementManager.check(score_object, ignore_list)
-        achievement_response = [a.filename for a in new_achievements]
-
-        if new_achievements:
-            achievements.create_many(new_achievements, player.id)
+        achievement_response = unlock_achievements(
+            score,
+            score_object,
+            player
+        )
 
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
         score.beatmap.id,
-        mode=score.play_mode.value
+        mode=score.play_mode.value,
+        session=score.session
     )
 
     # Reload stats on bancho
@@ -797,6 +898,8 @@ def legacy_score_submission(
             score_object,
             beatmap_rank,
             old_rank
+        ).add_done_callback(
+            utils.thread_callback
         )
 
     return '\n'.join(response)

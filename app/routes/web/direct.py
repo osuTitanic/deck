@@ -26,64 +26,64 @@ def search(
     password: str = Query(None, alias='h'),
     query: str = Query(..., alias='q')
 ):
-    if legacy_password is None and password is None:
-        # Legacy clients don't have authentication for osu! direct
-        if not config.FREE_SUPPORTER:
-            return '-1\nThis version of osu! does not support osu!direct'
+    player = None
 
-        player = None
-    else:
-        if not (player := users.fetch_by_name(username)):
-            return '-1\nFailed to authenticate user'
+    with app.session.database.managed_session() as session:
+        if legacy_password or password:
+            # NOTE: Old clients don't have authentication for osu! direct
 
-        password = password.encode() \
-                if password else \
-                legacy_password.encode()
+            if not (player := users.fetch_by_name(username, session)):
+                return '-1\nFailed to authenticate user'
 
-        if not bcrypt.checkpw(password, player.bcrypt.encode()):
-            return '-1\nFailed to authenticate user'
+            password = password.encode() \
+                    if password else \
+                    legacy_password.encode()
 
-        if not status.exists(player.id):
-            return '-1\nNot connected to bancho'
+            if not bcrypt.checkpw(password, player.bcrypt.encode()):
+                return '-1\nFailed to authenticate user'
 
-        if not player.is_supporter:
-            return "-1\nWhy are you here?"
+            if not status.exists(player.id):
+                return '-1\nNot connected to bancho'
 
-    if display_mode not in DisplayMode._value2member_map_:
-        return "-1\nInvalid display mode"
+            if not player.is_supporter:
+                return "-1\nWhy are you here?"
 
-    display_mode = DisplayMode(display_mode)
+        if display_mode not in DisplayMode._value2member_map_:
+            return "-1\nInvalid display mode"
 
-    if len(query) < 2:
-        return "-1\nQuery is too short."
+        display_mode = DisplayMode(display_mode)
 
-    app.session.logger.info(
-        f'Got osu!direct search request: "{query}" '
-        f'from "{player.name}"' if player else ''
-    )
+        if len(query) < 2:
+            return "-1\nQuery is too short."
 
-    response = []
-
-    try:
-        results = beatmapsets.search(
-            query,
-            player.id if player else 0,
-            display_mode
+        app.session.logger.info(
+            f'Got osu!direct search request: "{query}" '
+            f'from "{player.name}"' if player else ''
         )
 
-        response.append(str(
-            len(results)
-        ))
+        response = []
 
-        for set in results:
-            response.append(
-                utils.online_beatmap(set)
+        try:
+            results = beatmapsets.search(
+                query,
+                player.id if player else 0,
+                display_mode,
+                session
             )
-    except Exception as e:
-        app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
-        return "-1\nServer error. Please try again!"
 
-    return "\n".join(response)
+            response.append(str(
+                len(results)
+            ))
+
+            for set in results:
+                response.append(
+                    utils.online_beatmap(set)
+                )
+        except Exception as e:
+            app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
+            return "-1\nServer error. Please try again!"
+
+        return "\n".join(response)
 
 @router.get('/osu-search-set.php')
 def pickup_info(
@@ -95,55 +95,51 @@ def pickup_info(
     username: str = Query(None, alias='u'),
     password: str = Query(None, alias='h'),
 ):
-    if username and password:
-        if not (player := users.fetch_by_name(username)):
-            raise HTTPException(401)
+    with app.session.database.managed_session() as session:
+        if username and password:
+            if not (player := users.fetch_by_name(username, session)):
+                raise HTTPException(401)
 
-        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-            raise HTTPException(401)
+            if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+                raise HTTPException(401)
 
-        if not player.is_supporter:
-            raise HTTPException(401)
-    else:
-        # Old clients don't use authentication for direct pickups
-        if not config.FREE_SUPPORTER:
-            raise HTTPException(401)
+            if not player.is_supporter:
+                raise HTTPException(401)
 
-    if topic_id:
-        # TODO
-        raise HTTPException(404)
+        if topic_id:
+            # TODO
+            raise HTTPException(404)
 
-    if post_id:
-        # TODO
-        raise HTTPException(404)
+        if post_id:
+            # TODO
+            raise HTTPException(404)
 
-    beatmapset: Optional[DBBeatmapset] = None
+        beatmapset: Optional[DBBeatmapset] = None
 
-    if beatmap_id:
-        beatmap = beatmaps.fetch_by_id(beatmap_id)
-        beatmapset = beatmap.beatmapset if beatmap else None
+        if beatmap_id:
+            beatmap = beatmaps.fetch_by_id(beatmap_id, session)
+            beatmapset = beatmap.beatmapset if beatmap else None
 
-    if checksum:
-        beatmap = beatmaps.fetch_by_checksum(checksum)
-        beatmapset = beatmap.beatmapset if beatmap else None
+        if checksum:
+            beatmap = beatmaps.fetch_by_checksum(checksum, session)
+            beatmapset = beatmap.beatmapset if beatmap else None
 
-    if set_id:
-        beatmapset = beatmapsets.fetch_one(set_id)
+        if set_id:
+            beatmapset = beatmapsets.fetch_one(set_id, session)
 
-    if not beatmapset:
-        app.session.logger.warning("osu!direct pickup request failed: Not found")
-        raise HTTPException(404)
+        if not beatmapset:
+            app.session.logger.warning("osu!direct pickup request failed: Not found")
+            raise HTTPException(404)
 
-    app.session.logger.info(
-        f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
-        f'from "{player.name}"' if player else ''
-    )
-
-    if not beatmapset.osz_filesize:
-        utils.update_osz_filesize(
-            beatmapset.id, 
-            beatmapset.has_video
+        app.session.logger.info(
+            f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
+            f'from "{player.name}"' if player else ''
         )
 
-    return utils.online_beatmap(beatmapset)
+        if not beatmapset.osz_filesize:
+            utils.update_osz_filesize(
+                beatmapset.id,
+                beatmapset.has_video
+            )
 
+        return utils.online_beatmap(beatmapset)

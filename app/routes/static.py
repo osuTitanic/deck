@@ -55,7 +55,7 @@ def osz(
     no_video = 'n' in id
 
     if not (response := app.session.storage.api.osz(set_id, no_video)):
-        return
+        raise HTTPException(404)
 
     osz = response.iter_content(1024)
 
@@ -68,6 +68,10 @@ def osz(
                 'available': True
             })
         instance.commit()
+
+        if len(filesize) <= 0:
+            # Why does this happen?
+            raise HTTPException(500)
 
     return StreamingResponse(osz)
 

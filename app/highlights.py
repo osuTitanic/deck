@@ -1,7 +1,6 @@
 
-from app.common.database.repositories import activities
-from app.common.database.repositories import scores
-from app.common.constants import Mods
+from app.common.database.repositories import notifications, activities, scores
+from app.common.constants import Mods, NotificationType
 from app.common.database import (
     DBBeatmap,
     DBScore,
@@ -34,7 +33,7 @@ def submit(user_id: int, mode: int, message: str, *args: List[Tuple[str]], submi
                 exc_info=e
             )
 
-    # TODO: Refactor activities to use json...
+    # TODO: Refactor activities to use markdown links!
     try:
         activities.create(
             user_id,
@@ -73,7 +72,7 @@ def check_rank(
         submit(
             player.id,
             stats.mode,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained == 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
@@ -85,7 +84,7 @@ def check_rank(
         submit(
             player.id,
             stats.mode,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained == 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
@@ -96,7 +95,7 @@ def check_rank(
         submit(
             player.id,
             stats.mode,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained == 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
         )
 
@@ -107,6 +106,15 @@ def check_rank(
             stats.mode,
             '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
+        )
+
+        notifications.create(
+            player.id,
+            NotificationType.Other.value,
+            'Welcome to the top!',
+            f'Congratulations for reaching the #1 global rank in {mode_name}.'
+            ' Your incredible skill and dedication have set you apart as the absolute best in the game.'
+            ' Best of luck on your continued journey at the top!'
         )
 
 def check_beatmap(
@@ -123,27 +131,18 @@ def check_beatmap(
     # Get short-from mods string (e.g. HDHR)
     mods = Mods(score.mods).short if score.mods > 0 else ""
 
+    if beatmap_rank <= 1000:
+        submit(
+            player.id,
+            score.mode,
+            '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
+            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
+            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+            submit_to_chat=(beatmap_rank <= 5)
+        )
+
     if beatmap_rank != 1:
-        # Score is not on the leaderboards
-        # Check if score is in the top 1000
-
-        if beatmap_rank >= 1000:
-            submit(
-                player.id,
-                score.mode,
-                '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
-                (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-                (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
-                submit_to_chat=False
-            )
-
-    submit(
-        player.id,
-        score.mode,
-        '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}>',
-        (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-        (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}')
-    )
+        return
 
     if old_rank == beatmap_rank:
         return
@@ -168,7 +167,6 @@ def check_beatmap(
             (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
             submit_to_chat=False
         )
-
 
 def check_pp(
     score: DBScore,

@@ -444,40 +444,44 @@ def maniahits_3(score: DBScore) -> bool:
 
 @register(name='I can see the top', category='Skill', filename='high-ranker-1.png')
 def ranking_1(score: DBScore) -> bool:
-    """Reach a profile rank of at least 50,000 in any osu! mode"""
+    """Reach a profile rank of at least 500 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 50000:
+    # NOTE: Used to be 50,000
+    if rank > 500:
         return False
 
     return True
 
 @register(name='The gradual rise', category='Skill', filename='high-ranker-2.png')
 def ranking_2(score: DBScore) -> bool:
-    """Reach a profile rank of at least 10,000 in any osu! mode"""
+    """Reach a profile rank of at least 100 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 10000:
+    # NOTE: Used to be 10,000
+    if rank > 100:
         return False
 
     return True
 
 @register(name='Scaling up', category='Skill', filename='high-ranker-3.png')
 def ranking_3(score: DBScore) -> bool:
-    """Reach a profile rank of at least 5,000 in any osu! mode"""
+    """Reach a profile rank of at least 50 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 5000:
+    # NOTE: Used to be 5,000
+    if rank > 50:
         return False
 
     return True
 
 @register(name='Approaching the summit', category='Skill', filename='high-ranker-4.png')
 def ranking_3(score: DBScore) -> bool:
-    """Reach a profile rank of at least 1,000 in any osu! mode"""
+    """Reach a profile rank of at least 15 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 1000:
+    # NOTE: Used to be 1,000
+    if rank > 10:
         return False
 
     return True
@@ -838,7 +842,7 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
             continue
 
         results.append((
-            app.session.executor.submit(
+            app.session.achievement_executor.submit(
                 achievement.check,
                 score
             ),

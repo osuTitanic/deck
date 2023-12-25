@@ -34,5 +34,10 @@ database = Postgres(
     config.POSTGRES_PORT
 )
 
-executor = ThreadPoolExecutor(max_workers=12)
+# Used for achievements checks
+achievement_executor = ThreadPoolExecutor(max_workers=15)
+
+# Used for uploading replays, and checking hightlights
+executor = ThreadPoolExecutor(max_workers=10)
+
 storage = Storage()

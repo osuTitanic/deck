@@ -14,6 +14,7 @@ from . import status
 from . import direct
 from . import error
 from . import title
+from . import stats
 from . import login
 from . import maps
 
@@ -31,5 +32,6 @@ router.include_router(status.router)
 router.include_router(direct.router)
 router.include_router(error.router)
 router.include_router(title.router)
+router.include_router(stats.router)
 router.include_router(login.router)
 router.include_router(maps.router)

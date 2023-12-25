@@ -90,16 +90,16 @@ class Score:
         self.status = ScoreStatus.Submitted
         self.pp = 0.0
 
+        self.session = app.session.database.session
+        self.personal_best: Optional[DBScore] = None
+        self.beatmap: Optional[DBBeatmap] = None
+        self.user: Optional[DBUser] = None
+
         # Optional
         self.personal_best: Optional[DBScore] = None
         self.fun_spoiler: Optional[str] = None
         self.client_hash: Optional[str] = None
         self.processes: Optional[str] = None
-
-        self.session = app.session.database.session
-        self.personal_best: Optional[DBScore] = None
-        self.beatmap: Optional[DBBeatmap] = None
-        self.user: Optional[DBUser] = None
 
         if passed:
             # "Fix" for old clients
@@ -236,17 +236,7 @@ class Score:
         if not self.personal_best:
             return ScoreStatus.Best
 
-        if (Mods.Relax in self.enabled_mods or
-            Mods.Autopilot in self.enabled_mods):
-            # PP will be used for rx/ap no matter what
-            better_score = self.pp > self.personal_best.pp
-
-        else:
-            # The score with the most performance points will be used
-            # as long its a different mod combination from the pb
-            better_score = self.pp > self.personal_best.pp \
-                if self.enabled_mods.value != self.personal_best.mods \
-                else self.total_score > self.personal_best.total_score
+        better_score = self.pp > self.personal_best.pp
 
         if not better_score:
             if self.enabled_mods.value == self.personal_best.mods:
@@ -257,7 +247,8 @@ class Score:
                 self.beatmap.id,
                 self.user.id,
                 self.play_mode.value,
-                self.enabled_mods.value
+                self.enabled_mods.value,
+                self.session
             )
 
             if not mods_pb:
