@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
-from app.common.constants import GameMode, BadFlags, NotificationType
+from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType
 from app.common.database import DBStats, DBScore, DBUser
 from app.common.helpers.score import calculate_rx_score
 from app import achievements as AchievementManager
@@ -37,6 +37,7 @@ import base64
 import config
 import bcrypt
 import utils
+import lzma
 import app
 
 router = APIRouter()
@@ -133,6 +134,70 @@ async def parse_score_data(request: Request) -> Score:
     score.processes = processes
     return score
 
+def validate_replay(replay_bytes: bytes) -> bool:
+    """Validate the replay contents"""
+    app.session.logger.debug('Validating replay...')
+
+    try:
+        replay = lzma.decompress(replay_bytes).decode()
+        frames = replay.split(',')
+
+        if len(frames) < 120:
+            app.session.logger.warning(
+                f'Replay validation failed: Too few frames ({len(frames)})'
+            )
+            return False
+
+        for frame in frames:
+            if not frame:
+                continue
+
+            frame_data = frame.split('|')
+
+            if len(frame_data) != 4:
+                app.session.logger.warning(
+                    f'Replay validation failed: Invalid frame data ({frame_data})'
+                )
+                return False
+
+            if frame_data[0] == "-12345":
+                seed = int(frame_data[3])
+                continue
+
+            time = int(frame_data[0])
+            x = float(frame_data[1])
+            y = float(frame_data[2])
+            button_state = ButtonState(int(frame_data[3]))
+    except Exception as e:
+        app.session.logger.warning(f'Replay validation failed: {e}')
+        return False
+
+    return True
+
+def calculate_submission_time_difference(recent_scores: List[DBScore], index: int) -> float:
+    """Calculate the time difference between two score submissions"""
+    previous_timestamp = recent_scores[index - 1].submitted_at.timestamp() \
+        if index != 0 else datetime.now().timestamp()
+    current_timestamp = recent_scores[index].submitted_at.timestamp()
+    submission_time_difference = previous_timestamp - current_timestamp
+    return submission_time_difference
+
+def average_submission_time(recent_scores: List[DBScore]) -> float:
+    """Calculate the average time between score submissions"""
+    if len(recent_scores) < 5:
+        return 0
+
+    submission_times = [
+        calculate_submission_time_difference(recent_scores, index)
+        for index, recent_score in enumerate(recent_scores)
+        if index != (len(recent_scores) - 1)
+    ]
+
+    if len(submission_times) <= 0:
+        return 0
+
+    return sum(submission_times) / len(submission_times)
+
 def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
     """Validate the score submission requests and return an error if the validation fails"""
     app.session.logger.debug('Performing score validation...')
@@ -220,31 +285,13 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     # Check score submission "spam"
     if recent_scores:
-        # TODO: Refactor this mess...
-        submission_times = [
-            # Get the time between score submissions
-            (
-                (
-                    recent_scores[index - 1].submitted_at.timestamp()
-                    if index != 0
-                    else datetime.now().timestamp()
-                ) - recent_score.submitted_at.timestamp()
-            )
-            # For every recent score
-            for index, recent_score in enumerate(recent_scores)
-            if index != (len(recent_scores) - 1)
-        ]
+        time = average_submission_time(recent_scores)
 
-        if len(submission_times) > 0:
-            average_submission_time = (
-                sum(submission_times) / len(submission_times)
+        if time != 0 and time <= 8:
+            app.session.logger.warning(
+                f'"{score.username}" is spamming score submission.'
             )
-
-            if average_submission_time <= 8 and len(recent_scores) == 5:
-                app.session.logger.warning(
-                    f'"{score.username}" is spamming score submission.'
-                )
-                return Response('error: no')
+            return Response('error: no')
 
     flags = [
         BadFlags.FlashLightImageHack,
@@ -267,7 +314,17 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
-    # TODO: Circleguard replay analysis
+    if score.replay and not validate_replay(score.replay):
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with invalid replay.'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason='Invalid replay'
+        )
+        return Response('error: ban')
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
