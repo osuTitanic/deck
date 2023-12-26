@@ -44,8 +44,10 @@ SCORE_SUBMISSION_KEY = os.environ.get('SCORE_SUBMISSION_KEY')
 MENUICON_IMAGE = os.environ.get('MENUICON_IMAGE')
 MENUICON_URL = os.environ.get('MENUICON_URL')
 
+OFFICER_WEBHOOK_URL = os.environ.get('OFFICER_WEBHOOK_URL')
+
 BANCHO_IP = os.environ.get('PUBLIC_BANCHO_IP', None)
 DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
 DATA_PATH = os.path.abspath('.data')
 
-VERSION = '1.0.0'
+VERSION = 'dev'
