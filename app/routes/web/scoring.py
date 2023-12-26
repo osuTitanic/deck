@@ -350,6 +350,18 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
+    if score.pp >= 1800:
+        officer.call(
+            f'"{score.username}" exceeded the pp limit ({score.pp}).'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason=f'Exceeded pp limit ({round(score.pp)})'
+        )
+        return Response('error: ban')
+
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
         app.session.logger.debug('Uploading replay...')
