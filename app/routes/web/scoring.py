@@ -174,6 +174,30 @@ def validate_replay(replay_bytes: bytes) -> bool:
 
     return True
 
+def calculate_submission_time_difference(recent_scores: List[DBScore], index: int) -> float:
+    """Calculate the time difference between two score submissions"""
+    previous_timestamp = recent_scores[index - 1].submitted_at.timestamp() \
+        if index != 0 else datetime.now().timestamp()
+    current_timestamp = recent_scores[index].submitted_at.timestamp()
+    submission_time_difference = previous_timestamp - current_timestamp
+    return submission_time_difference
+
+def average_submission_time(recent_scores: List[DBScore]) -> float:
+    """Calculate the average time between score submissions"""
+    if len(recent_scores) < 5:
+        return 0
+
+    submission_times = [
+        calculate_submission_time_difference(recent_scores, index)
+        for index, recent_score in enumerate(recent_scores)
+        if index != (len(recent_scores) - 1)
+    ]
+
+    if len(submission_times) <= 0:
+        return 0
+
+    return sum(submission_times) / len(submission_times)
+
 def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
     """Validate the score submission requests and return an error if the validation fails"""
     app.session.logger.debug('Performing score validation...')
@@ -261,31 +285,13 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     # Check score submission "spam"
     if recent_scores:
-        # TODO: Refactor this mess...
-        submission_times = [
-            # Get the time between score submissions
-            (
-                (
-                    recent_scores[index - 1].submitted_at.timestamp()
-                    if index != 0
-                    else datetime.now().timestamp()
-                ) - recent_score.submitted_at.timestamp()
-            )
-            # For every recent score
-            for index, recent_score in enumerate(recent_scores)
-            if index != (len(recent_scores) - 1)
-        ]
+        time = average_submission_time(recent_scores)
 
-        if len(submission_times) > 0:
-            average_submission_time = (
-                sum(submission_times) / len(submission_times)
+        if time != 0 and time <= 8:
+            app.session.logger.warning(
+                f'"{score.username}" is spamming score submission.'
             )
-
-            if average_submission_time <= 8 and len(recent_scores) == 5:
-                app.session.logger.warning(
-                    f'"{score.username}" is spamming score submission.'
-                )
-                return Response('error: no')
+            return Response('error: no')
 
     flags = [
         BadFlags.FlashLightImageHack,
