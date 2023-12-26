@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
-from app.common.constants import GameMode, BadFlags, NotificationType
+from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType
 from app.common.database import DBStats, DBScore, DBUser
 from app.common.helpers.score import calculate_rx_score
 from app import achievements as AchievementManager
@@ -37,6 +37,7 @@ import base64
 import config
 import bcrypt
 import utils
+import lzma
 import app
 
 router = APIRouter()
@@ -132,6 +133,46 @@ async def parse_score_data(request: Request) -> Score:
     score.client_hash = client_hash
     score.processes = processes
     return score
+
+def validate_replay(replay_bytes: bytes) -> bool:
+    """Validate the replay contents"""
+    app.session.logger.debug('Validating replay...')
+
+    try:
+        replay = lzma.decompress(replay_bytes).decode()
+        frames = replay.split(',')
+
+        if len(frames) < 120:
+            app.session.logger.warning(
+                f'Replay validation failed: Too few frames ({len(frames)})'
+            )
+            return False
+
+        for frame in frames:
+            if not frame:
+                continue
+
+            frame_data = frame.split('|')
+
+            if len(frame_data) != 4:
+                app.session.logger.warning(
+                    f'Replay validation failed: Invalid frame data ({frame_data})'
+                )
+                return False
+
+            if frame_data[0] == "-12345":
+                seed = int(frame_data[3])
+                continue
+
+            time = int(frame_data[0])
+            x = float(frame_data[1])
+            y = float(frame_data[2])
+            button_state = ButtonState(int(frame_data[3]))
+    except Exception as e:
+        app.session.logger.warning(f'Replay validation failed: {e}')
+        return False
+
+    return True
 
 def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
     """Validate the score submission requests and return an error if the validation fails"""
@@ -267,7 +308,17 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
-    # TODO: Circleguard replay analysis
+    if score.replay and not validate_replay(score.replay):
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with invalid replay.'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason='Invalid replay'
+        )
+        return Response('error: ban')
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
