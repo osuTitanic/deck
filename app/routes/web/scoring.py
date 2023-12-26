@@ -20,6 +20,7 @@ from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
+from app.common.constants import regexes
 
 from app.common.database.repositories import (
     notifications,
@@ -44,6 +45,15 @@ router = APIRouter()
 
 async def parse_score_data(request: Request) -> Score:
     """Parse the score submission request and return a score object"""
+    user_agent = request.headers.get('user-agent', '')
+
+    if not regexes.OSU_USER_AGENT.match(user_agent):
+        app.session.logger.warning(
+            f'Failed to submit score: Invalid user agent: "{user_agent}"'
+        )
+        # TODO: Restrict user?
+        raise HTTPException(400)
+
     query = request.query_params
     form = await request.form()
 
@@ -224,7 +234,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         app.session.logger.warning(
             f'"{score.username}" submitted score with client hash mismatch. ({score.client_hash} -> {client_hash})'
         )
-        # TODO: Ban user?
+        # TODO: Restrict user?
         return Response('error: no')
 
     if score.passed:
