@@ -21,6 +21,7 @@ from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
 from app.common.constants import regexes
+from app.common import officer
 
 from app.common.database.repositories import (
     notifications,
@@ -48,7 +49,7 @@ async def parse_score_data(request: Request) -> Score:
     user_agent = request.headers.get('user-agent', '')
 
     if not regexes.OSU_USER_AGENT.match(user_agent):
-        app.session.logger.warning(
+        officer.call(
             f'Failed to submit score: Invalid user agent: "{user_agent}"'
         )
         # TODO: Restrict user?
@@ -78,7 +79,7 @@ async def parse_score_data(request: Request) -> Score:
                 int(failtime)
             )
         except Exception as e:
-            app.session.logger.error(
+            officer.call(
                 f'Failed to parse score data: {e}',
                 exc_info=e
             )
@@ -88,7 +89,7 @@ async def parse_score_data(request: Request) -> Score:
     #       one of them is the score data, and the other is the replay
 
     if not (score_form := form.getlist('score')):
-        app.session.logger.warning(
+        officer.call(
             'Got score submission without score data!'
         )
         raise HTTPException(400)
@@ -106,7 +107,7 @@ async def parse_score_data(request: Request) -> Score:
         replay = score_form[-1]
 
         if replay.filename != 'replay':
-            app.session.logger.warning(f'Got invalid replay name: {replay.filename}')
+            officer.call(f'Got invalid replay name: "{replay.filename}"')
             raise HTTPException(400)
 
         replay = await replay.read()
@@ -121,7 +122,10 @@ async def parse_score_data(request: Request) -> Score:
             processes   = utils.decrypt_string(processes, iv)
         except (UnicodeDecodeError, TypeError) as e:
             # Most likely an invalid score encryption key
-            app.session.logger.warning(f'Could not decrypt score data: {e}')
+            officer.call(
+                f'Could not decrypt score data: {e}',
+                exc_info=e
+            )
             raise HTTPException(400)
 
     try:
@@ -132,7 +136,7 @@ async def parse_score_data(request: Request) -> Score:
             int(failtime) if failtime else None
         )
     except Exception as e:
-        app.session.logger.error(
+        officer.call(
             f'Failed to parse score data: {e}',
             exc_info=e
         )
@@ -153,8 +157,8 @@ def validate_replay(replay_bytes: bytes) -> bool:
         frames = replay.split(',')
 
         if len(frames) < 120:
-            app.session.logger.warning(
-                f'Replay validation failed: Too few frames ({len(frames)})'
+            officer.call(
+                f'Replay validation failed: Not enough replay frames ({len(frames)})'
             )
             return False
 
@@ -165,7 +169,7 @@ def validate_replay(replay_bytes: bytes) -> bool:
             frame_data = frame.split('|')
 
             if len(frame_data) != 4:
-                app.session.logger.warning(
+                officer.call(
                     f'Replay validation failed: Invalid frame data ({frame_data})'
                 )
                 return False
@@ -179,7 +183,10 @@ def validate_replay(replay_bytes: bytes) -> bool:
             y = float(frame_data[2])
             button_state = ButtonState(int(frame_data[3]))
     except Exception as e:
-        app.session.logger.warning(f'Replay validation failed: {e}')
+        officer.call(
+            f'Replay validation failed: {e}',
+            exc_info=e
+        )
         return False
 
     return True
@@ -214,8 +221,15 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     if score.total_hits <= 0:
         # This could still be a false-positive
-        app.session.logger.warning(
+        officer.call(
             f'"{score.username}" submitted score with total_hits <= 0.'
+        )
+        return Response('error: no')
+
+    if score.total_score <= 0:
+        # This could still be a false-positive
+        officer.call(
+            f'"{score.username}" submitted score with total_score <= 0.'
         )
         return Response('error: no')
 
@@ -231,7 +245,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         and client_hash is not None
         and not client_hash.startswith(score.client_hash)
     ):
-        app.session.logger.warning(
+        officer.call(
             f'"{score.username}" submitted score with client hash mismatch. ({score.client_hash} -> {client_hash})'
         )
         # TODO: Restrict user?
@@ -240,7 +254,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     if score.passed:
         # Check for replay
         if not score.replay:
-            app.session.logger.warning(
+            officer.call(
                 f'"{score.username}" submitted score without replay.'
             )
             app.session.events.submit(
@@ -257,7 +271,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
         if duplicate_score:
             if duplicate_score.user_id != player.id:
-                app.session.logger.warning(
+                officer.call(
                     f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
                 )
                 app.session.events.submit(
@@ -275,7 +289,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             return Response('error: no')
 
     if score.has_invalid_mods:
-        app.session.logger.warning(
+        officer.call(
             f'"{score.username}" submitted score with invalid mods.'
         )
         app.session.events.submit(
@@ -298,7 +312,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         time = average_submission_time(recent_scores)
 
         if time != 0 and time <= 8:
-            app.session.logger.warning(
+            officer.call(
                 f'"{score.username}" is spamming score submission.'
             )
             return Response('error: no')
@@ -313,8 +327,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     ]
 
     if any(flag in score.flags for flag in flags):
-        app.session.logger.warning(
-            f'"{score.username}" submitted score with bad flags: {score.flags}'
+        officer.call(
+            f'"{score.username}" submitted score with bad flags: {score.flags.name}'
         )
         app.session.events.submit(
             'restrict',
@@ -325,7 +339,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         return Response('error: ban')
 
     if score.replay and not validate_replay(score.replay):
-        app.session.logger.warning(
+        officer.call(
             f'"{score.username}" submitted score with invalid replay.'
         )
         app.session.events.submit(
@@ -627,7 +641,7 @@ def score_submission(
 
     if flashlight_screenshot:
         # This will get sent when the "FlashLightImageHack" flag is triggered
-        app.session.logger.warning(
+        officer.call(
             f"{player.name} submitted score with a flashlight screenshot!"
         )
         return Response("error: no")
