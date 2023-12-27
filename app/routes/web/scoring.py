@@ -148,6 +148,29 @@ async def parse_score_data(request: Request) -> Score:
     score.processes = processes
     return score
 
+def calculate_pp_limit(top_play_pp, total_playcount):
+    """Calculate the pp limit based on the top play pp and total play count.\n
+    The pp cap will get closer to the top play as the user plays more.
+    Please note that this will currently only trigger an officer warning log, and nothing else.
+    This will definitely need some tweaking, before it can be used for autobanning.
+    """
+    cap_decrease_factor = 0.15
+    maximum_pp = 1500
+
+    base_cap = (
+        top_play_pp + (4000 / total_playcount) * top_play_pp * cap_decrease_factor
+    )
+
+    pp_limit = min(
+        maximum_pp,
+        max(
+            top_play_pp * 1.6,
+            base_cap
+        )
+    )
+
+    return pp_limit
+
 def validate_replay(replay_bytes: bytes) -> bool:
     """Validate the replay contents"""
     app.session.logger.debug('Validating replay...')
@@ -361,6 +384,19 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             reason=f'Exceeded pp limit ({round(score.pp)})'
         )
         return Response('error: ban')
+
+    # TODO: Implement user whitelists
+
+    user_pp_cap = calculate_pp_limit(
+        score.pp,
+        score.user.stats[score.play_mode.value].playcount
+    )
+
+    if score.pp > user_pp_cap:
+        # NOTE: This is just for testing purposes, and will not restrict the user
+        officer.call(
+            f'"{score.username}" exceeded the user pp limit of {user_pp_cap} ({score.pp}).'
+        )
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
@@ -607,6 +643,8 @@ def score_submission(
         score.session
     )
 
+    score.user.stats.sort(key=lambda x: x.mode)
+
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
         return Response('error: nouser')
@@ -825,6 +863,8 @@ def legacy_score_submission(
         score.username,
         score.session
     )
+
+    score.user.stats.sort(key=lambda x: x.mode)
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
