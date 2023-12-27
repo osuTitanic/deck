@@ -384,7 +384,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     multiaccounting_lock = app.session.redis.get(f'multiaccounting:{player.id}')
 
-    if multiaccounting_lock:
+    if multiaccounting_lock != None and int(multiaccounting_lock) > 0:
         officer.call(
             f'"{score.username}" submitted a score while multiaccounting.'
         )
