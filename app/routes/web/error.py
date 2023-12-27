@@ -53,7 +53,10 @@ def osu_error(
             'arpia97'
         ]
 
-        if config.get('Skin', '').lower() in flagged_skins:
+        skin_name = config.get('Skin', '').lower()
+
+        # Check if player is using a flagged skin
+        if any(name in skin_name for name in flagged_skins):
             officer.call(
                 f'"{user.name}" is using a flagged skin: "{config["Skin"]}"',
             )
