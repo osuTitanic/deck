@@ -215,13 +215,11 @@ def validate_replay(replay_bytes: bytes) -> bool:
 
     return True
 
-def calculate_submission_time_difference(recent_scores: List[DBScore], index: int) -> float:
+def calculate_submission_time_difference(current: DBScore, previous: DBScore) -> float:
     """Calculate the time difference between two score submissions"""
-    previous_timestamp = recent_scores[index - 1].submitted_at.timestamp() \
-        if index != 0 else datetime.now().timestamp()
-    current_timestamp = recent_scores[index].submitted_at.timestamp()
-    submission_time_difference = previous_timestamp - current_timestamp
-    return submission_time_difference
+    previous_timestamp = current.submitted_at.timestamp()
+    current_timestamp = previous.submitted_at.timestamp()
+    return previous_timestamp - current_timestamp
 
 def average_submission_time(recent_scores: List[DBScore]) -> float:
     """Calculate the average time between score submissions"""
@@ -229,7 +227,7 @@ def average_submission_time(recent_scores: List[DBScore]) -> float:
         return 0
 
     submission_times = [
-        calculate_submission_time_difference(recent_scores, index)
+        calculate_submission_time_difference(recent_score, recent_scores[index + 1])
         for index, recent_score in enumerate(recent_scores)
         if index != (len(recent_scores) - 1)
     ]
@@ -244,14 +242,12 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     app.session.logger.debug('Performing score validation...')
 
     if score.total_hits <= 0:
-        # This could still be a false-positive
         officer.call(
             f'"{score.username}" submitted score with total_hits <= 0.'
         )
         return Response('error: no')
 
     if score.total_score <= 0:
-        # This could still be a false-positive
         officer.call(
             f'"{score.username}" submitted score with total_score <= 0.'
         )
