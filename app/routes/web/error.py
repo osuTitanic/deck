@@ -50,6 +50,7 @@ def osu_error(
 
         flagged_skins = [
             'taikomania',
+            'duda skin',
             'arpia97'
         ]
 
@@ -71,11 +72,6 @@ def osu_error(
             'exehash': exehash
         }
 
-        app.session.logger.warning(
-            f'Client error from "{username}":\n'
-            f'{json.dumps(error_dict, indent=4)}'
-        )
-
         logs.create(
             json.dumps(error_dict),
             'error',
@@ -83,10 +79,16 @@ def osu_error(
             session
         )
 
-        app.session.events.submit(
-            'osu_error',
-            user_id,
-            error_dict
-        )
+        if 'monitor' not in stacktrace:
+            app.session.logger.warning(
+                f'Client error from "{username}":\n'
+                f'{json.dumps(error_dict, indent=4)}'
+            )
+
+            app.session.events.submit(
+                'osu_error',
+                user_id,
+                error_dict
+            )
 
         return Response(status_code=200)
