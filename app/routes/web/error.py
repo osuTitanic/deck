@@ -55,7 +55,7 @@ def osu_error(
 
         if config.get('Skin', '').lower() in flagged_skins:
             officer.call(
-                f'Client is using a flagged skin: "{config["Skin"]}"',
+                f'"{user.name}" is using a flagged skin: "{config["Skin"]}"',
             )
 
         error_dict = {
