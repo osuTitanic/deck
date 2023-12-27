@@ -382,7 +382,19 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
-    # TODO: Implement user whitelists
+    multiaccounting_lock = app.session.redis.get(f'multiaccounting:{player.id}')
+
+    if multiaccounting_lock:
+        officer.call(
+            f'"{score.username}" submitted a score while multiaccounting.'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason='Multiaccounting'
+        )
+        return Response('error: ban')
 
     user_pp_cap = calculate_pp_limit(
         score.pp,
@@ -394,6 +406,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" exceeded the user pp limit of {user_pp_cap} ({score.pp}).'
         )
+
+    # TODO: Implement user whitelists
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
