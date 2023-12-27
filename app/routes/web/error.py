@@ -1,5 +1,6 @@
 
 from app.common.database.repositories import logs, users
+from app.common import officer
 
 from typing import Optional
 from fastapi import (
@@ -46,6 +47,16 @@ def osu_error(
 
         if user.restricted or not user.activated:
             raise HTTPException(401)
+
+        flagged_skins = [
+            'taikomania',
+            'arpia97'
+        ]
+
+        if config.get('Skin', '').lower() in flagged_skins:
+            officer.call(
+                f'Client is using a flagged skin: "{config["Skin"]}"',
+            )
 
         error_dict = {
             'user_id': user_id,
