@@ -154,6 +154,7 @@ def calculate_pp_limit(top_play_pp, total_playcount):
     Please note that this will currently only trigger an officer warning log, and nothing else.
     This will definitely need some tweaking, before it can be used for autobanning.
     """
+    total_playcount = max(total_playcount, 1)
     cap_decrease_factor = 0.15
     maximum_pp = 1500
 
