@@ -1,8 +1,10 @@
 
+from __future__ import annotations
+
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from concurrent.futures import Future
 from fastapi import Request
-from typing import Optional
+from typing import Dict
 from PIL import Image
 
 from app.common.database import DBScore, DBBeatmapset
@@ -115,7 +117,7 @@ def score_string_legacy(score: DBScore) -> str:
         str(score.submitted_at)
     ])
 
-def decrypt_string(b64: Optional[str], iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
+def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
     if not b64:
         return
 
@@ -213,10 +215,10 @@ def update_osz_filesize(set_id: int, has_video: bool = False):
 
 def resize_image(
     image: bytes,
-    target_width: Optional[int] = None,
-    target_height: Optional[int] = None,
-    max_width: Optional[int] = None,
-    max_height: Optional[int] = None
+    target_width: int | None = None,
+    target_height: int | None = None,
+    max_width: int | None = None,
+    max_height: int | None = None
 ) -> bytes:
     img = Image.open(io.BytesIO(image))
     image_width, image_height = img.size
@@ -241,7 +243,7 @@ def resize_image(
 
     return image_buffer.getvalue()
 
-def parse_osu_config(config: str) -> dict:
+def parse_osu_config(config: str) -> Dict[str, str]:
     return {
         k.strip():v.strip()
         for (k, v) in [line.split('=', 1) for line in config.splitlines()]
