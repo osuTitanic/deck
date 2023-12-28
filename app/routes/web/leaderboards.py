@@ -320,7 +320,7 @@ def legacy_scores(
             beatmap.id,
             player.id,
             mode.value,
-            session
+            session=session
         )
 
         if personal_best:
@@ -328,7 +328,7 @@ def legacy_scores(
                 player.id,
                 beatmap.id,
                 mode.value,
-                session
+                session=session
             )
 
             response.append(
@@ -420,7 +420,7 @@ def legacy_scores_no_ratings(
             beatmap.id,
             player.id,
             mode.value,
-            session
+            session=session
         )
 
         if personal_best:
@@ -428,7 +428,7 @@ def legacy_scores_no_ratings(
                 player.id,
                 beatmap.id,
                 mode.value,
-                session
+                session=session
             )
 
             response.append(
@@ -493,7 +493,7 @@ def legacy_scores_no_beatmap_data(
             beatmap.id,
             player.id,
             mode.value,
-            session
+            session=session
         )
 
         if personal_best:
@@ -501,7 +501,7 @@ def legacy_scores_no_beatmap_data(
                 player.id,
                 beatmap.id,
                 mode.value,
-                session
+                session=session
             )
 
             response.append(

@@ -1,6 +1,7 @@
 
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
 
 from app.common.cache import status
 from app.common.database import DBBeatmapset
@@ -20,10 +21,10 @@ router = APIRouter()
 
 @router.get('/osu-search.php')
 def search(
-    legacy_password: str = Query(None, alias='c'),
+    legacy_password: str | None = Query(None, alias='c'),
+    username: str | None = Query(None, alias='u'),
+    password: str | None = Query(None, alias='h'),
     display_mode: int = Query(4, alias='r'),
-    username: str = Query(None, alias='u'),
-    password: str = Query(None, alias='h'),
     query: str = Query(..., alias='q')
 ):
     player = None
@@ -58,7 +59,7 @@ def search(
 
         app.session.logger.info(
             f'Got osu!direct search request: "{query}" '
-            f'from "{player.name}"' if player else ''
+            f'from "{player}"'
         )
 
         response = []
@@ -87,13 +88,13 @@ def search(
 
 @router.get('/osu-search-set.php')
 def pickup_info(
-    beatmap_id: Optional[int] = Query(None, alias='b'),
-    topic_id: Optional[int] = Query(None, alias='t'),
-    checksum: Optional[int] = Query(None, alias='c'),
-    post_id: Optional[int] = Query(None, alias='p'),
-    set_id: Optional[int] = Query(None, alias='s'),
-    username: str = Query(None, alias='u'),
-    password: str = Query(None, alias='h'),
+    beatmap_id: int | None = Query(None, alias='b'),
+    topic_id: int | None = Query(None, alias='t'),
+    checksum: int | None = Query(None, alias='c'),
+    post_id: int | None = Query(None, alias='p'),
+    set_id: int | None = Query(None, alias='s'),
+    username: str | None = Query(None, alias='u'),
+    password: str | None = Query(None, alias='h'),
 ):
     with app.session.database.managed_session() as session:
         if username and password:
@@ -114,7 +115,7 @@ def pickup_info(
             # TODO
             raise HTTPException(404)
 
-        beatmapset: Optional[DBBeatmapset] = None
+        beatmapset: DBBeatmapset | None = None
 
         if beatmap_id:
             beatmap = beatmaps.fetch_by_id(beatmap_id, session)
@@ -133,7 +134,7 @@ def pickup_info(
 
         app.session.logger.info(
             f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
-            f'from "{player.name}"' if player else ''
+            f'from "{player}"'
         )
 
         if not beatmapset.osz_filesize:

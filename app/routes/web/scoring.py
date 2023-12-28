@@ -29,6 +29,7 @@ from app.common.database.repositories import (
     histories,
     beatmaps,
     scores,
+    groups,
     plays,
     users,
     stats
@@ -148,6 +149,30 @@ async def parse_score_data(request: Request) -> Score:
     score.processes = processes
     return score
 
+def calculate_pp_limit(top_play_pp, total_playcount):
+    """Calculate the pp limit based on the top play pp and total play count.\n
+    The pp cap will get closer to the top play as the user plays more.
+    Please note that this will currently only trigger an officer warning log, and nothing else.
+    This will definitely need some tweaking, before it can be used for autobanning.
+    """
+    total_playcount = max(total_playcount, 1)
+    cap_decrease_factor = 0.15
+    maximum_pp = 1500
+
+    base_cap = (
+        top_play_pp + (4000 / total_playcount) * top_play_pp * cap_decrease_factor
+    )
+
+    pp_limit = min(
+        maximum_pp,
+        max(
+            top_play_pp * 1.6,
+            base_cap
+        )
+    )
+
+    return pp_limit
+
 def validate_replay(replay_bytes: bytes) -> bool:
     """Validate the replay contents"""
     app.session.logger.debug('Validating replay...')
@@ -191,13 +216,11 @@ def validate_replay(replay_bytes: bytes) -> bool:
 
     return True
 
-def calculate_submission_time_difference(recent_scores: List[DBScore], index: int) -> float:
+def calculate_submission_time_difference(current: DBScore, previous: DBScore) -> float:
     """Calculate the time difference between two score submissions"""
-    previous_timestamp = recent_scores[index - 1].submitted_at.timestamp() \
-        if index != 0 else datetime.now().timestamp()
-    current_timestamp = recent_scores[index].submitted_at.timestamp()
-    submission_time_difference = previous_timestamp - current_timestamp
-    return submission_time_difference
+    previous_timestamp = current.submitted_at.timestamp()
+    current_timestamp = previous.submitted_at.timestamp()
+    return previous_timestamp - current_timestamp
 
 def average_submission_time(recent_scores: List[DBScore]) -> float:
     """Calculate the average time between score submissions"""
@@ -205,7 +228,7 @@ def average_submission_time(recent_scores: List[DBScore]) -> float:
         return 0
 
     submission_times = [
-        calculate_submission_time_difference(recent_scores, index)
+        calculate_submission_time_difference(recent_score, recent_scores[index + 1])
         for index, recent_score in enumerate(recent_scores)
         if index != (len(recent_scores) - 1)
     ]
@@ -220,14 +243,12 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     app.session.logger.debug('Performing score validation...')
 
     if score.total_hits <= 0:
-        # This could still be a false-positive
         officer.call(
             f'"{score.username}" submitted score with total_hits <= 0.'
         )
         return Response('error: no')
 
     if score.total_score <= 0:
-        # This could still be a false-positive
         officer.call(
             f'"{score.username}" submitted score with total_score <= 0.'
         )
@@ -338,6 +359,20 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
+    user_groups = groups.fetch_user_groups(
+        player.id,
+        include_hidden=True,
+        session=score.session
+    )
+
+    group_names = [group.name for group in user_groups]
+
+    if 'Verified' in group_names:
+        app.session.logger.debug('Skipping score validation...')
+        return
+
+    # Validation checks for unverified players
+
     if score.replay and not validate_replay(score.replay):
         officer.call(
             f'"{score.username}" submitted score with invalid replay.'
@@ -349,6 +384,43 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             reason='Invalid replay'
         )
         return Response('error: ban')
+
+    if score.pp >= 1500:
+        officer.call(
+            f'"{score.username}" exceeded the pp limit ({score.pp}).'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason=f'Exceeded pp limit ({round(score.pp)})'
+        )
+        return Response('error: ban')
+
+    multiaccounting_lock = app.session.redis.get(f'multiaccounting:{player.id}')
+
+    if multiaccounting_lock != None and int(multiaccounting_lock) > 0:
+        officer.call(
+            f'"{score.username}" submitted a score while multiaccounting.'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason='Multiaccounting'
+        )
+        return Response('error: ban')
+
+    user_pp_cap = calculate_pp_limit(
+        score.pp,
+        score.user.stats[score.play_mode.value].playcount
+    )
+
+    if score.pp > user_pp_cap:
+        # NOTE: This is just for testing purposes, and will not restrict the user
+        officer.call(
+            f'"{score.username}" exceeded the user pp limit of {user_pp_cap} ({score.pp}).'
+        )
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
@@ -595,6 +667,8 @@ def score_submission(
         score.session
     )
 
+    score.user.stats.sort(key=lambda x: x.mode)
+
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
         return Response('error: nouser')
@@ -813,6 +887,8 @@ def legacy_score_submission(
         score.username,
         score.session
     )
+
+    score.user.stats.sort(key=lambda x: x.mode)
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
