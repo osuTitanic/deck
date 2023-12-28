@@ -388,13 +388,13 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" submitted a score while multiaccounting.'
         )
-        # app.session.events.submit(
-        #     'restrict',
-        #     user_id=player.id,
-        #     autoban=True,
-        #     reason='Multiaccounting'
-        # )
-        # return Response('error: ban')
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason='Multiaccounting'
+        )
+        return Response('error: ban')
 
     user_pp_cap = calculate_pp_limit(
         score.pp,
