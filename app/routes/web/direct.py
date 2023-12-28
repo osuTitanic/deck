@@ -134,7 +134,7 @@ def pickup_info(
 
         app.session.logger.info(
             f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
-            f'from "{player.name}"' if player else ''
+            f'from "{player}"'
         )
 
         if not beatmapset.osz_filesize:
