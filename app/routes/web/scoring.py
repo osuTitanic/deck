@@ -29,6 +29,7 @@ from app.common.database.repositories import (
     histories,
     beatmaps,
     scores,
+    groups,
     plays,
     users,
     stats
@@ -358,6 +359,20 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
+    user_groups = groups.fetch_user_groups(
+        player.id,
+        include_hidden=True,
+        session=score.session
+    )
+
+    group_names = [group.name for group in user_groups]
+
+    if 'Verified' in group_names:
+        app.session.logger.debug('Skipping score validation...')
+        return
+
+    # Validation checks for unverified players
+
     if score.replay and not validate_replay(score.replay):
         officer.call(
             f'"{score.username}" submitted score with invalid replay.'
@@ -370,7 +385,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
-    if score.pp >= 1800:
+    if score.pp >= 1500:
         officer.call(
             f'"{score.username}" exceeded the pp limit ({score.pp}).'
         )
@@ -406,8 +421,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" exceeded the user pp limit of {user_pp_cap} ({score.pp}).'
         )
-
-    # TODO: Implement user whitelists
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
