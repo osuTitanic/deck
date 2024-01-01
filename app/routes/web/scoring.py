@@ -646,12 +646,13 @@ def unlock_achievements(
 
     return achievement_response
 
-def update_ppv1(scores: DBScore, stats: DBStats, country: str):
+def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
     app.session.logger.debug('Updating ppv1...')
-    stats.ppv1 = performance.calculate_weighted_ppv1(scores)
+    user_stats.ppv1 = performance.calculate_weighted_ppv1(scores)
 
-    leaderboards.update(stats, country)
-    histories.update_rank(stats, country)
+    stats.update(user_stats.id, user_stats.mode, {'ppv1': user_stats.ppv1})
+    leaderboards.update(user_stats, country)
+    histories.update_rank(user_stats, country)
 
 @router.post('/osu-submit-modular.php')
 def score_submission(
