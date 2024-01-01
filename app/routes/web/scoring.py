@@ -508,6 +508,10 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         session=score.session
     )
 
+    vn_scores = [score for score in best_scores if (score.mods & 128) == 0]
+    rx_scores = [score for score in best_scores if (score.mods & 128) != 0]
+    ap_scores = [score for score in best_scores if (score.mods & 8192) == 0]
+
     if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
         # Update max combo
         if score.max_combo > user_stats.max_combo:
@@ -520,11 +524,29 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
         user_stats.acc = (weighted_acc * bonus_acc) / 100
 
-        # Update performance
+        # Update global performance
         weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(best_scores))
         bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
 
         user_stats.pp = weighted_pp + bonus_pp
+
+        # Update vn performance
+        weighted_vn_pp = sum(score.pp * 0.95**index for index, score in enumerate(vn_scores))
+        bonus_vn_pp = 416.6667 * (1 - 0.9994 ** len(vn_scores))
+
+        user_stats.pp_vn = weighted_vn_pp + bonus_vn_pp
+
+        # Update rx performance
+        weighted_rx_pp = sum(score.pp * 0.95**index for index, score in enumerate(rx_scores))
+        bonus_rx_pp = 416.6667 * (1 - 0.9994 ** len(rx_scores))
+
+        user_stats.pp_rx = weighted_rx_pp + bonus_rx_pp
+
+        # Update ap performance
+        weighted_ap_pp = sum(score.pp * 0.95**index for index, score in enumerate(ap_scores))
+        bonus_ap_pp = 416.6667 * (1 - 0.9994 ** len(ap_scores))
+
+        user_stats.pp_ap = weighted_ap_pp + bonus_ap_pp
 
         # Update rscore
         user_stats.rscore = sum(
@@ -545,6 +567,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             user_stats,
             player.country
         )
+
+        score.session.commit()
 
         try:
             grades = {}
