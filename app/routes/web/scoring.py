@@ -456,6 +456,24 @@ def upload_replay(score: Score, score_id: int) -> None:
             time=timedelta(minutes=30)
         )
 
+def calculate_weighted_pp(scores: List[DBScore]) -> float:
+    """Calculate the weighted pp for a list of scores"""
+    if not scores:
+        return 0
+
+    weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(scores))
+    bonus_pp = 416.6667 * (1 - 0.9994 ** len(scores))
+    return weighted_pp + bonus_pp
+
+def calculate_weighted_acc(scores: List[DBScore]) -> float:
+    """Calculate the weighted acc for a list of scores"""
+    if not scores:
+        return 0
+
+    weighted_acc = sum(score.acc * 0.95**index for index, score in enumerate(scores))
+    bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(scores)))
+    return (weighted_acc * bonus_acc) / 100
+
 def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     """Update the users and beatmaps stats. It will return the old & new stats for the user"""
     app.session.logger.debug('Updating user stats...')
@@ -508,9 +526,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         session=score.session
     )
 
-    vn_scores = [score for score in best_scores if (score.mods & 128) == 0]
     rx_scores = [score for score in best_scores if (score.mods & 128) != 0]
-    ap_scores = [score for score in best_scores if (score.mods & 8192) == 0]
+    ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
+    vn_scores = [score for score in best_scores if (score.mods & 128) == 0 and (score.mods & 8192) == 0]
 
     if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
         # Update max combo
@@ -518,35 +536,14 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             user_stats.max_combo = score.max_combo
 
     if best_scores:
-        # Update accuracy
-        weighted_acc = sum(score.acc * 0.95**index for index, score in enumerate(best_scores))
-        bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(best_scores)))
+        # Update pp
+        user_stats.pp = calculate_weighted_pp(best_scores)
+        user_stats.pp_vn = calculate_weighted_pp(vn_scores)
+        user_stats.pp_rx = calculate_weighted_pp(rx_scores)
+        user_stats.pp_ap = calculate_weighted_pp(ap_scores)
 
-        user_stats.acc = (weighted_acc * bonus_acc) / 100
-
-        # Update global performance
-        weighted_pp = sum(score.pp * 0.95**index for index, score in enumerate(best_scores))
-        bonus_pp = 416.6667 * (1 - 0.9994 ** len(best_scores))
-
-        user_stats.pp = weighted_pp + bonus_pp
-
-        # Update vn performance
-        weighted_vn_pp = sum(score.pp * 0.95**index for index, score in enumerate(vn_scores))
-        bonus_vn_pp = 416.6667 * (1 - 0.9994 ** len(vn_scores))
-
-        user_stats.pp_vn = weighted_vn_pp + bonus_vn_pp
-
-        # Update rx performance
-        weighted_rx_pp = sum(score.pp * 0.95**index for index, score in enumerate(rx_scores))
-        bonus_rx_pp = 416.6667 * (1 - 0.9994 ** len(rx_scores))
-
-        user_stats.pp_rx = weighted_rx_pp + bonus_rx_pp
-
-        # Update ap performance
-        weighted_ap_pp = sum(score.pp * 0.95**index for index, score in enumerate(ap_scores))
-        bonus_ap_pp = 416.6667 * (1 - 0.9994 ** len(ap_scores))
-
-        user_stats.pp_ap = weighted_ap_pp + bonus_ap_pp
+        # Update acc
+        user_stats.acc = calculate_weighted_acc(best_scores)
 
         # Update rscore
         user_stats.rscore = sum(
