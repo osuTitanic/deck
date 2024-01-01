@@ -674,7 +674,7 @@ def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
     app.session.logger.debug('Updating ppv1...')
     user_stats.ppv1 = performance.calculate_weighted_ppv1(scores)
 
-    stats.update(user_stats.id, user_stats.mode, {'ppv1': user_stats.ppv1})
+    stats.update(user_stats.user_id, user_stats.mode, {'ppv1': user_stats.ppv1})
     leaderboards.update(user_stats, country)
     histories.update_rank(user_stats, country)
 
