@@ -689,11 +689,6 @@ def score_submission(
         score.session
     )
 
-    if score.user.stats:
-        score.user.stats.sort(
-            key=lambda x: x.mode
-        )
-
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
         return Response('error: nouser')
@@ -726,6 +721,11 @@ def score_submission(
     if not status.exists(player.id):
         # Let the client resend the request
         return Response('')
+
+    if score.user.stats:
+        score.user.stats.sort(
+            key=lambda x: x.mode
+        )
 
     users.update(
         player.id,
@@ -913,11 +913,6 @@ def legacy_score_submission(
         score.session
     )
 
-    if score.user.stats:
-        score.user.stats.sort(
-            key=lambda x: x.mode
-        )
-
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
         raise HTTPException(401)
@@ -945,6 +940,11 @@ def legacy_score_submission(
 
     if not status.exists(player.id):
         return Response('')
+
+    if score.user.stats:
+        score.user.stats.sort(
+            key=lambda x: x.mode
+        )
 
     users.update(
         player.id,
