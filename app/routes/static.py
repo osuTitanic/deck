@@ -68,8 +68,8 @@ def osz(
         if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
             raise HTTPException(401)
 
-        if not (response := app.session.storage.api.osz(set_id, no_video)):
-            raise HTTPException(404)
+    if not (response := app.session.storage.api.osz(set_id, no_video)):
+        raise HTTPException(404)
 
     osz = response.iter_content(1024)
 
