@@ -309,7 +309,7 @@ class Score:
 
         return Score(
             file_checksum = items[0],
-            username = items[1],
+            username = items[1].strip(),
             score_checksum = items[2],
             count300 = int(items[3]),
             count100 = int(items[4]),
