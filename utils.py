@@ -246,7 +246,10 @@ def resize_image(
 def parse_osu_config(config: str) -> Dict[str, str]:
     return {
         k.strip():v.strip()
-        for (k, v) in [line.split('=', 1) for line in config.splitlines()]
+        for (k, v) in [
+            line.split('=', 1) for line in config.splitlines()
+            if '=' in line and not line.startswith('#')
+        ]
     }
 
 def resolve_ip_address(request: Request):
