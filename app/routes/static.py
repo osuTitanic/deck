@@ -45,17 +45,31 @@ def osz(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
 ):
-    if not (user := users.fetch_by_name(username)):
-        raise HTTPException(401)
-
-    if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
-        raise HTTPException(401)
+    if not id.replace('n', '').isdigit():
+        raise HTTPException(400)
 
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
-    if not (response := app.session.storage.api.osz(set_id, no_video)):
-        raise HTTPException(404)
+    bundled_maps = [
+        3756,
+        163112,
+        140662,
+        151878,
+        190390,
+        123593
+    ]
+
+    # Skip user authentication for bundled maps
+    if not set_id in bundled_maps:
+        if not (user := users.fetch_by_name(username)):
+            raise HTTPException(401)
+
+        if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
+            raise HTTPException(401)
+
+        if not (response := app.session.storage.api.osz(set_id, no_video)):
+            raise HTTPException(404)
 
     osz = response.iter_content(1024)
 
