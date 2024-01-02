@@ -689,7 +689,10 @@ def score_submission(
         score.session
     )
 
-    score.user.stats.sort(key=lambda x: x.mode)
+    if score.user.stats:
+        score.user.stats.sort(
+            key=lambda x: x.mode
+        )
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
@@ -910,7 +913,10 @@ def legacy_score_submission(
         score.session
     )
 
-    score.user.stats.sort(key=lambda x: x.mode)
+    if score.user.stats:
+        score.user.stats.sort(
+            key=lambda x: x.mode
+        )
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Authentication')
