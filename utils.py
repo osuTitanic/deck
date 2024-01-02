@@ -250,20 +250,16 @@ def parse_osu_config(config: str) -> Dict[str, str]:
     }
 
 def resolve_ip_address(request: Request):
-    ip = request.headers.get("CF-Connecting-IP")
+    if ip := request.headers.get("CF-Connecting-IP"):
+        return ip
 
-    if ip is None:
-        forwards = request.headers.get("X-Forwarded-For")
+    if forwards := request.headers.get("X-Forwarded-For"):
+        return forwards.split(",")[0]
 
-    if forwards:
-        ip = forwards.split(",")[0]
-    else:
-        ip = request.headers.get("X-Real-IP")
+    if ip := request.headers.get("X-Real-IP"):
+        return ip
 
-    if ip is None:
-        ip = request.client.host
-
-    return ip.strip()
+    return request.client.host.strip()
 
 def thread_callback(future: Future):
     if (e := future.exception()):
