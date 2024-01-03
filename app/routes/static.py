@@ -87,7 +87,14 @@ def osz(
             # Why does this happen?
             raise HTTPException(500)
 
-    return StreamingResponse(osz)
+    return StreamingResponse(
+        osz,
+        media_type='application/octet-stream',
+        headers={
+            'Content-Disposition': f'attachment; filename={set_id}.osz',
+            'Content-Length': filesize or 0
+        }
+    )
 
 @router.get('/forum/download.php')
 def legacy_avatar(request: Request):
