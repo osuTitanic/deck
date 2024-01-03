@@ -344,7 +344,9 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         BadFlags.TransparentWindow,
         BadFlags.FastPress,
         BadFlags.FlashlightChecksumIncorrect,
-        BadFlags.ChecksumFailure
+        BadFlags.ChecksumFailure,
+        BadFlags.RawMouseDiscrepancy,
+        BadFlags.RawKeyboardDiscrepancy
     ]
 
     if any(flag in score.flags for flag in flags):
@@ -727,6 +729,11 @@ def score_submission(
             key=lambda x: x.mode
         )
 
+    if score.client_hash:
+        score.client_hash = (
+            score.client_hash.removesuffix(':')
+        )
+
     users.update(
         player.id,
         {'latest_activity': datetime.now()},
@@ -944,6 +951,11 @@ def legacy_score_submission(
     if score.user.stats:
         score.user.stats.sort(
             key=lambda x: x.mode
+        )
+
+    if score.client_hash:
+        score.client_hash = (
+            score.client_hash.removesuffix(':')
         )
 
     users.update(

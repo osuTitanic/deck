@@ -45,14 +45,28 @@ def osz(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
 ):
-    if not (user := users.fetch_by_name(username)):
-        raise HTTPException(401)
-
-    if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
-        raise HTTPException(401)
+    if not id.replace('n', '').isdigit():
+        raise HTTPException(400)
 
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
+
+    bundled_maps = [
+        3756,
+        163112,
+        140662,
+        151878,
+        190390,
+        123593
+    ]
+
+    # Skip user authentication for bundled maps
+    if not set_id in bundled_maps:
+        if not (user := users.fetch_by_name(username)):
+            raise HTTPException(401)
+
+        if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
+            raise HTTPException(401)
 
     if not (response := app.session.storage.api.osz(set_id, no_video)):
         raise HTTPException(404)
@@ -73,7 +87,14 @@ def osz(
             # Why does this happen?
             raise HTTPException(500)
 
-    return StreamingResponse(osz)
+    return StreamingResponse(
+        osz,
+        media_type='application/octet-stream',
+        headers={
+            'Content-Disposition': f'attachment; filename={set_id}.osz',
+            'Content-Length': filesize or 0
+        }
+    )
 
 @router.get('/forum/download.php')
 def legacy_avatar(request: Request):

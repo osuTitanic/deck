@@ -1,7 +1,7 @@
 
-from datetime import datetime
-from typing import Optional
+from __future__ import annotations
 
+from datetime import datetime
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -10,7 +10,6 @@ from fastapi import (
 )
 
 from app.common.cache import status
-
 from app.common.database.repositories import (
     relationships,
     beatmaps,
@@ -34,17 +33,18 @@ router = APIRouter()
 
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
-    username: Optional[str] = Query(None, alias='us'),
-    password: Optional[str] = Query(None, alias='ha'),
-    ranking_type: Optional[int] = Query(1, alias='v'),
-    user_id: Optional[int] = Query(None, alias='u'),
+    request_version: int | None = Query(1, alias='vv'),
+    username: str | None = Query(None, alias='us'),
+    password: str | None = Query(None, alias='ha'),
+    ranking_type: int | None = Query(1, alias='v'),
+    user_id: int | None = Query(None, alias='u'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s'),
     osz_hash: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='i'),
     mode: int = Query(..., alias='m'),
-    mods: Optional[int] = Query(0)
+    mods: int | None = Query(0),
 ):
     with app.session.database.managed_session() as session:
         try:
@@ -128,6 +128,17 @@ def get_scores(
 
                 if ranking_type == RankingType.Friends:
                     score_count += 1
+
+        if (request_version > 2):
+            # NOTE: In request version 3, the submission status is changed
+            #       Qualified: 4
+            #       Ranked: 2
+
+            if submission_status == SubmissionStatus.Ranked:
+                submission_status = SubmissionStatus.EditableCutoff
+
+            elif submission_status == SubmissionStatus.EditableCutoff:
+                submission_status = SubmissionStatus.Ranked
 
         # Beatmap Info
         response.append(
@@ -236,7 +247,7 @@ def get_scores(
 
         for index, score in enumerate(top_scores):
             response.append(
-                utils.score_string(score, index)
+                utils.score_string(score, index, request_version)
             )
 
         return Response('\n'.join(response))
@@ -570,7 +581,7 @@ def legacy_scores_no_personal_best(
 def legacy_scores_status_change(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    skip_scores: Optional[str] = Query(None, alias='s')
+    skip_scores: str | None = Query(None, alias='s')
 ):
     # TODO: /osu-getscores2.php response format is different in some versions
     #       One method would be to check the client version over the cache

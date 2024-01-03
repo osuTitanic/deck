@@ -39,7 +39,7 @@ def connect(
     if (date > 20130815):
         # Client is connecting from an http client
         ip_address = utils.resolve_ip_address(request)
-        geo = location.fetch_geolocation(ip_address, player.id)
+        geo = location.fetch_geolocation(ip_address)
         return geo.country_code.lower()
 
     if not config.BANCHO_IP:

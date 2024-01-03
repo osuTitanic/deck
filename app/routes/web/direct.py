@@ -13,7 +13,6 @@ from app.common.database.repositories import (
 )
 
 import bcrypt
-import config
 import utils
 import app
 
@@ -22,14 +21,18 @@ router = APIRouter()
 @router.get('/osu-search.php')
 def search(
     legacy_password: str | None = Query(None, alias='c'),
+    page_offset: int | None = Query(None, alias='p'),
     username: str | None = Query(None, alias='u'),
     password: str | None = Query(None, alias='h'),
     display_mode: int = Query(4, alias='r'),
-    query: str = Query(..., alias='q')
+    query: str = Query(..., alias='q'),
+    mode: int = Query(-1, alias='m')
 ):
-    player = None
-
     with app.session.database.managed_session() as session:
+        supports_page_offset = page_offset is not None
+        page_offset = page_offset or 0
+        player = None
+
         if legacy_password or password:
             # NOTE: Old clients don't have authentication for osu! direct
 
@@ -69,12 +72,21 @@ def search(
                 query,
                 player.id if player else 0,
                 display_mode,
+                page_offset * 100,
+                mode,
                 session
             )
 
-            response.append(str(
-                len(results)
-            ))
+            if not supports_page_offset:
+                response.append(str(
+                    len(results)
+                ))
+
+            else:
+                response.append(str(
+                    len(results)
+                    if len(results) < 100 else 101
+                ))
 
             for set in results:
                 response.append(

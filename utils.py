@@ -79,7 +79,7 @@ def setup():
                 download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
                 download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
 
-def score_string(score: DBScore, index: int) -> str:
+def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
     return '|'.join([
         str(score.id),
         str(score.user.name),
@@ -95,7 +95,13 @@ def score_string(score: DBScore, index: int) -> str:
         str(score.mods),
         str(score.user_id),
         str(index),
-        str(score.submitted_at)
+        # This was changed to a unix timestamp in request version 2
+        (
+            str(score.submitted_at) if request_version <= 1 else
+            str(score.submitted_at.timestamp())
+        ),
+        # "Has Replay", added in request version 4
+        str(1)
     ])
 
 def score_string_legacy(score: DBScore) -> str:
@@ -246,7 +252,10 @@ def resize_image(
 def parse_osu_config(config: str) -> Dict[str, str]:
     return {
         k.strip():v.strip()
-        for (k, v) in [line.split('=', 1) for line in config.splitlines()]
+        for (k, v) in [
+            line.split('=', 1) for line in config.splitlines()
+            if '=' in line and not line.startswith('#')
+        ]
     }
 
 def resolve_ip_address(request: Request):
