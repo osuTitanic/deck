@@ -98,7 +98,7 @@ def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
         # This was changed to a unix timestamp in request version 2
         (
             str(score.submitted_at) if request_version <= 1 else
-            str(score.submitted_at.timestamp())
+            str(round(score.submitted_at.timestamp()))
         ),
         # "Has Replay", added in request version 4
         str(1)
