@@ -344,7 +344,9 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         BadFlags.TransparentWindow,
         BadFlags.FastPress,
         BadFlags.FlashlightChecksumIncorrect,
-        BadFlags.ChecksumFailure
+        BadFlags.ChecksumFailure,
+        BadFlags.RawMouseDiscrepancy,
+        BadFlags.RawKeyboardDiscrepancy
     ]
 
     if any(flag in score.flags for flag in flags):
