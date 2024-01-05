@@ -338,6 +338,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             )
             return Response('error: no')
 
+        # TODO: Add check for amount of pp gained in a short time
+
     flags = [
         BadFlags.FlashLightImageHack,
         BadFlags.SpinnerHack,
