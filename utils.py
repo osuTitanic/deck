@@ -258,18 +258,6 @@ def parse_osu_config(config: str) -> Dict[str, str]:
         ]
     }
 
-def resolve_ip_address(request: Request):
-    if ip := request.headers.get("CF-Connecting-IP"):
-        return ip
-
-    if forwards := request.headers.get("X-Forwarded-For"):
-        return forwards.split(",")[0]
-
-    if ip := request.headers.get("X-Real-IP"):
-        return ip
-
-    return request.client.host.strip()
-
 def thread_callback(future: Future):
     if (e := future.exception()):
         app.session.database.logger.error(
