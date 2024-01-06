@@ -332,11 +332,13 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     if recent_scores:
         time = average_submission_time(recent_scores)
 
-        if time != 0 and time <= 8:
+        if time != 0 and time <= 6:
             officer.call(
                 f'"{score.username}" is spamming score submission.'
             )
             return Response('error: no')
+
+        # TODO: Add check for amount of pp gained in a short time
 
     flags = [
         BadFlags.FlashLightImageHack,

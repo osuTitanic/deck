@@ -1,16 +1,23 @@
 
 from fastapi import HTTPException, APIRouter, Request, Query
 from app.common.database.repositories import users
+from app.common.helpers import location, ip
 from app.common.constants import regexes
-from app.common.helpers import location
 from datetime import datetime
 
 import bcrypt
 import config
-import utils
 import app
 
 router = APIRouter()
+
+def resolve_country(request: Request) -> str:
+    if country_code := request.headers.get('CF-IPCountry'):
+        return country_code.lower()
+
+    ip_address = ip.resolve_ip_address_fastapi(request)
+    geo = location.fetch_geolocation(ip_address)
+    return geo.country_code.lower()
 
 @router.get('/bancho_connect.php')
 def connect(
@@ -36,13 +43,7 @@ def connect(
 
     date = int(match.group('date'))
 
-    if (date > 20130815):
-        # Client is connecting from an http client
-        ip_address = utils.resolve_ip_address(request)
-        geo = location.fetch_geolocation(ip_address)
-        return geo.country_code.lower()
+    if date <= 20130815:
+        return config.BANCHO_IP or ""
 
-    if not config.BANCHO_IP:
-        return
-
-    return config.BANCHO_IP
+    return resolve_country(request)

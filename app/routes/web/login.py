@@ -1,5 +1,6 @@
 
 from app.common.database.repositories import users
+from app.common.helpers import ip
 
 from datetime import datetime
 from fastapi import (
@@ -9,7 +10,6 @@ from fastapi import (
 )
 
 import bcrypt
-import utils
 import app
 
 router = APIRouter()
@@ -38,7 +38,7 @@ def legacy_login(
     # Set new ip address in cache
     app.session.redis.set(
         f'irc:{player.id}',
-        utils.resolve_ip_address(request)
+        ip.resolve_ip_address_fastapi(request)
     )
 
     return "1"
