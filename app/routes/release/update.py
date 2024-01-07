@@ -2,6 +2,7 @@
 from app.common.helpers import clients
 from fastapi import APIRouter, Query
 
+import config
 import app
 
 router = APIRouter()
@@ -12,6 +13,9 @@ def check_for_updates(
     checksum: str = Query(..., alias='h'),
     ticks: int = Query(..., alias='t')
 ):
+    if config.DISABLE_CLIENT_VERIFICATION:
+        return "0"
+
     if not (hashes := clients.get_client_hashes(filename)):
         return "0"
 
@@ -47,8 +51,37 @@ def get_files(
     # "noup" - only download file if it doesn't exist
     # "zip" - download file and unzip it
     # "diff" - download file and patch it
-    # TODO
-    ...
+    # "extra" - was used in osume, inside the "extras" tab (unused)
+
+    noup_files = (
+        'Microsoft.Xna.Framework.dll',
+        'Microsoft.Ink.dll',
+        'd3dx9_31.dll',
+        'bass_fx.dll',
+        'bass.dll',
+        'avutil-49.dll',
+        'avformat-52.dll',
+        'avcodec-51.dll'
+    )
+
+    release_files = app.session.storage.get_file_hashes('release').items()
+    response = []
+
+    for file, hash in release_files:
+        if file in noup_files:
+            response.append(f'{file} {hash} "" noup {hash}')
+            continue
+
+        if file.endswith('.patch'):
+            filename, old_checksum, new_checksum = file.split('_')
+            response.append(f'{filename} {new_checksum} "" diff {old_checksum}')
+            continue
+
+        if file.endswith('.zip'):
+            response.append(f'{filename} {hash} "" zip {hash}')
+            continue
+
+    return '\n'.join(response)
 
 @router.get('/patches.php')
 def patches():
