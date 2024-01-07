@@ -22,11 +22,18 @@ REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
 SENDGRID_EMAIL = os.environ.get('SENDGRID_EMAIL')
 
+MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY')
+MAILGUN_EMAIL = os.environ.get('MAILGUN_EMAIL', '')
+MAILGUN_URL = os.environ.get('MAILGUN_URL', 'api.eu.mailgun.net')
+MAILGUN_DOMAIN = MAILGUN_EMAIL.split('@')[-1]
+
+EMAILS_ENABLED = MAILGUN_API_KEY is not None or SENDGRID_API_KEY is not None
+EMAIL = MAILGUN_EMAIL or SENDGRID_EMAIL
+
 WEB_HOST = os.environ.get('WEB_HOST')
 WEB_PORT = int(os.environ.get('WEB_PORT', 80))
 
 APPROVED_MAP_REWARDS = eval(os.environ.get('APPROVED_MAP_REWARDS', 'False').capitalize())
-FREE_SUPPORTER = eval(os.environ.get('FREE_SUPPORTER', 'True').capitalize())
 ALLOW_RELAX = eval(os.environ.get('ALLOW_RELAX', 'True').capitalize())
 S3_ENABLED = eval(os.environ.get('ENABLE_S3', 'True').capitalize())
 DEBUG = eval(os.environ.get('DEBUG', 'False').capitalize())
@@ -36,6 +43,8 @@ SCORE_SUBMISSION_KEY = os.environ.get('SCORE_SUBMISSION_KEY')
 
 MENUICON_IMAGE = os.environ.get('MENUICON_IMAGE')
 MENUICON_URL = os.environ.get('MENUICON_URL')
+
+OFFICER_WEBHOOK_URL = os.environ.get('OFFICER_WEBHOOK_URL')
 
 BANCHO_IP = os.environ.get('PUBLIC_BANCHO_IP', None)
 DOMAIN_NAME = os.environ.get('DOMAIN_NAME')

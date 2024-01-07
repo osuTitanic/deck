@@ -24,7 +24,7 @@ utils.setup()
 
 logging.basicConfig(
     format='[%(asctime)s] - <%(name)s> %(levelname)s: %(message)s',
-    level=logging.INFO,
+    level=logging.DEBUG if config.DEBUG else logging.INFO,
     handlers=[Console, File]
 )
 
@@ -37,8 +37,8 @@ api = FastAPI(
     title='Deck',
     description='API for osu! clients',
     version=config.VERSION,
-    redoc_url=None,
-    docs_url=None,
+    redoc_url=None if not config.DEBUG else '/redoc',
+    docs_url=None if not config.DEBUG else '/docs',
     debug=True if config.DEBUG else False
 )
 

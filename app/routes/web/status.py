@@ -8,34 +8,37 @@ from fastapi import (
     Query
 )
 
+import app
+
 router = APIRouter()
 
 @router.get('/osu-getstatus.php')
-def get_beatmaps(
-    checksums: str = Query(..., alias='c')
-):
-    # Check amount of requests
-    if len(checksums := checksums.split(',')) > 60:
-        raise HTTPException(400)
+def get_beatmaps(checksums: str = Query(..., alias='c')):
+    with app.session.database.managed_session() as session:
+        # Check amount of requests
+        if len(checksums := checksums.split(',')) > 60:
+            raise HTTPException(400)
 
-    # Check md5 size
-    if any([len(checksum) != 32 for checksum in checksums if checksum]):
-        raise HTTPException(400)
+        # Check md5 size
+        if any([len(checksum) != 32 for checksum in checksums if checksum]):
+            raise HTTPException(400)
 
-    response = []
+        app.session.logger.info(f"Got beatmap status request for {len(checksums)} beatmaps.")
 
-    for checksum in checksums:
-        if not (beatmap := beatmaps.fetch_by_checksum(checksum)):
-            continue
+        response = []
 
-        status = 1 if beatmap.status > 0 else 0
+        for checksum in checksums:
+            if not (beatmap := beatmaps.fetch_by_checksum(checksum, session)):
+                continue
 
-        response.append(','.join([
-            str(checksum),
-            str(status),
-            str(beatmap.id),
-            str(beatmap.set_id),
-            "" # beatmap.topic_id
-        ]))
+            status = 1 if beatmap.status > 0 else 0
 
-    return Response('\n'.join(response))
+            response.append(','.join([
+                str(checksum),
+                str(status),
+                str(beatmap.id),
+                str(beatmap.set_id),
+                "" # beatmap.topic_id
+            ]))
+
+        return Response('\n'.join(response))

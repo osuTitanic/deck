@@ -28,37 +28,47 @@ def get_replay(
     username: str = Query(None, alias='u'),
     password: str = Query(None, alias='h')
 ):
-    if username:
-        if not (player := users.fetch_by_name(username)):
-            raise HTTPException(401)
+    # NOTE: Old clients don't have authentication for this...
+    player = None
 
-        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-            raise HTTPException(401)
+    with app.session.database.managed_session() as session:
+        if username:
+            if not (player := users.fetch_by_name(username, session)):
+                raise HTTPException(401)
 
-        if not status.exists(player.id):
-            raise HTTPException(401)
+            if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+                raise HTTPException(401)
 
-        users.update(player.id, {'latest_activity': datetime.now()})
-    else:
-        player = None
+            if not status.exists(player.id):
+                raise HTTPException(401)
 
-    # Old clients don't have authentication for this...
+            users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-    if not (score := scores.fetch_by_id(score_id)):
-        raise HTTPException(404)
+        app.session.logger.info(f'{player} requested replay for "{score_id}".')
 
-    if player and player.id != score.user.id:
-        histories.update_replay_views(score.user.id, mode)
-        stats.update(
-            score.user.id, mode,
-            {'replay_views': DBStats.replay_views + 1}
-        )
+        if not (score := scores.fetch_by_id(score_id, session)):
+            app.session.logger.warning(f'Failed to get replay "{score_id}": Not found')
+            raise HTTPException(404)
+
+        if player and player.id != score.user.id:
+            histories.update_replay_views(
+                score.user.id,
+                mode,
+                session
+            )
+            stats.update(
+                score.user.id, mode,
+                {'replay_views': DBStats.replay_views + 1},
+                session
+            )
 
     if score.status <= 0:
         # Score is hidden
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Hidden Score')
         raise HTTPException(403)
 
     if not (replay := app.session.storage.get_replay(score_id)):
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Not found on storage')
         raise HTTPException(404)
 
     return Response(replay)

@@ -25,49 +25,58 @@ def add_favourite(
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='a')
 ):
-    if not (player := users.fetch_by_name(username)):
-        raise HTTPException(401)
-    
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        raise HTTPException(401)
+    with app.session.database.managed_session() as session:
+        if not (player := users.fetch_by_name(username, session)):
+            raise HTTPException(401)
 
-    if not status.exists(player.id):
-        raise HTTPException(401)
+        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+            raise HTTPException(401)
 
-    users.update(player.id, {'latest_activity': datetime.now()})
+        if not status.exists(player.id):
+            raise HTTPException(401)
 
-    count = favourites.fetch_count(player.id)
+        users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-    if count > 49:
-        return 'You have too many favourite maps. Please go to your profile and delete some first.'
+        count = favourites.fetch_count(player.id, session)
 
-    if not (beatmap_set := beatmapsets.fetch_one(set_id)):
-        raise HTTPException(404)
+        if count > 49:
+            app.session.logger.warning("Failed to add favourite: Too many favourites")
+            return 'You have too many favourite maps. Please go to your profile and delete some first.'
 
-    if not favourites.create(player.id, beatmap_set.id):
-        return 'You have already favourited this map...'
+        if not (beatmap_set := beatmapsets.fetch_one(set_id, session)):
+            app.session.logger.warning("Failed to add favourite: Beatmap not found")
+            raise HTTPException(404)
 
-    count += 1
+        if not favourites.create(player.id, beatmap_set.id, session):
+            app.session.logger.warning("Failed to add favourite: Already favourited")
+            return 'You have already favourited this map...'
 
-    app.session.logger.info(
-        f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}'
-    )
+        count += 1
 
-    return f'Added to favourites! You have a total of {count} favourite{"s" if count > 1 else ""}'
+        app.session.logger.info(
+            f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}'
+        )
+
+        return f'Added to favourites! You have a total of {count} favourite{"s" if count > 1 else ""}'
 
 @router.get('/osu-getfavourites.php')
 def get_favourites(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
 ):
-    if not (player := users.fetch_by_name(username)):
-        raise HTTPException(401)
+    with app.session.database.managed_session() as session:
+        if not (player := users.fetch_by_name(username, session)):
+            raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        raise HTTPException(401)
+        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+            raise HTTPException(401)
 
-    users.update(player.id, {'latest_activity': datetime.now()})
+        users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-    player_favourites = favourites.fetch_many(player.id)
+        player_favourites = favourites.fetch_many(player.id, session)
 
-    return '\n'.join([str(favourite.set_id) for favourite in player_favourites])
+        app.session.logger.info(
+            f'Got favourites request from "{username}" ({len(player_favourites)})'
+        )
+
+        return '\n'.join([str(favourite.set_id) for favourite in player_favourites])

@@ -1,6 +1,6 @@
 
 from app.common.database.repositories import logs, users
-from app.common.cache import status
+from app.common import officer
 
 from typing import Optional
 from fastapi import (
@@ -35,43 +35,60 @@ def osu_error(
     version: str = Form(...),
     config: str = Form(...)
 ):
-    if not status.exists(user_id):
-        raise HTTPException(400)
-
     # Parse config to get password
     config = utils.parse_osu_config(config)
 
-    if not (user := users.fetch_by_id(user_id)):
-        raise HTTPException(400)
+    with app.session.database.managed_session() as session:
+        if not (user := users.fetch_by_id(user_id, session)):
+            raise HTTPException(401)
 
-    if not bcrypt.checkpw(config['Password'].encode(), user.bcrypt.encode()):
-        raise HTTPException(400)
+        if not bcrypt.checkpw(config['Password'].encode(), user.bcrypt.encode()):
+            raise HTTPException(401)
 
-    error_dict = {
-        'user_id': user_id,
-        'version': version,
-        'feedback': feedback,
-        'iltrace': iltrace,
-        'exception': exception,
-        'stacktrace': stacktrace,
-        'exehash': exehash
-    }
+        if user.restricted or not user.activated:
+            raise HTTPException(401)
 
-    app.session.logger.warning(
-        f'Client error from "{username}":\n'
-        f'{json.dumps(error_dict, indent=4)}'
-    )
+        flagged_skins = [
+            'taikomania',
+            'duda skin',
+            'arpia97'
+        ]
 
-    logs.create(
-        json.dumps(error_dict),
-        'error',
-        'osu-error'
-    )
+        skin_name = config.get('Skin', '').lower()
 
-    app.session.events.submit(
-        'osu_error',
-        user_id,
-        error_dict
-    )
+        # Check if player is using a flagged skin
+        if any(name in skin_name for name in flagged_skins):
+            officer.call(
+                f'"{user.name}" is using a flagged skin: "{config["Skin"]}"',
+            )
 
-    return Response()
+        error_dict = {
+            'user_id': user_id,
+            'version': version,
+            'feedback': feedback,
+            'iltrace': iltrace,
+            'exception': exception,
+            'stacktrace': stacktrace,
+            'exehash': exehash
+        }
+
+        logs.create(
+            json.dumps(error_dict),
+            'error',
+            'osu-error',
+            session
+        )
+
+        if 'monitor' not in stacktrace:
+            app.session.logger.warning(
+                f'Client error from "{username}":\n'
+                f'{json.dumps(error_dict, indent=4)}'
+            )
+
+            app.session.events.submit(
+                'osu_error',
+                user_id,
+                error_dict
+            )
+
+        return Response(status_code=200)

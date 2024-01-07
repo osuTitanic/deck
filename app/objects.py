@@ -2,15 +2,13 @@
 from datetime import datetime
 from typing import Optional
 
-from app.common.helpers import performance
-from app.common.database.repositories import (
-    scores,
-    users
-)
+from .common.database.repositories import scores
+from .common.helpers import performance
 
 from .common.database import (
     DBBeatmap,
-    DBScore
+    DBScore,
+    DBUser
 )
 
 from .common.constants import (
@@ -35,50 +33,6 @@ class Chart(dict):
 
     def __repr__(self) -> str:
         return "|".join(f"{str(k)}:{str(v)}" for k, v in self.items())
-
-class ClientHash:
-    def __init__(self, md5: str, adapters: str, adapters_md5: str, uninstall_id: str, diskdrive_signature: str) -> None:
-        self.diskdrive_signature = diskdrive_signature
-        self.uninstall_id = uninstall_id
-        self.adapters_md5 = adapters_md5
-        self.adapters = adapters
-        self.md5 = md5
-
-    @property
-    def string(self) -> str:
-        return f'{self.md5}:{self.adapters}:{self.adapters_md5}:{self.uninstall_id}:{self.diskdrive_signature}'
-
-    def __repr__(self) -> str:
-        return self.string
-
-    @classmethod
-    def from_string(cls, string: str):
-        try:
-            md5, adapters, adapters_md5, uninstall_id, diskdrive_signature = string.split(':')
-        except ValueError:
-            args = string.split(':')
-
-            md5 = args[0]
-            adapters = args[1]
-            adapters_md5 = args[2]
-
-            diskdrive_signature = hashlib.md5(b'unknown').hexdigest()
-            uninstall_id = hashlib.md5(b'unknown').hexdigest()
-
-            try:
-                uninstall_id = args[3]
-                diskdrive_signature = args[4]
-            except IndexError:
-                # Hardware IDs are not supported
-                pass
-
-        return ClientHash(
-            md5,
-            adapters,
-            adapters_md5,
-            uninstall_id,
-            diskdrive_signature
-        )
 
 class Score:
     def __init__(
@@ -122,6 +76,7 @@ class Score:
         self.perfect      = perfect
         self.grade        = grade
         self.enabled_mods = enabled_mods
+        self.username     = username
 
         self.passed    = passed
         self.play_mode = play_mode
@@ -135,35 +90,21 @@ class Score:
         self.status = ScoreStatus.Submitted
         self.pp = 0.0
 
+        self.session = app.session.database.session
+        self.personal_best: Optional[DBScore] = None
+        self.beatmap: Optional[DBBeatmap] = None
+        self.user: Optional[DBUser] = None
+
         # Optional
         self.personal_best: Optional[DBScore] = None
         self.fun_spoiler: Optional[str] = None
         self.client_hash: Optional[str] = None
         self.processes: Optional[str] = None
 
-        # TODO: Refactor that?
-        # Beatmap needs to be bound to session
-        self.session = app.session.database.session
-        self.beatmap = self.session.query(DBBeatmap) \
-                        .filter(DBBeatmap.md5 == file_checksum) \
-                        .first()
-
-        self.user = users.fetch_by_name(username)
-        self.pp = self.calculate_ppv2()
-
         if passed:
             # "Fix" for old clients
             self.failtime = None
             self.exited = None
-
-        if self.beatmap:
-            self.personal_best = scores.fetch_personal_best(
-                self.beatmap.id,
-                self.user.id,
-                self.play_mode.value
-            )
-
-            self.status = self.get_status()
 
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
@@ -295,17 +236,7 @@ class Score:
         if not self.personal_best:
             return ScoreStatus.Best
 
-        if (Mods.Relax in self.enabled_mods or
-            Mods.Autopilot in self.enabled_mods):
-            # PP will be used for rx/ap no matter what
-            better_score = self.pp > self.personal_best.pp
-
-        else:
-            # The score with the most performance points will be used
-            # as long its a different mod combination from the pb
-            better_score = self.pp > self.personal_best.pp \
-                if self.enabled_mods.value != self.personal_best.pp \
-                else self.total_score > self.personal_best.total_score
+        better_score = self.pp > self.personal_best.pp
 
         if not better_score:
             if self.enabled_mods.value == self.personal_best.mods:
@@ -316,7 +247,8 @@ class Score:
                 self.beatmap.id,
                 self.user.id,
                 self.play_mode.value,
-                self.enabled_mods.value
+                self.enabled_mods.value,
+                self.session
             )
 
             if not mods_pb:
@@ -377,7 +309,7 @@ class Score:
 
         return Score(
             file_checksum = items[0],
-            username = items[1],
+            username = items[1].strip(),
             score_checksum = items[2],
             count300 = int(items[3]),
             count100 = int(items[4]),

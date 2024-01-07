@@ -1,6 +1,10 @@
 
+from __future__ import annotations
+
 from py3rijndael import RijndaelCbc, Pkcs7Padding
-from typing import Optional
+from concurrent.futures import Future
+from fastapi import Request
+from typing import Dict
 from PIL import Image
 
 from app.common.database import DBScore, DBBeatmapset
@@ -74,7 +78,7 @@ def setup():
                 download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
                 download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
 
-def score_string(score: DBScore, index: int) -> str:
+def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
     return '|'.join([
         str(score.id),
         str(score.user.name),
@@ -90,7 +94,13 @@ def score_string(score: DBScore, index: int) -> str:
         str(score.mods),
         str(score.user_id),
         str(index),
-        str(score.submitted_at)
+        # This was changed to a unix timestamp in request version 2
+        (
+            str(score.submitted_at) if request_version <= 1 else
+            str(round(score.submitted_at.timestamp()))
+        ),
+        # "Has Replay", added in request version 4
+        str(1)
     ])
 
 def score_string_legacy(score: DBScore) -> str:
@@ -112,7 +122,7 @@ def score_string_legacy(score: DBScore) -> str:
         str(score.submitted_at)
     ])
 
-def decrypt_string(b64: Optional[str], iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
+def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
     if not b64:
         return
 
@@ -172,7 +182,7 @@ def has_png_headers(data_view: memoryview) -> bool:
     )
 
 def get_osz_size(set_id: int, no_video: bool = False) -> int:
-    r = app.session.requests.head(f'https://osu.direct/d/{set_id}{"noVideo=" if no_video else ""}')
+    r = app.session.requests.head(f'https://api.osu.direct/d/{set_id}{"noVideo=" if no_video else ""}')
 
     if not r.ok:
         app.session.logger.error(
@@ -210,10 +220,10 @@ def update_osz_filesize(set_id: int, has_video: bool = False):
 
 def resize_image(
     image: bytes,
-    target_width: Optional[int] = None,
-    target_height: Optional[int] = None,
-    max_width: Optional[int] = None,
-    max_height: Optional[int] = None
+    target_width: int | None = None,
+    target_height: int | None = None,
+    max_width: int | None = None,
+    max_height: int | None = None
 ) -> bytes:
     img = Image.open(io.BytesIO(image))
     image_width, image_height = img.size
@@ -238,8 +248,24 @@ def resize_image(
 
     return image_buffer.getvalue()
 
-def parse_osu_config(config: str) -> dict:
+def parse_osu_config(config: str) -> Dict[str, str]:
     return {
         k.strip():v.strip()
-        for (k, v) in [line.split('=', 1) for line in config.splitlines()]
+        for (k, v) in [
+            line.split('=', 1) for line in config.splitlines()
+            if '=' in line and not line.startswith('#')
+        ]
     }
+
+def thread_callback(future: Future):
+    if (e := future.exception()):
+        app.session.database.logger.error(
+            f'Failed to execute thread: {e}',
+            exc_info=e
+        )
+        return
+
+    app.session.database.logger.debug(
+        f'Thread completed: {e}',
+        exc_info=e
+    )

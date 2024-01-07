@@ -16,6 +16,8 @@ def index():
 
 @router.get('/maps/{filename}')
 def get_map(filename: str):
+    app.session.logger.info(f'Got map request for: "{filename}".')
+
     if not (beatmap := beatmaps.fetch_by_file(filename)):
         raise HTTPException(404)
 

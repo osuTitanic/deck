@@ -1,13 +1,13 @@
 
 from concurrent.futures import Future, TimeoutError
 from datetime import datetime, timedelta
-from typing import List, Callable
+from typing import List, Callable, Tuple
 
 from app.common.constants import ScoreStatus, Grade
 from app.common.database.repositories import scores
 from app.common.cache import leaderboards
 
-from app.common.database.objects import DBScore
+from app.common.database.objects import DBScore, DBBeatmap
 from app.common.constants import Mods
 
 import config
@@ -45,15 +45,16 @@ def register(name: str, category: str, filename: str) -> Callable:
 
     return wrapper
 
-def check_pack(score: DBScore, beatmap_ids: List[int]) -> bool:
-    if score.beatmap_id not in beatmap_ids:
+def check_pack(score: DBScore, beatmapset_ids: List[int]) -> bool:
+    if score.beatmap.set_id not in beatmapset_ids:
         # Score was not set inside this pack
         return False
 
     with app.session.database.managed_session() as session:
-        for beatmap_id in beatmap_ids:
+        for set_id in beatmapset_ids:
             result = session.query(DBScore) \
-                            .filter(DBScore.beatmap_id == beatmap_id) \
+                            .join(DBBeatmap) \
+                            .filter(DBBeatmap.set_id == set_id) \
                             .filter(DBScore.user_id == score.user_id) \
                             .filter(DBScore.status == 3) \
                             .first()
@@ -170,7 +171,9 @@ def prize(score: DBScore) -> bool:
     if Grade[score.grade] != Grade.D:
         return False
 
-    if score.mods > 0:
+    mods = Mods(score.mods)
+
+    if (Mods.Easy in mods) or (Mods.NoFail in mods):
         return False
 
     return True
@@ -270,7 +273,7 @@ def nekko(score: DBScore) -> bool:
     return True
 
 @register(name='5,000 Plays (osu! mode)', category='Dedication', filename='plays1.png')
-def osuhits_1(score: DBScore) -> bool:
+def osuplays_1(score: DBScore) -> bool:
     """Get a Play Count of 5,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -283,7 +286,7 @@ def osuhits_1(score: DBScore) -> bool:
     return True
 
 @register(name='15,000 Plays (osu! mode)', category='Dedication', filename='plays2.png')
-def osuhits_2(score: DBScore) -> bool:
+def osuplays_2(score: DBScore) -> bool:
     """Get a Play Count of 15,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -296,7 +299,7 @@ def osuhits_2(score: DBScore) -> bool:
     return True
 
 @register(name='25,000 Plays (osu! mode)', category='Dedication', filename='plays3.png')
-def osuhits_3(score: DBScore) -> bool:
+def osuplays_3(score: DBScore) -> bool:
     """Get a Play Count of 25,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -309,7 +312,7 @@ def osuhits_3(score: DBScore) -> bool:
     return True
 
 @register(name='50,000 Plays (osu! mode)', category='Dedication', filename='plays4.png')
-def osuhits_4(score: DBScore) -> bool:
+def osuplays_4(score: DBScore) -> bool:
     """Get a Play Count of 50,000 in osu!Standard"""
     if score.mode != 0:
         return False
@@ -330,7 +333,7 @@ def taikohits_1(score: DBScore) -> bool:
 
     s = score.user.stats[1]
 
-    if s.playcount < 30000:
+    if s.total_hits < 30000:
         return False
 
     return True
@@ -343,7 +346,7 @@ def taikohits_2(score: DBScore) -> bool:
 
     s = score.user.stats[1]
 
-    if s.playcount < 300000:
+    if s.total_hits < 300000:
         return False
 
     return True
@@ -356,7 +359,7 @@ def taikohits_3(score: DBScore) -> bool:
 
     s = score.user.stats[1]
 
-    if s.playcount < 3000000:
+    if s.total_hits < 3000000:
         return False
 
     return True
@@ -369,7 +372,7 @@ def fruitshits_1(score: DBScore) -> bool:
 
     s = score.user.stats[2]
 
-    if s.playcount < 20000:
+    if s.total_hits < 20000:
         return False
 
     return True
@@ -382,7 +385,7 @@ def fruitshits_2(score: DBScore) -> bool:
 
     s = score.user.stats[2]
 
-    if s.playcount < 200000:
+    if s.total_hits < 200000:
         return False
 
     return True
@@ -395,7 +398,7 @@ def fruitshits_3(score: DBScore) -> bool:
 
     s = score.user.stats[2]
 
-    if s.playcount < 2000000:
+    if s.total_hits < 2000000:
         return False
 
     return True
@@ -408,7 +411,7 @@ def maniahits_1(score: DBScore) -> bool:
 
     s = score.user.stats[3]
 
-    if s.playcount < 40000:
+    if s.total_hits < 40000:
         return False
 
     return True
@@ -421,7 +424,7 @@ def maniahits_2(score: DBScore) -> bool:
 
     s = score.user.stats[3]
 
-    if s.playcount < 400000:
+    if s.total_hits < 400000:
         return False
 
     return True
@@ -434,47 +437,51 @@ def maniahits_3(score: DBScore) -> bool:
 
     s = score.user.stats[3]
 
-    if s.playcount < 4000000:
+    if s.total_hits < 4000000:
         return False
 
     return True
 
 @register(name='I can see the top', category='Skill', filename='high-ranker-1.png')
 def ranking_1(score: DBScore) -> bool:
-    """Reach a profile rank of at least 50,000 in any osu! mode"""
+    """Reach a profile rank of at least 500 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 50000:
+    # NOTE: Used to be 50,000
+    if rank > 500:
         return False
 
     return True
 
 @register(name='The gradual rise', category='Skill', filename='high-ranker-2.png')
 def ranking_2(score: DBScore) -> bool:
-    """Reach a profile rank of at least 10,000 in any osu! mode"""
+    """Reach a profile rank of at least 100 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 10000:
+    # NOTE: Used to be 10,000
+    if rank > 100:
         return False
 
     return True
 
 @register(name='Scaling up', category='Skill', filename='high-ranker-3.png')
 def ranking_3(score: DBScore) -> bool:
-    """Reach a profile rank of at least 5,000 in any osu! mode"""
+    """Reach a profile rank of at least 50 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 5000:
+    # NOTE: Used to be 5,000
+    if rank > 50:
         return False
 
     return True
 
 @register(name='Approaching the summit', category='Skill', filename='high-ranker-4.png')
 def ranking_3(score: DBScore) -> bool:
-    """Reach a profile rank of at least 1,000 in any osu! mode"""
+    """Reach a profile rank of at least 15 in any osu! mode"""
     rank = leaderboards.global_rank(score.user_id, score.mode)
 
-    if rank > 1000:
+    # NOTE: Used to be 1,000
+    if rank > 10:
         return False
 
     return True
@@ -483,10 +490,20 @@ def ranking_3(score: DBScore) -> bool:
 def video_game_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            347,
-            348,
-            346
+        beatmapset_ids=[
+            1635,
+            1211,
+            1231,
+            1281,
+            1092,
+            312,
+            633,
+            688,
+            704,
+            154,
+            125,
+            92,
+            25
         ]
     )
 
@@ -494,11 +511,20 @@ def video_game_1(score: DBScore) -> bool:
 def video_game_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            18925,
-            18917,
-            18929,
-            18930
+        beatmapset_ids=[
+            1044,
+            1123,
+            1367,
+            1525,
+            1818,
+            2008,
+            2128,
+            2147,
+            2404,
+            2420,
+            243,
+            2619,
+            628
         ]
     )
 
@@ -506,11 +532,20 @@ def video_game_2(score: DBScore) -> bool:
 def video_game_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            21072,
-            21073,
-            21083,
-            21120
+        beatmapset_ids=[
+            1890,
+            2085,
+            2490,
+            2983,
+            3150,
+            3221,
+            3384,
+            3511,
+            3613,
+            4033,
+            4299,
+            4305,
+            4629
         ]
     )
 
@@ -518,10 +553,20 @@ def video_game_3(score: DBScore) -> bool:
 def video_game_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            42010,
-            42011,
-            42012
+        beatmapset_ids=[
+            10104,
+            10880,
+            13489,
+            14205,
+            14458,
+            16669,
+            17373,
+            21836,
+            23073,
+            7077,
+            9580,
+            9668,
+            9854
         ]
     )
 
@@ -529,10 +574,20 @@ def video_game_4(score: DBScore) -> bool:
 def anime_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            14584,
-            14586,
-            14585
+        beatmapset_ids=[
+            1005,
+            1377,
+            1414,
+            1464,
+            147,
+            1806,
+            301,
+            35,
+            442,
+            511,
+            584,
+            842,
+            897
         ]
     )
 
@@ -540,8 +595,20 @@ def anime_1(score: DBScore) -> bool:
 def anime_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            6433
+        beatmapset_ids=[
+            150,
+            162,
+            205,
+            212,
+            2207,
+            2267,
+            2329,
+            2425,
+            302,
+            496,
+            521,
+            86,
+            956
         ]
     )
 
@@ -549,10 +616,20 @@ def anime_2(score: DBScore) -> bool:
 def anime_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            26683,
-            26624,
-            26678
+        beatmapset_ids=[
+            2618,
+            3030,
+            4851,
+            4994,
+            5010,
+            5235,
+            5410,
+            5480,
+            5963,
+            6037,
+            6257,
+            6535,
+            6557
         ]
     )
 
@@ -560,11 +637,20 @@ def anime_3(score: DBScore) -> bool:
 def anime_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            35909,
-            39888,
-            35809,
-            35893
+        beatmapset_ids= [
+            12982,
+            13036,
+            13673,
+            14256,
+            14694,
+            16252,
+            21197,
+            516,
+            5438,
+            6301,
+            8422,
+            8829,
+            9556
         ]
     )
 
@@ -572,13 +658,19 @@ def anime_4(score: DBScore) -> bool:
 def internet_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            112700,
-            103281,
-            107409,
-            107410,
-            105037,
-            103282
+        beatmapset_ids=[
+            66,
+            132,
+            140,
+            235,
+            303,
+            339,
+            455,
+            664,
+            812,
+            977,
+            1018,
+            1287
         ]
     )
 
@@ -586,13 +678,20 @@ def internet_1(score: DBScore) -> bool:
 def internet_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            119080,
-            146247,
-            119081,
-            119082,
-            120348,
-            127560
+        beatmapset_ids=[
+            203,
+            917,
+            1573,
+            1628,
+            1785,
+            2103,
+            2569,
+            3196,
+            3219,
+            3545,
+            3621,
+            4535,
+            5014
         ]
     )
 
@@ -600,11 +699,20 @@ def internet_2(score: DBScore) -> bool:
 def internet_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            775072,
-            766689,
-            769513,
-            779447
+        beatmapset_ids=[
+            1839,
+            3337,
+            3367,
+            3688,
+            5703,
+            5709,
+            5823,
+            6526,
+            6626,
+            7506,
+            7507,
+            8034,
+            8690
         ]
     )
 
@@ -612,11 +720,20 @@ def internet_3(score: DBScore) -> bool:
 def internet_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            382275,
-            382963,
-            383456,
-            383457
+        beatmapset_ids=[
+            11443,
+            12033,
+            12155,
+            13885,
+            14391,
+            14579,
+            14672,
+            15157,
+            15628,
+            15942,
+            17145,
+            17217,
+            17724
         ]
     )
 
@@ -624,10 +741,20 @@ def internet_4(score: DBScore) -> bool:
 def rhythm_game_1(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            11089,
-            11091,
-            11090
+        beatmapset_ids=[
+            1452,
+            1450,
+            1078,
+            1201,
+            1300,
+            1317,
+            1338,
+            210,
+            296,
+            540,
+            564,
+            74,
+            96
         ]
     )
 
@@ -635,10 +762,20 @@ def rhythm_game_1(score: DBScore) -> bool:
 def rhythm_game_2(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            21912,
-            21736,
-            21724
+        beatmapset_ids=[
+            1207,
+            1567,
+            2534,
+            3302,
+            3435,
+            3499,
+            4887,
+            5087,
+            5177,
+            5275,
+            5321,
+            5349,
+            5577
         ]
     )
 
@@ -646,10 +783,20 @@ def rhythm_game_2(score: DBScore) -> bool:
 def rhythm_game_3(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            25463,
-            25427,
-            25428
+        beatmapset_ids=[
+            1206,
+            4357,
+            4617,
+            4772,
+            4954,
+            5180,
+            5672,
+            5696,
+            6598,
+            7094,
+            7237,
+            7612,
+            7983
         ]
     )
 
@@ -657,11 +804,20 @@ def rhythm_game_3(score: DBScore) -> bool:
 def rhythm_game_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmap_ids=[
-            65453,
-            65454,
-            65455,
-            65456
+        beatmapset_ids=[
+            10842,
+            11135,
+            11488,
+            12052,
+            12190,
+            12710,
+            13249,
+            14572,
+            14778,
+            15241,
+            18492,
+            19809,
+            22401
         ]
     )
 
@@ -672,8 +828,10 @@ def get_by_name(name: str):
     return None
 
 def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achievement]:
+    app.session.logger.debug('Checking for new achievements...')
+
+    results: List[Tuple[Future, Achievement]] = []
     new_achievements: List[Achievement] = []
-    futures: List[Future] = []
 
     score.user.stats.sort(
         key=lambda x: x.mode
@@ -683,14 +841,15 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
         if achievement.filename in ignore_list:
             continue
 
-        futures.append(
-            app.session.executor.submit(
+        results.append((
+            app.session.achievement_executor.submit(
                 achievement.check,
                 score
-            )
-        )
+            ),
+            achievement
+        ))
 
-    for future in futures:
+    for future, achievement in results:
         try:
             if not future.result(timeout=15):
                 # Achievement was not unlocked
