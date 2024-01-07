@@ -20,7 +20,6 @@ REQUIRED_BUCKETS = [
     'beatmaps',
     'avatars',
     'replays',
-    'patches',
     'release'
 ]
 
