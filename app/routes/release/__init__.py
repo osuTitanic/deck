@@ -21,9 +21,6 @@ def get_release_file(
     filename: str,
     checksum: Optional[str] = Query(None, alias='v')
 ):
-    if (patch_file := app.session.storage.get_patch_file(filename)):
-        return patch_file
-
     if (release_file := app.session.storage.get_release_file(filename)):
         if checksum != hashlib.md5(release_file).hexdigest():
             raise HTTPException(404)
