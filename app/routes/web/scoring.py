@@ -149,30 +149,6 @@ async def parse_score_data(request: Request) -> Score:
     score.processes = processes
     return score
 
-def calculate_pp_limit(top_play_pp, total_playcount):
-    """Calculate the pp limit based on the top play pp and total play count.\n
-    The pp cap will get closer to the top play as the user plays more.
-    Please note that this will currently only trigger an officer warning log, and nothing else.
-    This will definitely need some tweaking, before it can be used for autobanning.
-    """
-    total_playcount = max(total_playcount, 1)
-    cap_decrease_factor = 0.15
-    maximum_pp = 1500
-
-    base_cap = (
-        top_play_pp + (4000 / total_playcount) * top_play_pp * cap_decrease_factor
-    )
-
-    pp_limit = min(
-        maximum_pp,
-        max(
-            top_play_pp * 1.6,
-            base_cap
-        )
-    )
-
-    return pp_limit
-
 def validate_replay(replay_bytes: bytes) -> bool:
     """Validate the replay contents"""
     app.session.logger.debug('Validating replay...')
@@ -216,41 +192,17 @@ def validate_replay(replay_bytes: bytes) -> bool:
 
     return True
 
-def calculate_submission_time_difference(current: DBScore, previous: DBScore) -> float:
-    """Calculate the time difference between two score submissions"""
-    previous_timestamp = current.submitted_at.timestamp()
-    current_timestamp = previous.submitted_at.timestamp()
-    return previous_timestamp - current_timestamp
-
-def average_submission_time(recent_scores: List[DBScore]) -> float:
-    """Calculate the average time between score submissions"""
-    if len(recent_scores) < 5:
-        return 0
-
-    submission_times = [
-        calculate_submission_time_difference(recent_score, recent_scores[index + 1])
-        for index, recent_score in enumerate(recent_scores)
-        if index != (len(recent_scores) - 1)
-    ]
-
-    if len(submission_times) <= 0:
-        return 0
-
-    return sum(submission_times) / len(submission_times)
-
 def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
     """Validate the score submission requests and return an error if the validation fails"""
     app.session.logger.debug('Performing score validation...')
 
-    if score.total_hits <= 0:
+    if (
+        score.total_hits <= 0 or
+        score.total_score <= 0 or
+        score.max_combo <= 0
+    ):
         officer.call(
-            f'"{score.username}" submitted score with total_hits <= 0.'
-        )
-        return Response('error: no')
-
-    if score.total_score <= 0:
-        officer.call(
-            f'"{score.username}" submitted score with total_score <= 0.'
+            f'"{score.username}" submitted score with no hits, score or combo.'
         )
         return Response('error: no')
 
@@ -321,25 +273,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
-    recent_scores = scores.fetch_recent(
-        player.id,
-        score.play_mode.value,
-        limit=5,
-        session=score.session
-    )
-
-    # Check score submission "spam"
-    if recent_scores:
-        time = average_submission_time(recent_scores)
-
-        if time != 0 and time <= 6:
-            officer.call(
-                f'"{score.username}" is spamming score submission.'
-            )
-            return Response('error: no')
-
-        # TODO: Add check for amount of pp gained in a short time
-
     flags = [
         BadFlags.FlashLightImageHack,
         BadFlags.SpinnerHack,
@@ -389,7 +322,10 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
-    if score.pp >= 1500:
+    account_age = (datetime.now() - player.created_at)
+    pp_cutoff = min(1500, max(750, account_age.total_seconds() / 8))
+
+    if score.pp >= pp_cutoff:
         officer.call(
             f'"{score.username}" exceeded the pp limit ({score.pp}).'
         )
@@ -414,17 +350,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             reason='Multiaccounting'
         )
         return Response('error: ban')
-
-    user_pp_cap = calculate_pp_limit(
-        score.pp,
-        score.user.stats[score.play_mode.value].playcount
-    )
-
-    if score.pp > user_pp_cap:
-        # NOTE: This is just for testing purposes, and will not restrict the user
-        officer.call(
-            f'"{score.username}" exceeded the user pp limit of {user_pp_cap} ({score.pp}).'
-        )
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):
