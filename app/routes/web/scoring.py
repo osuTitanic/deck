@@ -296,6 +296,18 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: ban')
 
+    if score.replay and not validate_replay(score.replay):
+        officer.call(
+            f'"{score.username}" submitted score with invalid replay.'
+        )
+        app.session.events.submit(
+            'restrict',
+            user_id=player.id,
+            autoban=True,
+            reason='Invalid replay'
+        )
+        return Response('error: ban')
+
     user_groups = groups.fetch_user_groups(
         player.id,
         include_hidden=True,
@@ -309,18 +321,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         return
 
     # Validation checks for unverified players
-
-    if score.replay and not validate_replay(score.replay):
-        officer.call(
-            f'"{score.username}" submitted score with invalid replay.'
-        )
-        app.session.events.submit(
-            'restrict',
-            user_id=player.id,
-            autoban=True,
-            reason='Invalid replay'
-        )
-        return Response('error: ban')
 
     account_age = (datetime.now() - player.created_at)
     pp_cutoff = min(1500, max(750, account_age.total_seconds() / 8))
