@@ -157,7 +157,8 @@ def validate_replay(replay_bytes: bytes) -> bool:
         replay = lzma.decompress(replay_bytes).decode()
         frames = replay.split(',')
 
-        if len(frames) < 120:
+        if len(frames) < 100:
+            # Hopefully this doesn't lead to false-positivies
             officer.call(
                 f'Replay validation failed: Not enough replay frames ({len(frames)})'
             )
