@@ -734,7 +734,8 @@ def score_submission(
         score.session.close()
         app.session.events.submit(
             'user_update',
-            user_id=player.id
+            user_id=player.id,
+            mode=score.play_mode.value
         )
         return Response('error: beatmap')
 
@@ -742,7 +743,8 @@ def score_submission(
         score.session.close()
         app.session.events.submit(
             'user_update',
-            user_id=player.id
+            user_id=player.id,
+            mode=score.play_mode.value
         )
         return Response('error: no')
 
@@ -832,7 +834,8 @@ def score_submission(
     # Reload stats on bancho
     app.session.events.submit(
         'user_update',
-        user_id=player.id
+        user_id=player.id,
+        mode=score.play_mode.value
     )
 
     return Response('\n'.join([chart.get() for chart in response]))
@@ -950,7 +953,8 @@ def legacy_score_submission(
     if not score.beatmap.is_ranked:
         app.session.events.submit(
             'user_update',
-            user_id=player.id
+            user_id=player.id,
+            mode=score.play_mode.value
         )
         score.session.close()
         return
@@ -958,7 +962,8 @@ def legacy_score_submission(
     if not config.ALLOW_RELAX and score.relaxing:
         app.session.events.submit(
             'user_update',
-            user_id=player.id
+            user_id=player.id,
+            mode=score.play_mode.value
         )
         score.session.close()
         return
@@ -970,7 +975,8 @@ def legacy_score_submission(
     if not score.passed:
         app.session.events.submit(
             'user_update',
-            user_id=player.id
+            user_id=player.id,
+            mode=score.play_mode.value
         )
         score.session.close()
         return
@@ -995,7 +1001,8 @@ def legacy_score_submission(
     # Reload stats on bancho
     app.session.events.submit(
         'user_update',
-        user_id=player.id
+        user_id=player.id,
+        mode=score.play_mode.value
     )
 
     if score.status == ScoreStatus.Best:
