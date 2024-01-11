@@ -77,7 +77,7 @@ def get_scores(
             app.session.events.submit(
                 'user_update',
                 user_id=player.id,
-                mode=mode
+                mode=mode.value
             )
 
         # Update latest activity
