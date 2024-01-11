@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.common.cache import status
-from app.common.database import DBBeatmapset
+from app.common.database import DBBeatmapset, DBUser
 from app.common.constants import DisplayMode
 from app.common.database.repositories import (
     beatmapsets,
@@ -33,9 +33,8 @@ def search(
         page_offset = page_offset or 0
         player = None
 
+        # NOTE: Old clients don't have authentication for osu! direct
         if legacy_password or password:
-            # NOTE: Old clients don't have authentication for osu! direct
-
             if not (player := users.fetch_by_name(username, session)):
                 return '-1\nFailed to authenticate user'
 
@@ -109,6 +108,10 @@ def pickup_info(
     password: str | None = Query(None, alias='h'),
 ):
     with app.session.database.managed_session() as session:
+        beatmapset: DBBeatmapset | None = None
+        player: DBUser | None = None
+
+        # NOTE: Old clients don't have authentication for osu! direct
         if username and password:
             if not (player := users.fetch_by_name(username, session)):
                 raise HTTPException(401)
@@ -126,8 +129,6 @@ def pickup_info(
         if post_id:
             # TODO
             raise HTTPException(404)
-
-        beatmapset: DBBeatmapset | None = None
 
         if beatmap_id:
             beatmap = beatmaps.fetch_by_id(beatmap_id, session)
