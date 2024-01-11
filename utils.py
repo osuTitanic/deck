@@ -20,6 +20,7 @@ REQUIRED_BUCKETS = [
     'beatmaps',
     'avatars',
     'replays',
+    'release'
 ]
 
 def download(path: str, url: str):
@@ -47,11 +48,8 @@ def setup():
 
     if not config.S3_ENABLED:
         # Create required folders if not they not already exist
-        os.makedirs(f'{config.DATA_PATH}/images/achievements', exist_ok=True)
-        os.makedirs(f'{config.DATA_PATH}/screenshots', exist_ok=True)
-        os.makedirs(f'{config.DATA_PATH}/beatmaps', exist_ok=True)
-        os.makedirs(f'{config.DATA_PATH}/replays', exist_ok=True)
-        os.makedirs(f'{config.DATA_PATH}/avatars', exist_ok=True)
+        for bucket in REQUIRED_BUCKETS:
+            os.makedirs(f'{config.DATA_PATH}/{bucket}', exist_ok=True)
 
         if not os.listdir(f'{config.DATA_PATH}/avatars'):
             app.session.logger.info('Downloading avatars...')

@@ -33,6 +33,7 @@ EMAIL = MAILGUN_EMAIL or SENDGRID_EMAIL
 WEB_HOST = os.environ.get('WEB_HOST')
 WEB_PORT = int(os.environ.get('WEB_PORT', 80))
 
+DISABLE_CLIENT_VERIFICATION = eval(os.environ.get('DISABLE_CLIENT_VERIFICATION', 'True').capitalize())
 APPROVED_MAP_REWARDS = eval(os.environ.get('APPROVED_MAP_REWARDS', 'False').capitalize())
 ALLOW_RELAX = eval(os.environ.get('ALLOW_RELAX', 'True').capitalize())
 S3_ENABLED = eval(os.environ.get('ENABLE_S3', 'True').capitalize())
@@ -50,4 +51,4 @@ BANCHO_IP = os.environ.get('PUBLIC_BANCHO_IP', None)
 DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
 DATA_PATH = os.path.abspath('.data')
 
-VERSION = 'dev'
+VERSION = '1.1.1'
