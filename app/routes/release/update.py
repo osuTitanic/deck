@@ -16,7 +16,7 @@ def check_for_updates(
     if config.DISABLE_CLIENT_VERIFICATION:
         return "0"
 
-    if not (hashes := clients.get_client_hashes(filename)):
+    if not (hashes := clients.get_client_hashes_by_filename(filename)):
         return "0"
 
     if checksum in hashes:
