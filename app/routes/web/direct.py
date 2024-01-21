@@ -29,11 +29,11 @@ def search(
     mode: int = Query(-1, alias='m')
 ):
     with app.session.database.managed_session() as session:
-        # NOTE: Old clients don't have authentication for osu! direct
         supports_page_offset = page_offset is not None
         page_offset = page_offset or 0
         player = None
 
+        # NOTE: Old clients don't have authentication for osu! direct
         if legacy_password or password:
             if not (player := users.fetch_by_name(username, session)):
                 return '-1\nFailed to authenticate user'

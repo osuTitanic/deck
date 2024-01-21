@@ -137,7 +137,7 @@ def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSIO
 def online_beatmap(set: DBBeatmapset) -> str:
     ratings = [r.rating for r in set.ratings]
     avg_rating = (sum(ratings) / len(ratings)) \
-                 if ratings else 0
+                   if ratings else 0
 
     versions = ",".join(
         [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
