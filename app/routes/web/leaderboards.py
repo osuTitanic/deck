@@ -64,7 +64,7 @@ def get_scores(
             if not user_id:
                 raise HTTPException(401)
 
-            if not (player := users.fetch_by_id(user_id, session)):
+            if not (player := users.fetch_by_id(user_id, session=session)):
                 raise HTTPException(401)
 
         if not status.exists(player.id):
@@ -270,7 +270,7 @@ def legacy_scores(
         raise HTTPException(401)
 
     with app.session.database.managed_session() as session:
-        if not (player := users.fetch_by_id(player_id, session)):
+        if not (player := users.fetch_by_id(player_id, session=session)):
             raise HTTPException(401)
 
         if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
@@ -380,7 +380,7 @@ def legacy_scores_no_ratings(
         raise HTTPException(401)
 
     with app.session.database.managed_session() as session:
-        if not (player := users.fetch_by_id(player_id, session)):
+        if not (player := users.fetch_by_id(player_id, session=session)):
             raise HTTPException(401)
 
         if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
@@ -486,7 +486,7 @@ def legacy_scores_no_beatmap_data(
         raise HTTPException(401)
 
     with app.session.database.managed_session() as session:
-        if not (player := users.fetch_by_id(player_id, session)):
+        if not (player := users.fetch_by_id(player_id, session=session)):
             raise HTTPException(401)
 
         if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):

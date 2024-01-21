@@ -39,7 +39,7 @@ def osu_error(
     config = utils.parse_osu_config(config)
 
     with app.session.database.managed_session() as session:
-        if not (user := users.fetch_by_id(user_id, session)):
+        if not (user := users.fetch_by_id(user_id, session=session)):
             raise HTTPException(401)
 
         if not bcrypt.checkpw(config['Password'].encode(), user.bcrypt.encode()):
