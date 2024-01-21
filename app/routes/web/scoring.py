@@ -520,7 +520,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
                 exc_info=e
             )
 
-        if score.passed:
+        if score.passed and score.status == ScoreStatus.Best:
             # NOTE: ppv1 calculations take a while, since we need to
             #       fetch the rank for each score from the database.
             #       I am not sure if this is the best way to do it...
@@ -598,12 +598,13 @@ def unlock_achievements(
     return achievement_response
 
 def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
-    app.session.logger.debug('Updating ppv1...')
-    user_stats.ppv1 = performance.calculate_weighted_ppv1(scores)
+    with app.session.database.managed_session() as session:
+        app.session.logger.debug('Updating ppv1...')
+        user_stats.ppv1 = performance.calculate_weighted_ppv1(scores, session=session)
 
-    stats.update(user_stats.user_id, user_stats.mode, {'ppv1': user_stats.ppv1})
-    leaderboards.update(user_stats, country)
-    histories.update_rank(user_stats, country)
+        stats.update(user_stats.user_id, user_stats.mode, {'ppv1': user_stats.ppv1}, session=session)
+        leaderboards.update(user_stats, country)
+        histories.update_rank(user_stats, country, session=session)
 
 @router.post('/osu-submit-modular.php')
 def score_submission(
