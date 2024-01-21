@@ -66,8 +66,7 @@ def check_rank(
     if previous_stats.rank <= 0:
         return
 
-    if previous_stats.rank < 1000 \
-       and stats.rank >= 1000:
+    if previous_stats.rank < 1000 <= stats.rank:
         # Player has risen to the top 1000
         submit(
             player.id,
@@ -78,8 +77,7 @@ def check_rank(
         )
         return
 
-    if previous_stats.rank < 100 \
-       and stats.rank >= 100:
+    if previous_stats.rank < 100 <= stats.rank:
         # Player has risen to the top 100
         submit(
             player.id,

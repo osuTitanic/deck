@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from typing import Optional
 
@@ -23,10 +22,11 @@ import hashlib
 import math
 import app
 
+
 class Chart(dict):
     def entry(self, name: str, before, after):
         self[f'{name}Before'] = str(before) if before is not None else ''
-        self[f'{name}After']  = str(after)  if after  is not None else ''
+        self[f'{name}After'] = str(after) if after is not None else ''
 
     def get(self):
         return self.__repr__()
@@ -34,57 +34,58 @@ class Chart(dict):
     def __repr__(self) -> str:
         return "|".join(f"{str(k)}:{str(v)}" for k, v in self.items())
 
+
 class Score:
     def __init__(
-        self,
-        file_checksum: str,
-        username: str,
-        score_checksum: str,
-        count300: int,
-        count100: int,
-        count50: int,
-        countGeki: int,
-        countKatu: int,
-        countMiss: int,
-        total_score: int,
-        max_combo: int,
-        perfect: bool,
-        grade: Grade,
-        enabled_mods: Mods,
-        passed: bool,
-        play_mode: GameMode,
-        date: datetime,
-        version: int,
-        flags: BadFlags,
-        exited: Optional[bool],
-        failtime: Optional[int],
-        replay: Optional[bytes]
+            self,
+            file_checksum: str,
+            username: str,
+            score_checksum: str,
+            count300: int,
+            count100: int,
+            count50: int,
+            countGeki: int,
+            countKatu: int,
+            countMiss: int,
+            total_score: int,
+            max_combo: int,
+            perfect: bool,
+            grade: Grade,
+            enabled_mods: Mods,
+            passed: bool,
+            play_mode: GameMode,
+            date: datetime,
+            version: int,
+            flags: BadFlags,
+            exited: Optional[bool],
+            failtime: Optional[int],
+            replay: Optional[bytes]
     ) -> None:
-        self.file_checksum  = file_checksum
-        self.username       = username
+        self.file_checksum = file_checksum
+        self.username = username
         self.score_checksum = score_checksum
 
-        self.c300     = count300
-        self.c100     = count100
-        self.c50      = count50
-        self.cGeki    = countGeki
-        self.cKatu    = countKatu
-        self.cMiss    = countMiss
+        self.c300 = count300
+        self.c100 = count100
+        self.c50 = count50
+        self.cGeki = countGeki
+        self.cKatu = countKatu
+        self.cMiss = countMiss
 
-        self.total_score  = total_score
-        self.max_combo    = max_combo
-        self.perfect      = perfect
-        self.grade        = grade
+        self.total_score = total_score
+        self.max_combo = max_combo
+        self.perfect = perfect
+        self.grade = grade
         self.enabled_mods = enabled_mods
-        self.username     = username
+        self.username = username
 
-        self.passed    = passed
+        self.passed = passed
         self.play_mode = play_mode
-        self.date      = date
-        self.version   = version
-        self.exited    = exited
-        self.failtime  = failtime
-        self.flags     = flags
+        self.date = date
+        self.version = version
+        self.exited = exited
+        self.failtime = failtime
+        self.flags = flags
 
         self.replay = replay
         self.status = ScoreStatus.Submitted
@@ -137,12 +138,12 @@ class Score:
             return (self.c300 + self.c100 + self.c50) / self.total_hits
 
         elif self.play_mode == GameMode.OsuMania:
-            return  (
-                        (
-                          (self.c50 * 50.0) + (self.c100 * 100.0) + (self.cKatu * 200.0) + ((self.c300 + self.cGeki) * 300.0)
-                        )
-                        / (self.total_hits * 300.0)
-                    )
+            return (
+                       (
+                         (self.c50 * 50.0) + (self.c100 * 100.0) + (self.cKatu * 200.0) + ((self.c300 + self.cGeki) * 300.0)
+                       )
+                       / (self.total_hits * 300.0)
+                   )
 
         else:
             app.session.logger.error('what?')
@@ -163,34 +164,34 @@ class Score:
         #       I don't know if this is however... The wiki says, its normal:
         #       https://github.com/ppy/osu-api/wiki#mods
 
-        if self.check_mods(Mods.DoubleTime|Mods.Nightcore):
+        if self.check_mods(Mods.DoubleTime | Mods.Nightcore):
             self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
 
-        if self.check_mods(Mods.Perfect|Mods.SuddenDeath):
+        if self.check_mods(Mods.Perfect | Mods.SuddenDeath):
             self.enabled_mods = self.enabled_mods & ~Mods.SuddenDeath
 
-        if self.check_mods(Mods.FadeIn|Mods.Hidden):
+        if self.check_mods(Mods.FadeIn | Mods.Hidden):
             self.enabled_mods = self.enabled_mods & ~Mods.FadeIn
 
-        if self.check_mods(Mods.Easy|Mods.HardRock):
+        if self.check_mods(Mods.Easy | Mods.HardRock):
             return True
 
-        if self.check_mods(Mods.HalfTime|Mods.DoubleTime):
+        if self.check_mods(Mods.HalfTime | Mods.DoubleTime):
             return True
 
-        if self.check_mods(Mods.HalfTime|Mods.Nightcore):
+        if self.check_mods(Mods.HalfTime | Mods.Nightcore):
             return True
 
-        if self.check_mods(Mods.NoFail|Mods.SuddenDeath):
+        if self.check_mods(Mods.NoFail | Mods.SuddenDeath):
             return True
 
-        if self.check_mods(Mods.NoFail|Mods.Perfect):
+        if self.check_mods(Mods.NoFail | Mods.Perfect):
             return True
 
-        if self.check_mods(Mods.Relax|Mods.Autopilot):
+        if self.check_mods(Mods.Relax | Mods.Autopilot):
             return True
 
-        if self.check_mods(Mods.SpunOut|Mods.Autopilot):
+        if self.check_mods(Mods.SpunOut | Mods.Autopilot):
             return True
 
         if self.check_mods(Mods.Autoplay):
@@ -259,22 +260,22 @@ class Score:
 
             # Change status for old personal best
             self.session.query(DBScore) \
-                    .filter(DBScore.id == mods_pb.id) \
-                    .update({
-                        'status': ScoreStatus.Submitted.value
-                    })
+                .filter(DBScore.id == mods_pb.id) \
+                .update({
+                'status': ScoreStatus.Submitted.value
+            })
             self.session.commit()
 
             return ScoreStatus.Mods
 
         # New pb was set
         status = {'status': ScoreStatus.Submitted.value} \
-                 if self.enabled_mods.value == self.personal_best.mods else \
-                 {'status': ScoreStatus.Mods.value}
+            if self.enabled_mods.value == self.personal_best.mods else \
+            {'status': ScoreStatus.Mods.value}
 
         self.session.query(DBScore) \
-                .filter(DBScore.id == self.personal_best.id) \
-                .update(status)
+            .filter(DBScore.id == self.personal_best.id) \
+            .update(status)
         self.session.commit()
 
         return ScoreStatus.Best
@@ -308,54 +309,54 @@ class Score:
             play_mode = GameMode.Osu
 
         return Score(
-            file_checksum = items[0],
-            username = items[1].strip(),
-            score_checksum = items[2],
-            count300 = int(items[3]),
-            count100 = int(items[4]),
-            count50 = int(items[5]),
-            countGeki = int(items[6]),
-            countKatu = int(items[7]),
-            countMiss = int(items[8]),
-            total_score = int(items[9]),
-            max_combo = int(items[10]),
-            perfect = items[11].lower() == 'true',
-            grade = Grade[items[12]],
-            enabled_mods = Mods(int(items[13])),
-            passed = items[14].lower() == 'true',
-            play_mode = play_mode,
-            date = date,
-            version = version,
-            flags = flags,
-            exited = exited,
-            failtime = failtime,
-            replay = replay
+            file_checksum=items[0],
+            username=items[1].strip(),
+            score_checksum=items[2],
+            count300=int(items[3]),
+            count100=int(items[4]),
+            count50=int(items[5]),
+            countGeki=int(items[6]),
+            countKatu=int(items[7]),
+            countMiss=int(items[8]),
+            total_score=int(items[9]),
+            max_combo=int(items[10]),
+            perfect=items[11].lower() == 'true',
+            grade=Grade[items[12]],
+            enabled_mods=Mods(int(items[13])),
+            passed=items[14].lower() == 'true',
+            play_mode=play_mode,
+            date=date,
+            version=version,
+            flags=flags,
+            exited=exited,
+            failtime=failtime,
+            replay=replay
         )
 
     def to_database(self) -> DBScore:
         """Turn this score into a `DBScore` object, which can be used with sqlalchemy"""
         return DBScore(
-            beatmap_id = self.beatmap.id,
-            user_id = self.user.id,
-            client_version = self.version,
-            score_checksum = self.score_checksum,
-            mode = self.play_mode.value,
-            pp = round(self.pp, 8),
-            acc = round(self.accuracy, 8),
-            total_score = self.total_score,
-            max_combo = self.max_combo,
-            mods = self.enabled_mods.value,
-            perfect = self.perfect,
-            n300 = self.c300,
-            n100 = self.c100,
-            n50 = self.c50,
-            nMiss = self.cMiss,
-            nGeki = self.cGeki,
-            nKatu = self.cKatu,
-            grade = self.grade.name,
-            status = self.status.value,
-            failtime = self.failtime,
-            replay_md5 = hashlib.md5(
+            beatmap_id=self.beatmap.id,
+            user_id=self.user.id,
+            client_version=self.version,
+            score_checksum=self.score_checksum,
+            mode=self.play_mode.value,
+            pp=round(self.pp, 8),
+            acc=round(self.accuracy, 8),
+            total_score=self.total_score,
+            max_combo=self.max_combo,
+            mods=self.enabled_mods.value,
+            perfect=self.perfect,
+            n300=self.c300,
+            n100=self.c100,
+            n50=self.c50,
+            nMiss=self.cMiss,
+            nGeki=self.cGeki,
+            nKatu=self.cKatu,
+            grade=self.grade.name,
+            status=self.status.value,
+            failtime=self.failtime,
+            replay_md5=hashlib.md5(
                 self.replay
             ).hexdigest() if self.replay else None
         )

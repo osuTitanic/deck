@@ -1,4 +1,3 @@
-
 from concurrent.futures import Future, TimeoutError
 from datetime import datetime, timedelta
 from typing import List, Callable, Tuple
@@ -19,9 +18,9 @@ import app
 
 class Achievement:
     def __init__(self, name: str, category: str, filename: str, condition: Callable) -> None:
-        self.name      = name
-        self.category  = category
-        self.filename  = filename
+        self.name = name
+        self.category = category
+        self.filename = filename
         self.condition = condition
 
     def __repr__(self) -> str:
@@ -53,11 +52,11 @@ def check_pack(score: DBScore, beatmapset_ids: List[int]) -> bool:
     with app.session.database.managed_session() as session:
         for set_id in beatmapset_ids:
             result = session.query(DBScore) \
-                            .join(DBBeatmap) \
-                            .filter(DBBeatmap.set_id == set_id) \
-                            .filter(DBScore.user_id == score.user_id) \
-                            .filter(DBScore.status == 3) \
-                            .first()
+                .join(DBBeatmap) \
+                .filter(DBBeatmap.set_id == set_id) \
+                .filter(DBScore.user_id == score.user_id) \
+                .filter(DBScore.status == 3) \
+                .first()
 
             if not result:
                 # User has not completed this beatmap
@@ -136,15 +135,15 @@ def improved(score: DBScore) -> bool:
     with app.session.database.managed_session() as session:
         # Check if player has set a D Rank in the last 24 hours
         result = session.query(DBScore) \
-                        .filter(
-                            DBScore.submitted_at > (
-                                datetime.now() - timedelta(days=1)
-                            )
-                        ) \
-                        .filter(DBScore.beatmap_id == score.beatmap_id) \
-                        .filter(DBScore.user_id == score.user_id) \
-                        .filter(DBScore.grade == 'D') \
-                        .first()
+            .filter(
+                DBScore.submitted_at > (
+                    datetime.now() - timedelta(days=1)
+                )
+            ) \
+            .filter(DBScore.beatmap_id == score.beatmap_id) \
+            .filter(DBScore.user_id == score.user_id) \
+            .filter(DBScore.grade == 'D') \
+            .first()
 
     if not result:
         return False
@@ -226,12 +225,12 @@ def quickdraw(score: DBScore) -> bool:
 def obsessed(score: DBScore) -> bool:
     """Play the same map over 100 times in a day, retries included"""
     last_scores = app.session.database.session.query(DBScore) \
-            .filter(DBScore.beatmap_id == score.beatmap_id) \
-            .filter(DBScore.user_id == score.user_id) \
-            .filter(DBScore.mode == score.mode) \
-            .filter(DBScore.submitted_at > datetime.now() - timedelta(days=1)) \
-            .limit(100) \
-            .all()
+        .filter(DBScore.beatmap_id == score.beatmap_id) \
+        .filter(DBScore.user_id == score.user_id) \
+        .filter(DBScore.mode == score.mode) \
+        .filter(DBScore.submitted_at > datetime.now() - timedelta(days=1)) \
+        .limit(100) \
+        .all()
 
     if len(last_scores) < 100:
         return False
@@ -637,7 +636,7 @@ def anime_3(score: DBScore) -> bool:
 def anime_4(score: DBScore) -> bool:
     return check_pack(
         score,
-        beatmapset_ids= [
+        beatmapset_ids=[
             12982,
             13036,
             13673,
