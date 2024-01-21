@@ -70,16 +70,6 @@ def get_scores(
         if not status.exists(player.id):
             raise HTTPException(401)
 
-        user_status = status.get(player.id)
-
-        if user_status.mode != mode:
-            # Assign new mode to player
-            app.session.events.submit(
-                'user_update',
-                user_id=player.id,
-                mode=mode.value
-            )
-
         # Update latest activity
         users.update(player.id, {'latest_activity': datetime.now()}, session)
 
@@ -290,16 +280,6 @@ def legacy_scores(
 
         if beatmap.md5 != beatmap_hash:
             return Response('1') # Update Available
-
-        user_status = status.get(player.id)
-
-        if user_status.mode != mode:
-            # Assign new mode to player
-            app.session.events.submit(
-                'user_update',
-                user_id=player.id,
-                mode=mode.value
-            )
 
         # Update latest activity
         users.update(player.id, {'latest_activity': datetime.now()}, session)
