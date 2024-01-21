@@ -29,20 +29,16 @@ def search(
     mode: int = Query(-1, alias='m')
 ):
     with app.session.database.managed_session() as session:
+        # NOTE: Old clients don't have authentication for osu! direct
         supports_page_offset = page_offset is not None
         page_offset = page_offset or 0
         player = None
 
-        # NOTE: Old clients don't have authentication for osu! direct
         if legacy_password or password:
             if not (player := users.fetch_by_name(username, session)):
                 return '-1\nFailed to authenticate user'
 
-            password = password.encode() \
-                    if password else \
-                    legacy_password.encode()
-
-            if not bcrypt.checkpw(password, player.bcrypt.encode()):
+            if not bcrypt.checkpw((password or legacy_password).encode(), player.bcrypt.encode()):
                 return '-1\nFailed to authenticate user'
 
             if not status.exists(player.id):
