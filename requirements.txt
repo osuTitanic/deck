@@ -27,7 +27,7 @@ multidict==6.0.4
 numpy==1.26.2
 oauthlib==3.2.2
 packaging==23.2
-Pillow==10.1.0
+Pillow==10.2.0
 psycopg2==2.9.9
 py3rijndael==0.3.3
 pydantic==2.5.1
