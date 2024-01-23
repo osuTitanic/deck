@@ -71,7 +71,7 @@ def osz(
     if not (response := app.session.storage.api.osz(set_id, no_video)):
         raise HTTPException(404)
 
-    osz = response.iter_content(1024)
+    osz = response.iter_content(51200)
 
     if filesize := response.headers.get('Content-Length'):
         instance = app.session.database.session

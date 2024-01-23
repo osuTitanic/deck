@@ -35,10 +35,4 @@ def legacy_login(
         f'Player "{player.name}" is about to connect to irc.'
     )
 
-    # Set new ip address in cache
-    app.session.redis.set(
-        f'irc:{player.id}',
-        ip.resolve_ip_address_fastapi(request)
-    )
-
     return "1"

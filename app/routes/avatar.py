@@ -68,7 +68,9 @@ def avatar(
 
     return Response(
         image,
-        media_type='image/jpeg' \
+        media_type=(
+            'image/jpeg'
             if utils.has_jpeg_headers(memoryview(image))
             else 'image/png'
+        )
     )

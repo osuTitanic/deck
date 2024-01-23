@@ -38,11 +38,7 @@ def search(
             if not (player := users.fetch_by_name(username, session)):
                 return '-1\nFailed to authenticate user'
 
-            password = password.encode() \
-                    if password else \
-                    legacy_password.encode()
-
-            if not bcrypt.checkpw(password, player.bcrypt.encode()):
+            if not bcrypt.checkpw((password or legacy_password).encode(), player.bcrypt.encode()):
                 return '-1\nFailed to authenticate user'
 
             if not status.exists(player.id):
