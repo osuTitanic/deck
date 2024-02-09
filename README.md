@@ -1,6 +1,6 @@
 # Deck
 
-Deck is an api/score server, designed for older osu! clients from 2008 to 2013.
+Deck is an api/score server, designed for every osu! client (2007-2024).
 
 Please view [this repository](https://github.com/osuTitanic/titanic) for setup instructions!
 
