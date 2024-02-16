@@ -42,7 +42,7 @@ def osu_error(
         if not (user := users.fetch_by_id(user_id, session=session)):
             raise HTTPException(401)
 
-        if not bcrypt.checkpw(config['Password'].encode(), user.bcrypt.encode()):
+        if not bcrypt.checkpw(config.get('Password', '').encode(), user.bcrypt.encode()):
             raise HTTPException(401)
 
         if user.restricted or not user.activated:
