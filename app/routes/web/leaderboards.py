@@ -643,4 +643,20 @@ def legacy_scores_status_change(
 
         return Response('\n'.join(response))
 
-# TODO: osu-getscores.php
+@router.get('/osu-getscores.php')
+def legacy_scores_no_status(beatmap_hash: str = Query(..., alias='c')):
+    with app.session.database.managed_session() as session:
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+            return Response('-1') # Not Submitted
+
+        top_scores = scores.fetch_range_scores(
+            beatmap.id,
+            mode=GameMode.Osu.value,
+            limit=config.SCORE_RESPONSE_LIMIT,
+            session=session
+        )
+
+        return Response('\n'.join([
+            utils.score_string_legacy(score, seperator=':')
+            for score in top_scores
+        ]))
