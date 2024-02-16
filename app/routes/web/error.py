@@ -72,23 +72,15 @@ def osu_error(
             'exehash': exehash
         }
 
-        logs.create(
-            json.dumps(error_dict),
-            'error',
-            'osu-error',
-            session
+        app.session.logger.warning(
+            f'Client error from "{username}":\n'
+            f'{json.dumps(error_dict, indent=4)}'
         )
 
-        if 'monitor' not in stacktrace:
-            app.session.logger.warning(
-                f'Client error from "{username}":\n'
-                f'{json.dumps(error_dict, indent=4)}'
-            )
-
-            app.session.events.submit(
-                'osu_error',
-                user_id,
-                error_dict
-            )
+        app.session.events.submit(
+            'osu_error',
+            user_id,
+            error_dict
+        )
 
         return Response(status_code=200)
