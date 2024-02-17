@@ -102,8 +102,8 @@ def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
         str(1)
     ])
 
-def score_string_legacy(score: DBScore) -> str:
-    return '|'.join([
+def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
+    return seperator.join([
         str(score.id),
         str(score.user.name),
         str(score.total_score),

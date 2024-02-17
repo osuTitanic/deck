@@ -10,18 +10,27 @@ import app
 router = APIRouter()
 
 @router.get('/osu-statoth.php')
+@router.get('/osu-stat.php')
 def legacy_user_stats(
     username: str = Query(..., alias='u'),
-    checksum: str = Query(..., alias='c')
+    checksum: str | None = Query(None, alias='c'),
+    password: str | None = Query(None, alias='p')
 ):
     app.session.logger.info(f'Got stats request for "{username}" ({checksum})')
 
-    # Validate checksum
-    checksum_match = hashlib.md5(f'{username}prettyplease!!!'.encode()).hexdigest()
+    if not (password or checksum):
+        app.session.logger.warning('Failed to send stats: Missing checksum!')
+        raise HTTPException(401)
 
-    if checksum != checksum_match:
-        app.session.logger.warning('Failed to send stats: Checksum mismatch!')
-        raise HTTPException(400)
+    if checksum:
+        # Validate checksum
+        checksum_match = hashlib.md5(f'{username}prettyplease!!!'.encode()).hexdigest()
+
+        if checksum != checksum_match:
+            app.session.logger.warning('Failed to send stats: Checksum mismatch!')
+            raise HTTPException(400)
+
+    # TODO: Validate password
 
     if not (user_id := users.fetch_user_id(username)):
         app.session.logger.warning('Failed to send stats: User not found!')
