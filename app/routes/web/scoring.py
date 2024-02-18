@@ -11,6 +11,7 @@ from fastapi import (
 
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
+from collections import defaultdict
 from copy import copy
 
 from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType
@@ -497,28 +498,24 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
         score.session.commit()
 
-        try:
-            grades = {}
+        # Update score grades
+        grades = {
+            'xh_count': len([s for s in best_scores if s.grade.upper() == 'XH']),
+            'x_count': len([s for s in best_scores if s.grade.upper() == 'X']),
+            'sh_count': len([s for s in best_scores if s.grade.upper() == 'SH']),
+            's_count': len([s for s in best_scores if s.grade.upper() == 'S']),
+            'a_count': len([s for s in best_scores if s.grade.upper() == 'A']),
+            'b_count': len([s for s in best_scores if s.grade.upper() == 'B']),
+            'c_count': len([s for s in best_scores if s.grade.upper() == 'C']),
+            'd_count': len([s for s in best_scores if s.grade.upper() == 'D'])
+        }
 
-            # Update grades
-            for s in best_scores:
-                grade = f'{s.grade.lower()}_count'
-                grades[grade] = grades.get(grade, 0) + 1
-
-            for grade, count in grades.items():
-                setattr(user_stats, grade, count)
-
-            stats.update(
-                user_stats.user_id,
-                user_stats.mode,
-                grades,
-                score.session
-            )
-        except Exception as e:
-            app.session.logger.error(
-                'Failed to update user grades!',
-                exc_info=e
-            )
+        stats.update(
+            user_stats.user_id,
+            user_stats.mode,
+            grades,
+            score.session
+        )
 
         if score.passed and score.status == ScoreStatus.Best:
             # NOTE: ppv1 calculations take a while, since we need to
