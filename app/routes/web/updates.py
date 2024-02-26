@@ -10,4 +10,4 @@ async def check_updates(
     action: Literal["check", "path", "error"],
     stream: Literal["cuttingedge", "stable40", "beta40", "stable"],
 ) -> Response:
-    return [Response(b"[]")]
+    return Response(b"[]")
