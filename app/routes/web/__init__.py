@@ -6,6 +6,7 @@ from . import screenshots
 from . import checktweets
 from . import favourites
 from . import comments
+from . import updates
 from . import scoring
 from . import connect
 from . import replays
@@ -24,6 +25,7 @@ router.include_router(screenshots.router)
 router.include_router(checktweets.router)
 router.include_router(favourites.router)
 router.include_router(comments.router)
+router.include_router(updates.router)
 router.include_router(scoring.router)
 router.include_router(connect.router)
 router.include_router(ratings.router)
