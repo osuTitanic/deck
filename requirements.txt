@@ -13,4 +13,4 @@ requests==2.31.0
 sendgrid==6.11.0
 sqlalchemy==2.0.28
 titanic-pp-py==0.0.6
-uvicorn==0.27.1
+uvicorn==0.28.0
