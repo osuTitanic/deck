@@ -451,9 +451,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     best_scores = scores.fetch_best(
         user_id=score.user.id,
         mode=score.play_mode.value,
-        exclude_approved=False
-                         if config.APPROVED_MAP_REWARDS else
-                         True,
+        exclude_approved=(not config.APPROVED_MAP_REWARDS),
         session=score.session
     )
 
