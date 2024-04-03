@@ -641,10 +641,14 @@ def response_charts(
     overall_chart.entry('rank', old_stats.rank, new_stats.rank)
     overall_chart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
     overall_chart.entry('totalScore', old_stats.tscore, new_stats.tscore)
-    overall_chart.entry('accuracy', round(old_stats.acc, 4), round(new_stats.acc, 4))
     overall_chart.entry('playCount', old_stats.playcount, new_stats.playcount)
     overall_chart.entry('maxCombo', old_stats.max_combo, new_stats.max_combo)
     overall_chart.entry('pp', round(old_stats.pp), round(new_stats.pp))
+    overall_chart.entry(
+        'accuracy',
+        round(old_stats.acc, 4) * (100 if not score.is_legacy else 1),
+        round(new_stats.acc, 4) * (100 if not score.is_legacy else 1)
+    )
 
     overall_chart['onlineScoreId'] = score_id
     overall_chart['toNextRankUser'] = ''
@@ -682,14 +686,14 @@ def response_charts(
         beatmap_ranking.entry('rankedScore', old_score.total_score, new_score.total_score)
         beatmap_ranking.entry('totalScore', old_score.total_score, new_score.total_score)
         beatmap_ranking.entry('maxCombo', old_score.max_combo, new_score.max_combo)
-        beatmap_ranking.entry('accuracy', round(old_score.acc, 4), round(new_score.acc, 4))
+        beatmap_ranking.entry('accuracy', round(old_score.acc, 4) * 100, round(new_score.acc, 4) * 100)
         beatmap_ranking.entry('pp', round(old_score.pp), round(new_score.pp))
     else:
         beatmap_ranking.entry('rank', None, new_rank)
         beatmap_ranking.entry('rankedScore', None, new_score.total_score)
         beatmap_ranking.entry('totalScore', None, new_score.total_score)
         beatmap_ranking.entry('maxCombo', None, new_score.max_combo)
-        beatmap_ranking.entry('accuracy', None, round(new_score.acc, 4))
+        beatmap_ranking.entry('accuracy', None, round(new_score.acc, 4) * 100)
         beatmap_ranking.entry('pp', None, round(new_score.pp))
 
     return [beatmap_info, overall_chart, beatmap_ranking]
