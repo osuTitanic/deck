@@ -153,7 +153,7 @@ async def parse_score_data(request: Request) -> Score:
         raise HTTPException(400)
 
     # TODO: Validate these arguments?
-    score.endpoint = request.url.path
+    score.is_legacy = request.url.path != '/web/osu-submit-modular-selector.php'
     score.fun_spoiler = fun_spoiler
     score.client_hash = client_hash
     score.processes = processes

@@ -89,7 +89,7 @@ class Score:
 
         self.replay = replay
         self.status = ScoreStatus.Submitted
-        self.endpoint = ''
+        self.is_legacy = True
         self.pp = 0.0
 
         self.session = app.session.database.session
@@ -110,10 +110,6 @@ class Score:
 
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
-
-    @property
-    def is_legacy(self) -> bool:
-        return self.endpoint != '/web/osu-submit-modular-selector.php'
 
     @property
     def total_hits(self) -> int:
