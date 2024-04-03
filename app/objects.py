@@ -37,29 +37,29 @@ class Chart(dict):
 
 class Score:
     def __init__(
-            self,
-            file_checksum: str,
-            username: str,
-            score_checksum: str,
-            count300: int,
-            count100: int,
-            count50: int,
-            countGeki: int,
-            countKatu: int,
-            countMiss: int,
-            total_score: int,
-            max_combo: int,
-            perfect: bool,
-            grade: Grade,
-            enabled_mods: Mods,
-            passed: bool,
-            play_mode: GameMode,
-            date: datetime,
-            version: int,
-            flags: BadFlags,
-            exited: Optional[bool],
-            failtime: Optional[int],
-            replay: Optional[bytes]
+        self,
+        file_checksum: str,
+        username: str,
+        score_checksum: str,
+        count300: int,
+        count100: int,
+        count50: int,
+        countGeki: int,
+        countKatu: int,
+        countMiss: int,
+        total_score: int,
+        max_combo: int,
+        perfect: bool,
+        grade: Grade,
+        enabled_mods: Mods,
+        passed: bool,
+        play_mode: GameMode,
+        date: datetime,
+        version: int,
+        flags: BadFlags,
+        exited: Optional[bool],
+        failtime: Optional[int],
+        replay: Optional[bytes]
     ) -> None:
         self.file_checksum = file_checksum
         self.username = username
@@ -89,6 +89,7 @@ class Score:
 
         self.replay = replay
         self.status = ScoreStatus.Submitted
+        self.is_legacy = True
         self.pp = 0.0
 
         self.session = app.session.database.session
