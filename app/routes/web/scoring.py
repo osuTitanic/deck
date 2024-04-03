@@ -104,24 +104,32 @@ async def parse_score_data(request: Request) -> Score:
     exited = form.get('x')
     replay = None
 
+    # TODO: Add more arguments from modern score submission endpoint
+
     if len(score_form) > 1:
         # Replay data was provided
         replay = score_form[-1]
 
-        if replay.filename != 'replay':
+        if replay.filename not in ('replay', 'score'):
             officer.call(f'Got invalid replay name: "{replay.filename}"')
             raise HTTPException(400)
 
         replay = await replay.read()
 
+    decryption_key = config.SCORE_SUBMISSION_KEY
+
+    if osu_version := form.get('osuver'):
+        # New score submission endpoint uses a different encryption key
+        decryption_key = f"osu!-scoreburgr---------{osu_version}"
+
     if iv := form.get('iv'):
         # Score data is encrypted
         try:
             iv = base64.b64decode(iv)
-            client_hash = utils.decrypt_string(client_hash, iv)
-            fun_spoiler = utils.decrypt_string(fun_spoiler, iv)
-            score_data  = utils.decrypt_string(score_data, iv)
-            processes   = utils.decrypt_string(processes, iv)
+            client_hash = utils.decrypt_string(client_hash, iv, decryption_key)
+            fun_spoiler = utils.decrypt_string(fun_spoiler, iv, decryption_key)
+            score_data = utils.decrypt_string(score_data, iv, decryption_key)
+            processes = utils.decrypt_string(processes, iv, decryption_key)
         except (UnicodeDecodeError, TypeError) as e:
             # Most likely an invalid score encryption key
             officer.call(
@@ -145,6 +153,7 @@ async def parse_score_data(request: Request) -> Score:
         raise HTTPException(400)
 
     # TODO: Validate these arguments?
+    score.is_legacy = request.url.path != '/web/osu-submit-modular-selector.php'
     score.fun_spoiler = fun_spoiler
     score.client_hash = client_hash
     score.processes = processes
@@ -601,8 +610,97 @@ def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
         leaderboards.update(user_stats, country)
         histories.update_rank(user_stats, country, session=session)
 
+def response_charts(
+    score: Score,
+    score_id: int,
+    old_stats: DBStats,
+    new_stats: DBStats,
+    old_rank: int,
+    new_rank: int,
+    achievement_response: List[str]
+) -> List[Chart]:
+    beatmap_info = Chart()
+    beatmap_info['beatmapId'] = score.beatmap.id
+    beatmap_info['beatmapSetId'] = score.beatmap.set_id
+    beatmap_info['beatmapPlaycount'] = score.beatmap.playcount
+    beatmap_info['beatmapPasscount'] = score.beatmap.passcount
+    beatmap_info['approvedDate'] = score.beatmap.beatmapset.approved_at
+
+    # TODO: Implement monthly charts
+
+    overall_chart = Chart()
+    overall_chart['chartId'] = 'overall'
+    overall_chart['chartName'] = 'Overall Ranking'
+    overall_chart['chartUrl'] = f'https://osu.{config.DOMAIN_NAME}/u/{score.user.id}'
+    overall_chart['chartEndDate'] = ''
+    overall_chart['achievements'] = ' '.join(achievement_response)
+    overall_chart['achievements-new'] = '' # TODO
+
+    overall_chart.entry('rank', old_stats.rank, new_stats.rank)
+    overall_chart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
+    overall_chart.entry('totalScore', old_stats.tscore, new_stats.tscore)
+    overall_chart.entry('playCount', old_stats.playcount, new_stats.playcount)
+    overall_chart.entry('maxCombo', old_stats.max_combo, new_stats.max_combo)
+    overall_chart.entry('pp', round(old_stats.pp), round(new_stats.pp))
+    overall_chart.entry(
+        'accuracy',
+        round(old_stats.acc, 4) * (100 if not score.is_legacy else 1),
+        round(new_stats.acc, 4) * (100 if not score.is_legacy else 1)
+    )
+
+    overall_chart['onlineScoreId'] = score_id
+    overall_chart['toNextRankUser'] = ''
+    overall_chart['toNextRank'] = '0'
+
+    if score.beatmap.is_ranked:
+        overall_chart.entry(
+            'beatmapRanking',
+            old_rank,
+            new_rank
+        )
+
+        difference, next_user = leaderboards.player_above(
+            score.user.id,
+            score.play_mode.value
+        )
+
+        if difference > 0:
+            overall_chart['toNextRankUser'] = next_user
+            overall_chart['toNextRank'] = difference
+
+    if score.is_legacy:
+        return [beatmap_info, overall_chart]
+
+    beatmap_ranking = Chart()
+    beatmap_ranking['chartId'] = 'beatmap'
+    beatmap_ranking['chartName'] = 'Beatmap Ranking'
+    beatmap_ranking['chartUrl'] = f'https://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'
+
+    old_score = score.personal_best
+    new_score = score.to_database()
+
+    if old_score:
+        beatmap_ranking.entry('rank', old_rank, new_rank)
+        beatmap_ranking.entry('rankedScore', old_score.total_score, new_score.total_score)
+        beatmap_ranking.entry('totalScore', old_score.total_score, new_score.total_score)
+        beatmap_ranking.entry('maxCombo', old_score.max_combo, new_score.max_combo)
+        beatmap_ranking.entry('accuracy', round(old_score.acc, 4) * 100, round(new_score.acc, 4) * 100)
+        beatmap_ranking.entry('pp', round(old_score.pp), round(new_score.pp))
+    else:
+        beatmap_ranking.entry('rank', None, new_rank)
+        beatmap_ranking.entry('rankedScore', None, new_score.total_score)
+        beatmap_ranking.entry('totalScore', None, new_score.total_score)
+        beatmap_ranking.entry('maxCombo', None, new_score.max_combo)
+        beatmap_ranking.entry('accuracy', None, round(new_score.acc, 4) * 100)
+        beatmap_ranking.entry('pp', None, round(new_score.pp))
+
+    return [beatmap_info, overall_chart, beatmap_ranking]
+
+@router.post("/osu-submit-modular-selector.php")
 @router.post('/osu-submit-modular.php')
 def score_submission(
+    # This will get sent when the "FlashLightImageHack" flag is triggered
+    # We don't need to use it, since the flag will already restrict them
     flashlight_screenshot: Optional[bytes] = Form(None, alias='i'),
     legacy_password: Optional[str] = Query(None, alias='pass'),
     password: Optional[str] = Form(None, alias='pass'),
@@ -616,11 +714,11 @@ def score_submission(
     )
 
     if not (player := score.user):
-        app.session.logger.warning(f'Failed to submit score: Authentication')
+        app.session.logger.warning(f'Failed to submit score: Invalid User')
         return Response('error: nouser')
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        app.session.logger.warning(f'Failed to submit score: Authentication')
+        app.session.logger.warning(f'Failed to submit score: Invalid Password')
         return Response('error: pass')
 
     if not player.activated:
@@ -668,13 +766,6 @@ def score_submission(
 
     if (error := perform_score_validation(score, player)) != None:
         return error
-
-    if flashlight_screenshot:
-        # This will get sent when the "FlashLightImageHack" flag is triggered
-        officer.call(
-            f"{player.name} submitted score with a flashlight screenshot!"
-        )
-        return Response("error: no")
 
     if score.relaxing:
         # Recalculate rx total score
@@ -745,7 +836,6 @@ def score_submission(
         return Response('error: no')
 
     achievement_response: List[str] = []
-    response: List[Chart] = []
 
     # TODO: Enable achievements for relax?
     if score.passed and not score.relaxing:
@@ -755,57 +845,22 @@ def score_submission(
             player
         )
 
-    beatmap_rank = scores.fetch_score_index_by_tscore(
+    new_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
         score.beatmap.id,
         mode=score.play_mode.value,
         session=score.session
     )
 
-    beatmapInfo = Chart()
-    beatmapInfo['beatmapId'] = score.beatmap.id
-    beatmapInfo['beatmapSetId'] = score.beatmap.set_id
-    beatmapInfo['beatmapPlaycount'] = score.beatmap.playcount
-    beatmapInfo['beatmapPasscount'] = score.beatmap.passcount
-    beatmapInfo['approvedDate'] = score.beatmap.beatmapset.approved_at
-
-    response.append(beatmapInfo)
-
-    # TODO: Implement monthly charts
-
-    overallChart = Chart()
-    overallChart['chartId'] = 'overall'
-    overallChart['chartName'] = 'Overall Ranking'
-    overallChart['chartEndDate'] = ''
-    overallChart['achievements'] = ' '.join(achievement_response)
-
-    overallChart.entry('rank', old_stats.rank, new_stats.rank)
-    overallChart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
-    overallChart.entry('totalScore', old_stats.tscore, new_stats.tscore)
-    overallChart.entry('accuracy', round(old_stats.acc, 4), round(new_stats.acc, 4))
-    overallChart.entry('playCount', old_stats.playcount, new_stats.playcount)
-
-    overallChart['onlineScoreId'] = score_object.id
-    overallChart['toNextRankUser'] = ''
-    overallChart['toNextRank'] = '0'
-
-    if score.beatmap.is_ranked:
-        overallChart.entry(
-            'beatmapRanking',
-            old_rank,
-            beatmap_rank
-        )
-
-        difference, next_user = leaderboards.player_above(
-            player.id,
-            score.play_mode.value
-        )
-
-        if difference > 0:
-            overallChart['toNextRankUser'] = next_user
-            overallChart['toNextRank'] = difference
-
-    response.append(overallChart)
+    response = response_charts(
+        score,
+        score_object.id,
+        old_stats,
+        new_stats,
+        old_rank,
+        new_rank,
+        achievement_response
+    )
 
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
@@ -821,7 +876,7 @@ def score_submission(
             new_stats,
             old_stats,
             score_object,
-            beatmap_rank,
+            new_rank,
             old_rank
         ).add_done_callback(
             utils.thread_callback
@@ -848,11 +903,11 @@ def legacy_score_submission(
     )
 
     if not (player := score.user):
-        app.session.logger.warning(f'Failed to submit score: Authentication')
+        app.session.logger.warning(f'Failed to submit score: Invalid User')
         raise HTTPException(401)
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        app.session.logger.warning(f'Failed to submit score: Authentication')
+        app.session.logger.warning(f'Failed to submit score: Invalid Password')
         raise HTTPException(401)
 
     if not player.activated:
