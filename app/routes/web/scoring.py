@@ -67,7 +67,7 @@ async def parse_score_data(request: Request) -> Score:
 
         # Get replay
         if replay_file := form.get('score'):
-            if replay_file.filename != 'replay':
+            if replay_file.filename not in ('replay', 'score'):
                 app.session.logger.warning(f'Got invalid replay name: {replay.filename}')
                 raise HTTPException(400)
 
