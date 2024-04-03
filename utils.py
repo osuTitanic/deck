@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from concurrent.futures import Future
-from fastapi import Request
 from typing import Dict
 from PIL import Image
 
@@ -121,7 +120,7 @@ def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
         str(score.submitted_at)
     ])
 
-def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> Optional[str]:
+def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> str | None:
     if not b64:
         return
 
