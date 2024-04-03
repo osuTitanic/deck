@@ -601,6 +601,58 @@ def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
         leaderboards.update(user_stats, country)
         histories.update_rank(user_stats, country, session=session)
 
+def legacy_response_chart(
+    score: Score,
+    score_id: int,
+    old_stats: DBStats,
+    new_stats: DBStats,
+    old_rank: int,
+    new_rank: int,
+    achievement_response: List[str]
+) -> List[Chart]:
+    beatmap_info = Chart()
+    beatmap_info['beatmapId'] = score.beatmap.id
+    beatmap_info['beatmapSetId'] = score.beatmap.set_id
+    beatmap_info['beatmapPlaycount'] = score.beatmap.playcount
+    beatmap_info['beatmapPasscount'] = score.beatmap.passcount
+    beatmap_info['approvedDate'] = score.beatmap.beatmapset.approved_at
+
+    # TODO: Implement monthly charts
+
+    overall_chart = Chart()
+    overall_chart['chartId'] = 'overall'
+    overall_chart['chartName'] = 'Overall Ranking'
+    overall_chart['chartEndDate'] = ''
+    overall_chart['achievements'] = ' '.join(achievement_response)
+
+    overall_chart.entry('rank', old_stats.rank, new_stats.rank)
+    overall_chart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
+    overall_chart.entry('totalScore', old_stats.tscore, new_stats.tscore)
+    overall_chart.entry('accuracy', round(old_stats.acc, 4), round(new_stats.acc, 4))
+    overall_chart.entry('playCount', old_stats.playcount, new_stats.playcount)
+
+    overall_chart['onlineScoreId'] = score_id
+    overall_chart['toNextRankUser'] = ''
+    overall_chart['toNextRank'] = '0'
+
+    if score.beatmap.is_ranked:
+        overall_chart.entry(
+            'beatmapRanking',
+            old_rank,
+            new_rank
+        )
+
+        difference, next_user = leaderboards.player_above(
+            score.user.id,
+            score.play_mode.value
+        )
+
+        if difference > 0:
+            overall_chart['toNextRankUser'] = next_user
+            overall_chart['toNextRank'] = difference
+
+    return [beatmap_info, overall_chart]
+
 @router.post('/osu-submit-modular.php')
 def score_submission(
     flashlight_screenshot: Optional[bytes] = Form(None, alias='i'),
@@ -745,7 +797,6 @@ def score_submission(
         return Response('error: no')
 
     achievement_response: List[str] = []
-    response: List[Chart] = []
 
     # TODO: Enable achievements for relax?
     if score.passed and not score.relaxing:
@@ -755,57 +806,22 @@ def score_submission(
             player
         )
 
-    beatmap_rank = scores.fetch_score_index_by_tscore(
+    new_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
         score.beatmap.id,
         mode=score.play_mode.value,
         session=score.session
     )
 
-    beatmapInfo = Chart()
-    beatmapInfo['beatmapId'] = score.beatmap.id
-    beatmapInfo['beatmapSetId'] = score.beatmap.set_id
-    beatmapInfo['beatmapPlaycount'] = score.beatmap.playcount
-    beatmapInfo['beatmapPasscount'] = score.beatmap.passcount
-    beatmapInfo['approvedDate'] = score.beatmap.beatmapset.approved_at
-
-    response.append(beatmapInfo)
-
-    # TODO: Implement monthly charts
-
-    overallChart = Chart()
-    overallChart['chartId'] = 'overall'
-    overallChart['chartName'] = 'Overall Ranking'
-    overallChart['chartEndDate'] = ''
-    overallChart['achievements'] = ' '.join(achievement_response)
-
-    overallChart.entry('rank', old_stats.rank, new_stats.rank)
-    overallChart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
-    overallChart.entry('totalScore', old_stats.tscore, new_stats.tscore)
-    overallChart.entry('accuracy', round(old_stats.acc, 4), round(new_stats.acc, 4))
-    overallChart.entry('playCount', old_stats.playcount, new_stats.playcount)
-
-    overallChart['onlineScoreId'] = score_object.id
-    overallChart['toNextRankUser'] = ''
-    overallChart['toNextRank'] = '0'
-
-    if score.beatmap.is_ranked:
-        overallChart.entry(
-            'beatmapRanking',
-            old_rank,
-            beatmap_rank
-        )
-
-        difference, next_user = leaderboards.player_above(
-            player.id,
-            score.play_mode.value
-        )
-
-        if difference > 0:
-            overallChart['toNextRankUser'] = next_user
-            overallChart['toNextRank'] = difference
-
-    response.append(overallChart)
+    response = legacy_response_chart(
+        score,
+        score_object.id,
+        old_stats,
+        new_stats,
+        old_rank,
+        new_rank,
+        achievement_response
+    )
 
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
@@ -821,7 +837,7 @@ def score_submission(
             new_stats,
             old_stats,
             score_object,
-            beatmap_rank,
+            new_rank,
             old_rank
         ).add_done_callback(
             utils.thread_callback
