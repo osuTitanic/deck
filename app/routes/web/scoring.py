@@ -99,7 +99,6 @@ async def parse_score_data(request: Request) -> Score:
     score_data = score_form[0]
     fun_spoiler = form.get('fs')
     client_hash = form.get('s')
-    unique_ids = form.get('c1')
     processes = form.get('pl')
     failtime = form.get('ft')
     exited = form.get('x')
@@ -157,7 +156,6 @@ async def parse_score_data(request: Request) -> Score:
     score.endpoint = request.url.path
     score.fun_spoiler = fun_spoiler
     score.client_hash = client_hash
-    score.unique_ids = unique_ids
     score.processes = processes
     return score
 

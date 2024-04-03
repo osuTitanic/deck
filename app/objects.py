@@ -101,7 +101,6 @@ class Score:
         self.personal_best: Optional[DBScore] = None
         self.fun_spoiler: Optional[str] = None
         self.client_hash: Optional[str] = None
-        self.unique_ids: Optional[str] = None
         self.processes: Optional[str] = None
 
         if passed:
