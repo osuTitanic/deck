@@ -22,11 +22,8 @@ RUN pip install gunicorn
 COPY . .
 
 # Get config for deployment
+ARG WEB_WORKERS=4
 ENV WEB_WORKERS $WEB_WORKERS
-ENV WEB_HOST $WEB_HOST
-ENV WEB_PORT $WEB_PORT
-
-EXPOSE $WEB_PORT
 
 CMD gunicorn \
         --access-logfile - \
