@@ -47,8 +47,7 @@ def ingame_rate(
         if beatmap.status <= 0:
             return Response('not ranked')
 
-        if beatmap.beatmapset.creator == player.name:
-            # This is pretty useless...
+        if beatmap.beatmapset.creator_id == player.id:
             return Response('owner')
 
         previous_rating = ratings.fetch_one(beatmap.md5, player.id, session)
