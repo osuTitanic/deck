@@ -19,7 +19,11 @@ REQUIRED_BUCKETS = [
     'beatmaps',
     'avatars',
     'replays',
-    'release'
+    'release',
+    'audio',
+    'thumbnails',
+    'osz',
+    'osz2'
 ]
 
 def download(path: str, url: str):
