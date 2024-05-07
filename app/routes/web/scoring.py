@@ -272,17 +272,27 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
             return Response('error: no')
 
+    user_groups = groups.fetch_user_groups(
+        player.id,
+        include_hidden=True,
+        session=score.session
+    )
+
+    group_names = [group.name for group in user_groups]
+
     if score.has_invalid_mods:
         officer.call(
             f'"{score.username}" submitted score with invalid mods.'
         )
-        app.session.events.submit(
-            'restrict',
-            user_id=player.id,
-            autoban=True,
-            reason='Invalid mods on score submission'
-        )
-        return Response('error: ban')
+
+        if 'Verified' not in group_names:
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                autoban=True,
+                reason='Invalid mods on score submission'
+            )
+            return Response('error: ban')
 
     flags = [
         BadFlags.FlashLightImageHack,
@@ -299,39 +309,29 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" submitted score with bad flags: {score.flags.name}'
         )
-        app.session.events.submit(
-            'restrict',
-            user_id=player.id,
-            autoban=True,
-            reason=f'Hacking/Cheating ({score.flags.value})'
-        )
-        return Response('error: ban')
+
+        if 'Verified' not in group_names:
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                autoban=True,
+                reason=f'Hacking/Cheating ({score.flags.value})'
+            )
+            return Response('error: ban')
 
     if score.replay and not validate_replay(score.replay):
         officer.call(
             f'"{score.username}" submitted score with invalid replay.'
         )
-        app.session.events.submit(
-            'restrict',
-            user_id=player.id,
-            autoban=True,
-            reason='Invalid replay'
-        )
-        return Response('error: ban')
 
-    user_groups = groups.fetch_user_groups(
-        player.id,
-        include_hidden=True,
-        session=score.session
-    )
-
-    group_names = [group.name for group in user_groups]
-
-    if 'Verified' in group_names:
-        app.session.logger.debug('Skipping score validation...')
-        return
-
-    # Validation checks for unverified players
+        if 'Verified' not in group_names:
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                autoban=True,
+                reason='Invalid replay'
+            )
+            return Response('error: ban')
 
     account_age = (datetime.now() - player.created_at)
     pp_cutoff = min(1500, max(750, account_age.total_seconds() / 8))
@@ -340,13 +340,15 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" exceeded the pp limit ({score.pp}).'
         )
-        app.session.events.submit(
-            'restrict',
-            user_id=player.id,
-            autoban=True,
-            reason=f'Exceeded pp limit ({round(score.pp)})'
-        )
-        return Response('error: ban')
+
+        if 'Verified' not in group_names:
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                autoban=True,
+                reason=f'Exceeded pp limit ({round(score.pp)})'
+            )
+            return Response('error: ban')
 
     multiaccounting_lock = app.session.redis.get(f'multiaccounting:{player.id}')
 
@@ -354,13 +356,15 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" submitted a score while multiaccounting.'
         )
-        app.session.events.submit(
-            'restrict',
-            user_id=player.id,
-            autoban=True,
-            reason='Multiaccounting'
-        )
-        return Response('error: ban')
+
+        if 'Verified' not in group_names:
+            app.session.events.submit(
+                'restrict',
+                user_id=player.id,
+                autoban=True,
+                reason='Multiaccounting'
+            )
+            return Response('error: ban')
 
 def upload_replay(score: Score, score_id: int) -> None:
     if (score.passed and score.status > ScoreStatus.Exited):

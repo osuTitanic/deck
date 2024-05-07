@@ -46,9 +46,10 @@ MENUICON_IMAGE = os.environ.get('MENUICON_IMAGE')
 MENUICON_URL = os.environ.get('MENUICON_URL')
 
 OFFICER_WEBHOOK_URL = os.environ.get('OFFICER_WEBHOOK_URL')
+OSZ2_SERVICE_URL = os.environ.get('OSZ2_SERVICE_URL')
 
 BANCHO_IP = os.environ.get('PUBLIC_BANCHO_IP', None)
 DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
 DATA_PATH = os.path.abspath('.data')
 
-VERSION = '1.4.0'
+VERSION = '1.4.1'

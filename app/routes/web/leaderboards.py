@@ -1,11 +1,13 @@
 
 from __future__ import annotations
 
+from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import (
     HTTPException,
     APIRouter,
     Response,
+    Depends,
     Query
 )
 
@@ -33,6 +35,7 @@ router = APIRouter()
 
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
+    session: Session = Depends(app.session.database.yield_session),
     request_version: int | None = Query(1, alias='vv'),
     username: str | None = Query(None, alias='us'),
     password: str | None = Query(None, alias='ha'),
@@ -46,214 +49,213 @@ def get_scores(
     mode: int = Query(..., alias='m'),
     mods: int | None = Query(0),
 ):
-    with app.session.database.managed_session() as session:
-        try:
-            ranking_type = RankingType(ranking_type)
-            skip_scores = skip_scores == '1'
-            mode = GameMode(mode)
-        except ValueError:
-            raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
+    try:
+        ranking_type = RankingType(ranking_type)
+        skip_scores = skip_scores == '1'
+        mode = GameMode(mode)
+    except ValueError:
+        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
 
-        if username:
-            if not (player := users.fetch_by_name(username, session)):
-                raise HTTPException(401)
-
-            if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-                raise HTTPException(401)
-        else:
-            if not user_id:
-                raise HTTPException(401)
-
-            if not (player := users.fetch_by_id(user_id, session=session)):
-                raise HTTPException(401)
-
-        if not status.exists(player.id):
+    if username:
+        if not (player := users.fetch_by_name(username, session)):
             raise HTTPException(401)
 
-        # Update latest activity
-        users.update(player.id, {'latest_activity': datetime.now()}, session)
+        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+            raise HTTPException(401)
+    else:
+        if not user_id:
+            raise HTTPException(401)
 
-        if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-            # Search for beatmap hash as backup
-            if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-                return Response('-1|false') # Not Submitted
+        if not (player := users.fetch_by_id(user_id, session=session)):
+            raise HTTPException(401)
 
-        if beatmap.md5 != beatmap_hash:
-            return Response('1|false') # Update Available
+    if not status.exists(player.id):
+        raise HTTPException(401)
 
-        if not ranking_type:
-            ranking_type = RankingType.Top
+    # Update latest activity
+    users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-        response = []
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+            return Response('-1|false') # Not Submitted
 
-        submission_status = SubmissionStatus.from_database(beatmap.status)
+    if beatmap.md5 != beatmap_hash:
+        return Response('1|false') # Update Available
 
-        # TODO: has_osz is used to check if the osz file is still up to date
-        # But I think this is unused tho...
-        has_osz = False
+    if not ranking_type:
+        ranking_type = RankingType.Top
 
-        # Fetch score count
+    response = []
 
-        personal_best = None
-        score_count = 0
-        friends = None
+    submission_status = SubmissionStatus.from_database(beatmap.status)
 
-        if ranking_type == RankingType.Friends:
-            friends = relationships.fetch_target_ids(player.id, session)
+    # Fetch score count
+    personal_best = None
+    score_count = 0
+    friends = None
 
-        if beatmap.is_ranked:
-            personal_best = scores.fetch_personal_best(
-                beatmap.id,
-                player.id,
-                mode.value,
-                mods if ranking_type == RankingType.SelectedMod else None,
-                session
-            )
+    # TODO: has_osz is used to check if the osz file is still up to date
+    # But I think this is unused though...
+    has_osz = False
 
-            if personal_best:
-                score_count = scores.fetch_count_beatmap(
-                    beatmap.id,
-                    mode.value,
-                    mods=mods
-                        if ranking_type == RankingType.SelectedMod
-                        else None,
-                    country=player.country
-                        if ranking_type == RankingType.Country
-                        else None,
-                    friends=friends
-                        if ranking_type == RankingType.Friends
-                        else None,
-                    session=session
-                )
+    if ranking_type == RankingType.Friends:
+        friends = relationships.fetch_target_ids(player.id, session)
 
-                if ranking_type == RankingType.Friends:
-                    score_count += 1
-
-        if (request_version > 2):
-            # NOTE: In request version 3, the submission status is changed
-            #       Qualified: 4
-            #       Ranked: 2
-
-            if submission_status == SubmissionStatus.Ranked:
-                submission_status = SubmissionStatus.EditableCutoff
-
-            elif submission_status == SubmissionStatus.EditableCutoff:
-                submission_status = SubmissionStatus.Ranked
-
-        # Beatmap Info
-        response.append(
-            '|'.join([
-                str(submission_status.value),
-                str(has_osz),
-                str(beatmap.id),
-                str(beatmap.set_id),
-                str(score_count)
-            ])
+    if beatmap.is_ranked:
+        personal_best = scores.fetch_personal_best(
+            beatmap.id,
+            player.id,
+            mode.value,
+            mods if ranking_type == RankingType.SelectedMod else None,
+            session
         )
-
-        if skip_scores or not beatmap.is_ranked:
-            return Response('\n'.join(response))
-
-        # Offset
-        response.append('0')
-
-        # Title
-        # Example: https://i.imgur.com/BofeZ2z.png
-        # TODO: Title Configuration?
-        response.append(
-            '|'.join(
-                [(
-                    '[bold:0,size:20]' +
-                    beatmap.beatmapset.artist
-                    if beatmap.beatmapset.artist
-                    else ''
-                ),
-                (
-                    '[]' +
-                    beatmap.beatmapset.title
-                    if beatmap.beatmapset.title
-                    else ''
-                )]
-            )
-        )
-
-        # response.append(str(
-        #     ratings.fetch_average(beatmap.md5),
-        #     session
-        # ))
-
-        # NOTE: This was actually used for ratings, but
-        #       we are using the new star ratings instead
-        response.append(str(
-            beatmap.diff
-        ))
 
         if personal_best:
-            index = scores.fetch_score_index(
-                player.id,
+            score_count = scores.fetch_count_beatmap(
                 beatmap.id,
                 mode.value,
-                mods           if ranking_type == RankingType.SelectedMod else None,
-                friends        if ranking_type == RankingType.Friends     else None,
-                player.country if ranking_type == RankingType.Country     else None,
-                session
-            )
-
-            response.append(
-                utils.score_string(personal_best, index)
-            )
-        else:
-            response.append('')
-
-        top_scores = []
-
-        if ranking_type == RankingType.Top:
-            top_scores = scores.fetch_range_scores(
-                beatmap.id,
-                mode=mode.value,
-                limit=config.SCORE_RESPONSE_LIMIT,
+                mods=mods
+                    if ranking_type == RankingType.SelectedMod
+                    else None,
+                country=player.country
+                    if ranking_type == RankingType.Country
+                    else None,
+                friends=friends
+                    if ranking_type == RankingType.Friends
+                    else None,
                 session=session
             )
 
-        elif ranking_type == RankingType.Country:
-            top_scores = scores.fetch_range_scores_country(
-                beatmap.id,
-                mode=mode.value,
-                country=player.country,
-                limit=config.SCORE_RESPONSE_LIMIT,
-                session=session
-            )
+            if ranking_type == RankingType.Friends:
+                score_count += 1
 
-        elif ranking_type == RankingType.Friends:
-            top_scores = scores.fetch_range_scores_friends(
-                beatmap.id,
-                mode=mode.value,
-                friends=friends,
-                limit=config.SCORE_RESPONSE_LIMIT,
-                session=session
-            )
+    if (request_version > 2):
+        # NOTE: In request version 3, the submission status is changed
+        #       Qualified: 4
+        #       Ranked: 2
 
-        elif ranking_type == RankingType.SelectedMod:
-            top_scores = scores.fetch_range_scores_mods(
-                beatmap.id,
-                mode=mode.value,
-                mods=mods,
-                limit=config.SCORE_RESPONSE_LIMIT,
-                session=session
-            )
+        if submission_status == SubmissionStatus.Ranked:
+            submission_status = SubmissionStatus.EditableCutoff
 
-        else:
-            raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
+        elif submission_status == SubmissionStatus.EditableCutoff:
+            submission_status = SubmissionStatus.Ranked
 
-        for index, score in enumerate(top_scores):
-            response.append(
-                utils.score_string(score, index, request_version)
-            )
+    # Beatmap Info
+    response.append(
+        '|'.join([
+            str(submission_status.value),
+            str(has_osz),
+            str(beatmap.id),
+            str(beatmap.set_id),
+            str(score_count)
+        ])
+    )
 
+    if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
+
+    # Offset
+    response.append('0')
+
+    # Title
+    # Example: https://i.imgur.com/BofeZ2z.png
+    # TODO: Title Configuration?
+    response.append(
+        '|'.join(
+            [(
+                '[bold:0,size:20]' +
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
+                '[]' +
+                beatmap.beatmapset.title
+                if beatmap.beatmapset.title
+                else ''
+            )]
+        )
+    )
+
+    # NOTE: This was actually used for user ratings, but
+    #       we are using the new star ratings instead
+    response.append(str(
+        beatmap.diff
+    ))
+
+    # response.append(str(
+    #     ratings.fetch_average(beatmap.md5),
+    #     session
+    # ))
+
+    if personal_best:
+        index = scores.fetch_score_index(
+            player.id,
+            beatmap.id,
+            mode.value,
+            mods           if ranking_type == RankingType.SelectedMod else None,
+            friends        if ranking_type == RankingType.Friends     else None,
+            player.country if ranking_type == RankingType.Country     else None,
+            session
+        )
+
+        response.append(
+            utils.score_string(personal_best, index)
+        )
+    else:
+        response.append('')
+
+    top_scores = []
+
+    if ranking_type == RankingType.Top:
+        top_scores = scores.fetch_range_scores(
+            beatmap.id,
+            mode=mode.value,
+            limit=config.SCORE_RESPONSE_LIMIT,
+            session=session
+        )
+
+    elif ranking_type == RankingType.Country:
+        top_scores = scores.fetch_range_scores_country(
+            beatmap.id,
+            mode=mode.value,
+            country=player.country,
+            limit=config.SCORE_RESPONSE_LIMIT,
+            session=session
+        )
+
+    elif ranking_type == RankingType.Friends:
+        top_scores = scores.fetch_range_scores_friends(
+            beatmap.id,
+            mode=mode.value,
+            friends=friends,
+            limit=config.SCORE_RESPONSE_LIMIT,
+            session=session
+        )
+
+    elif ranking_type == RankingType.SelectedMod:
+        top_scores = scores.fetch_range_scores_mods(
+            beatmap.id,
+            mode=mode.value,
+            mods=mods,
+            limit=config.SCORE_RESPONSE_LIMIT,
+            session=session
+        )
+
+    else:
+        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
+
+    for index, score in enumerate(top_scores):
+        response.append(
+            utils.score_string(score, index, request_version)
+        )
+
+    return Response('\n'.join(response))
 
 @router.get('/osu-getscores6.php')
 def legacy_scores(
+    session: Session = Depends(app.session.database.yield_session),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s'),
@@ -269,101 +271,101 @@ def legacy_scores(
     if not status.exists(player_id):
         raise HTTPException(401)
 
-    with app.session.database.managed_session() as session:
-        if not (player := users.fetch_by_id(player_id, session=session)):
-            raise HTTPException(401)
+    if not (player := users.fetch_by_id(player_id, session=session)):
+        raise HTTPException(401)
 
-        if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-            # Search for beatmap hash as backup
-            if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-                return Response('-1') # Not Submitted
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+            return Response('-1') # Not Submitted
 
-        if beatmap.md5 != beatmap_hash:
-            return Response('1') # Update Available
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
 
-        # Update latest activity
-        users.update(player.id, {'latest_activity': datetime.now()}, session)
+    # Update latest activity
+    users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-        response = []
+    response = []
 
-        submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database(beatmap.status)
 
-        # Status
-        response.append(str(submission_status.value))
+    # Status
+    response.append(str(submission_status.value))
 
-        if skip_scores or not beatmap.is_ranked:
-            return Response('\n'.join(response))
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
 
-        # Offset
-        response.append('0')
+    # Offset
+    response.append('0')
 
-        # Title
-        # Example: https://i.imgur.com/BofeZ2z.png
-        # TODO: Title Configuration?
-        response.append(
-            '|'.join(
-                [(
-                    '[bold:0,size:20]' +
-                    beatmap.beatmapset.artist
-                    if beatmap.beatmapset.artist
-                    else ''
-                ),
-                (
-                    '[]' +
-                    beatmap.beatmapset.title
-                    if beatmap.beatmapset.title
-                    else ''
-                )]
-            )
+    # Title
+    # Example: https://i.imgur.com/BofeZ2z.png
+    # TODO: Title Configuration?
+    response.append(
+        '|'.join(
+            [(
+                '[bold:0,size:20]' +
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
+                '[]' +
+                beatmap.beatmapset.title
+                if beatmap.beatmapset.title
+                else ''
+            )]
         )
+    )
 
-        # response.append(str(
-        #     ratings.fetch_average(beatmap.md5)
-        # ))
+    # NOTE: This was actually used for user ratings, but
+    #       we are using the new star ratings instead
+    response.append(str(
+        beatmap.diff
+    ))
 
-        # NOTE: This was actually used for ratings, but
-        #       we are using the new star ratings instead
-        response.append(str(
-            beatmap.diff
-        ))
+    # response.append(str(
+    #     ratings.fetch_average(beatmap.md5)
+    # ))
 
-        personal_best = scores.fetch_personal_best(
-            beatmap.id,
+    personal_best = scores.fetch_personal_best(
+        beatmap.id,
+        player.id,
+        mode.value,
+        session=session
+    )
+
+    if personal_best:
+        index = scores.fetch_score_index(
             player.id,
+            beatmap.id,
             mode.value,
             session=session
         )
 
-        if personal_best:
-            index = scores.fetch_score_index(
-                player.id,
-                beatmap.id,
-                mode.value,
-                session=session
-            )
+        response.append(
+            utils.score_string(personal_best, index)
+        )
+    else:
+        response.append('')
 
-            response.append(
-                utils.score_string(personal_best, index)
-            )
-        else:
-            response.append('')
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT,
+        session=session
+    )
 
-        top_scores = scores.fetch_range_scores(
-            beatmap.id,
-            mode=mode.value,
-            limit=config.SCORE_RESPONSE_LIMIT,
-            session=session
+    for index, score in enumerate(top_scores):
+        response.append(
+            utils.score_string(score, index)
         )
 
-        for index, score in enumerate(top_scores):
-            response.append(
-                utils.score_string(score, index)
-            )
-
-        return Response('\n'.join(response))
+    return Response('\n'.join(response))
 
 @router.get('/osu-getscores5.php')
 def legacy_scores_no_ratings(
+    session: Session = Depends(app.session.database.yield_session),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s'),
@@ -379,101 +381,101 @@ def legacy_scores_no_ratings(
     if not status.exists(player_id):
         raise HTTPException(401)
 
-    with app.session.database.managed_session() as session:
-        if not (player := users.fetch_by_id(player_id, session=session)):
-            raise HTTPException(401)
+    if not (player := users.fetch_by_id(player_id, session=session)):
+        raise HTTPException(401)
 
-        if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-            # Search for beatmap hash as backup
-            if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-                return Response('-1') # Not Submitted
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+            return Response('-1') # Not Submitted
 
-        if beatmap.md5 != beatmap_hash:
-            return Response('1') # Update Available
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
 
-        user_status = status.get(player.id)
+    user_status = status.get(player.id)
 
-        if user_status.mode != mode:
-            # Assign new mode to player
-            app.session.events.submit(
-                'user_update',
-                user_id=player.id,
-                mode=mode.value
-            )
-
-        # Update latest activity
-        users.update(player.id, {'latest_activity': datetime.now()}, session)
-
-        response = []
-
-        submission_status = SubmissionStatus.from_database(beatmap.status)
-
-        # Status
-        response.append(str(submission_status.value))
-
-        if skip_scores or not beatmap.is_ranked:
-            return Response('\n'.join(response))
-
-        # Offset
-        response.append('0')
-
-        # Title
-        # Example: https://i.imgur.com/BofeZ2z.png
-        # TODO: Title Configuration?
-        response.append(
-            '|'.join(
-                [(
-                    '[bold:0,size:20]' +
-                    beatmap.beatmapset.artist
-                    if beatmap.beatmapset.artist
-                    else ''
-                ),
-                (
-                    '[]' +
-                    beatmap.beatmapset.title
-                    if beatmap.beatmapset.title
-                    else ''
-                )]
-            )
+    if user_status.mode != mode:
+        # Assign new mode to player
+        app.session.events.submit(
+            'user_update',
+            user_id=player.id,
+            mode=mode.value
         )
 
-        personal_best = scores.fetch_personal_best(
-            beatmap.id,
+    # Update latest activity
+    users.update(player.id, {'latest_activity': datetime.now()}, session)
+
+    response = []
+
+    submission_status = SubmissionStatus.from_database(beatmap.status)
+
+    # Status
+    response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
+    # Offset
+    response.append('0')
+
+    # Title
+    # Example: https://i.imgur.com/BofeZ2z.png
+    # TODO: Title Configuration?
+    response.append(
+        '|'.join(
+            [(
+                '[bold:0,size:20]' +
+                beatmap.beatmapset.artist
+                if beatmap.beatmapset.artist
+                else ''
+            ),
+            (
+                '[]' +
+                beatmap.beatmapset.title
+                if beatmap.beatmapset.title
+                else ''
+            )]
+        )
+    )
+
+    personal_best = scores.fetch_personal_best(
+        beatmap.id,
+        player.id,
+        mode.value,
+        session=session
+    )
+
+    if personal_best:
+        index = scores.fetch_score_index(
             player.id,
+            beatmap.id,
             mode.value,
             session=session
         )
 
-        if personal_best:
-            index = scores.fetch_score_index(
-                player.id,
-                beatmap.id,
-                mode.value,
-                session=session
-            )
+        response.append(
+            utils.score_string(personal_best, index)
+        )
+    else:
+        response.append('')
 
-            response.append(
-                utils.score_string(personal_best, index)
-            )
-        else:
-            response.append('')
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT,
+        session=session
+    )
 
-        top_scores = scores.fetch_range_scores(
-            beatmap.id,
-            mode=mode.value,
-            limit=config.SCORE_RESPONSE_LIMIT,
-            session=session
+    for index, score in enumerate(top_scores):
+        response.append(
+            utils.score_string(score, index)
         )
 
-        for index, score in enumerate(top_scores):
-            response.append(
-                utils.score_string(score, index)
-            )
-
-        return Response('\n'.join(response))
+    return Response('\n'.join(response))
 
 @router.get('/osu-getscores4.php')
 def legacy_scores_no_beatmap_data(
+    session: Session = Depends(app.session.database.yield_session),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s'),
@@ -485,78 +487,78 @@ def legacy_scores_no_beatmap_data(
     if not status.exists(player_id):
         raise HTTPException(401)
 
-    with app.session.database.managed_session() as session:
-        if not (player := users.fetch_by_id(player_id, session=session)):
-            raise HTTPException(401)
+    if not (player := users.fetch_by_id(player_id, session=session)):
+        raise HTTPException(401)
 
-        if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-            # Search for beatmap hash as backup
-            if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-                return Response('-1') # Not Submitted
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+            return Response('-1') # Not Submitted
 
-        if beatmap.md5 != beatmap_hash:
-            return Response('1') # Update Available
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
 
-        user_status = status.get(player.id)
+    user_status = status.get(player.id)
 
-        if user_status.mode != mode:
-            # Assign new mode to player
-            app.session.events.submit(
-                'user_update',
-                user_id=player.id,
-                mode=mode.value
-            )
+    if user_status.mode != mode:
+        # Assign new mode to player
+        app.session.events.submit(
+            'user_update',
+            user_id=player.id,
+            mode=mode.value
+        )
 
-        # Update latest activity
-        users.update(player.id, {'latest_activity': datetime.now()}, session)
+    # Update latest activity
+    users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-        response = []
+    response = []
 
-        submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database(beatmap.status)
 
-        # Status
-        response.append(str(submission_status.value))
+    # Status
+    response.append(str(submission_status.value))
 
-        if skip_scores or not beatmap.is_ranked:
-            return Response('\n'.join(response))
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
 
-        personal_best = scores.fetch_personal_best(
-            beatmap.id,
+    personal_best = scores.fetch_personal_best(
+        beatmap.id,
+        player.id,
+        mode.value,
+        session=session
+    )
+
+    if personal_best:
+        index = scores.fetch_score_index(
             player.id,
+            beatmap.id,
             mode.value,
             session=session
         )
 
-        if personal_best:
-            index = scores.fetch_score_index(
-                player.id,
-                beatmap.id,
-                mode.value,
-                session=session
-            )
+        response.append(
+            utils.score_string(personal_best, index)
+        )
+    else:
+        response.append('')
 
-            response.append(
-                utils.score_string(personal_best, index)
-            )
-        else:
-            response.append('')
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT,
+        session=session
+    )
 
-        top_scores = scores.fetch_range_scores(
-            beatmap.id,
-            mode=mode.value,
-            limit=config.SCORE_RESPONSE_LIMIT,
-            session=session
+    for index, score in enumerate(top_scores):
+        response.append(
+            utils.score_string(score, index)
         )
 
-        for index, score in enumerate(top_scores):
-            response.append(
-                utils.score_string(score, index)
-            )
-
-        return Response('\n'.join(response))
+    return Response('\n'.join(response))
 
 @router.get('/osu-getscores3.php')
 def legacy_scores_no_personal_best(
+    session: Session = Depends(app.session.database.yield_session),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str = Query(..., alias='s')
@@ -564,41 +566,41 @@ def legacy_scores_no_personal_best(
     skip_scores = skip_scores == '1'
     mode = GameMode.Osu
 
-    with app.session.database.managed_session() as session:
-        if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-            # Search for beatmap hash as backup
-            if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-                return Response('-1') # Not Submitted
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
+        # Search for beatmap hash as backup
+        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+            return Response('-1') # Not Submitted
 
-        if beatmap.md5 != beatmap_hash:
-            return Response('1') # Update Available
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
 
-        response = []
+    response = []
 
-        submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database(beatmap.status)
 
-        # Status
-        response.append(str(submission_status.value))
+    # Status
+    response.append(str(submission_status.value))
 
-        if skip_scores or not beatmap.is_ranked:
-            return Response('\n'.join(response))
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
 
-        top_scores = scores.fetch_range_scores(
-            beatmap.id,
-            mode=mode.value,
-            limit=config.SCORE_RESPONSE_LIMIT,
-            session=session
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT,
+        session=session
+    )
+
+    for score in top_scores:
+        response.append(
+            utils.score_string_legacy(score)
         )
 
-        for score in top_scores:
-            response.append(
-                utils.score_string_legacy(score)
-            )
-
-        return Response('\n'.join(response))
+    return Response('\n'.join(response))
 
 @router.get('/osu-getscores2.php')
 def legacy_scores_status_change(
+    session: Session = Depends(app.session.database.yield_session),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     skip_scores: str | None = Query(None, alias='s')
@@ -609,54 +611,55 @@ def legacy_scores_status_change(
     skip_scores = skip_scores == '1'
     mode = GameMode.Osu
 
-    with app.session.database.managed_session() as session:
-        if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-            # Search for beatmap hash as backup
-            if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-                return Response('-1') # Not Submitted
-
-        if beatmap.md5 != beatmap_hash:
-            return Response('1') # Update Available
-
-        response = []
-
-        submission_status = LegacyStatus.from_database(beatmap.status)
-
-        # Status
-        if submission_status <= SubmissionStatus.Unknown:
-            response.append(str(submission_status.value))
-
-        if skip_scores or not beatmap.is_ranked:
-            return Response('\n'.join(response))
-
-        top_scores = scores.fetch_range_scores(
-            beatmap.id,
-            mode=mode.value,
-            limit=config.SCORE_RESPONSE_LIMIT,
-            session=session
-        )
-
-        for score in top_scores:
-            response.append(
-                utils.score_string_legacy(score)
-            )
-
-        return Response('\n'.join(response))
-
-@router.get('/osu-getscores.php')
-def legacy_scores_no_status(beatmap_hash: str = Query(..., alias='c')):
-    with app.session.database.managed_session() as session:
+    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
+        # Search for beatmap hash as backup
         if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
             return Response('-1') # Not Submitted
 
-        top_scores = scores.fetch_range_scores(
-            beatmap.id,
-            mode=GameMode.Osu.value,
-            limit=config.SCORE_RESPONSE_LIMIT,
-            session=session
+    if beatmap.md5 != beatmap_hash:
+        return Response('1') # Update Available
+
+    response = []
+
+    submission_status = LegacyStatus.from_database(beatmap.status)
+
+    # Status
+    if submission_status <= SubmissionStatus.Unknown:
+        response.append(str(submission_status.value))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
+
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=mode.value,
+        limit=config.SCORE_RESPONSE_LIMIT,
+        session=session
+    )
+
+    for score in top_scores:
+        response.append(
+            utils.score_string_legacy(score)
         )
 
-        return Response('\n'.join([
-            utils.score_string_legacy(score, seperator=':')
-            for score in top_scores
-        ]))
+    return Response('\n'.join(response))
+
+@router.get('/osu-getscores.php')
+def legacy_scores_no_status(
+    session: Session = Depends(app.session.database.yield_session),
+    beatmap_hash: str = Query(..., alias='c')
+):
+    if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+        return Response('-1') # Not Submitted
+
+    top_scores = scores.fetch_range_scores(
+        beatmap.id,
+        mode=GameMode.Osu.value,
+        limit=config.SCORE_RESPONSE_LIMIT,
+        session=session
+    )
+
+    return Response('\n'.join([
+        utils.score_string_legacy(score, seperator=':')
+        for score in top_scores
+    ]))

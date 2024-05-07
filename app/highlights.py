@@ -208,6 +208,10 @@ def check_pp(
         result = query.order_by(DBScore.pp.desc()) \
                       .first()
 
+        if not result:
+            # Player has no top plays
+            return
+
         if score.id == result.id:
             # Player got a new top play
             submit(

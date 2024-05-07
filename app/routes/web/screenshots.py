@@ -5,6 +5,7 @@ from app.common.database.repositories import (
     users
 )
 
+from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import (
     HTTPException,
@@ -42,39 +43,39 @@ async def read_screenshot(request: Request):
 
 @router.post('/osu-screenshot.php')
 def screenshot(
+    session: Session = Depends(app.session.database.yield_session),
     screenshot: bytes = Depends(read_screenshot),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p')
 ):
-    with app.session.database.managed_session() as session:
-        if not (player := users.fetch_by_name(username, session)):
-            raise HTTPException(401)
+    if not (player := users.fetch_by_name(username, session)):
+        raise HTTPException(401)
 
-        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-            raise HTTPException(401)
+    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        raise HTTPException(401)
 
-        if not status.exists(player.id):
-            raise HTTPException(401)
+    if not status.exists(player.id):
+        raise HTTPException(401)
 
-        with memoryview(screenshot) as screenshot_view:
-            if len(screenshot_view) > (4 * 1024 * 1024):
-                app.session.logger.warning('Failed to upload screenshot: Too large')
-                raise HTTPException(
-                    status_code=400,
-                    detail="Screenshot file too large"
-                )
+    with memoryview(screenshot) as screenshot_view:
+        if len(screenshot_view) > (4 * 1024 * 1024):
+            app.session.logger.warning('Failed to upload screenshot: Too large')
+            raise HTTPException(
+                status_code=400,
+                detail="Screenshot file too large"
+            )
 
-            if not utils.has_jpeg_headers(screenshot_view) \
-            and not utils.has_png_headers(screenshot_view):
-                app.session.logger.warning('Failed to upload screenshot: Invalid filetype')
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid file type"
-                )
+        if not utils.has_jpeg_headers(screenshot_view) \
+        and not utils.has_png_headers(screenshot_view):
+            app.session.logger.warning('Failed to upload screenshot: Invalid filetype')
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type"
+            )
 
-            users.update(player.id, {'latest_activity': datetime.now()}, session)
+        users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-            id = screenshots.create(player.id, hidden=False, session=session).id
+        id = screenshots.create(player.id, hidden=False, session=session).id
 
     app.session.storage.upload_screenshot(id, screenshot)
     app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
