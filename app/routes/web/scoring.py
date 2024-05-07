@@ -510,22 +510,20 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         score.session.commit()
 
         # Update score grades
-        grades = {
-            'xh_count': len([s for s in best_scores if s.grade.upper() == 'XH']),
-            'x_count': len([s for s in best_scores if s.grade.upper() == 'X']),
-            'sh_count': len([s for s in best_scores if s.grade.upper() == 'SH']),
-            's_count': len([s for s in best_scores if s.grade.upper() == 'S']),
-            'a_count': len([s for s in best_scores if s.grade.upper() == 'A']),
-            'b_count': len([s for s in best_scores if s.grade.upper() == 'B']),
-            'c_count': len([s for s in best_scores if s.grade.upper() == 'C']),
-            'd_count': len([s for s in best_scores if s.grade.upper() == 'D'])
-        }
+        grades = scores.fetch_grades(
+            user_stats.user_id,
+            user_stats.mode,
+            session=score.session
+        )
 
         stats.update(
             user_stats.user_id,
             user_stats.mode,
-            grades,
-            score.session
+            {
+                f'{grade.lower()}_count': count
+                for grade, count in grades.items()
+            },
+            session=score.session
         )
 
         if score.passed and score.status == ScoreStatus.Best:
