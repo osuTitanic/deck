@@ -139,7 +139,11 @@ def remaining_beatmap_uploads(user: DBUser, session: Session) -> int:
     # 1 per ranked map, up to a maximum of 8
     return (4 - unranked_beatmaps) + min(ranked_beatmaps, 4)
 
-def create_beatmapset(user: DBUser, beatmap_ids: List[int], session: Session) -> Tuple[int, List[int]]:
+def create_beatmapset(
+    user: DBUser,
+    beatmap_ids: List[int],
+    session: Session
+) -> Tuple[int, List[int]]:
     # Create new beatmapset
     set = beatmapsets.create(
         id=beatmap_helper.next_beatmapset_id(session=session),
@@ -161,6 +165,35 @@ def create_beatmapset(user: DBUser, beatmap_ids: List[int], session: Session) ->
     app.session.logger.info(f'Created new beatmapset ({set.id}) for user {user.name}.')
 
     return set.id, [beatmap.id for beatmap in new_beatmaps]
+
+def create_new_beatmaps(
+    beatmap_ids: List[int],
+    beatmapset: DBBeatmapset,
+    session: Session
+) -> List[int]:
+    # Get current beatmaps
+    current_beatmap_ids = [
+        beatmap.id
+        for beatmap in beatmapset.beatmaps
+    ]
+
+    # Calculate how many new beatmaps we need to create
+    required_maps = max(
+        len(beatmap_ids) - len(current_beatmap_ids), 0
+    )
+
+    # Create new beatmaps
+    new_beatmap_ids = [
+        beatmaps.create(
+            id=beatmap_helper.next_beatmap_id(session=session),
+            set_id=beatmapset.id,
+            session=session
+        ).id
+        for _ in range(required_maps)
+    ]
+
+    # Return new beatmap ids to the client
+    return current_beatmap_ids + new_beatmap_ids
 
 @router.get('/osu-osz2-bmsubmit-getid.php')
 def validate_upload_request(
@@ -205,15 +238,18 @@ def validate_upload_request(
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is ranked or loved.')
             return error_response(3)
 
+        # Create new beatmaps if necessary
+        beatmap_ids = create_new_beatmaps(
+            beatmap_ids,
+            beatmapset,
+            session=session
+        )
+
+        # Get "bubbled" status
         bubbled = is_bubbled(
             beatmapset,
             session
         )
-
-        beatmap_ids = [
-            beatmap.id
-            for beatmap in beatmapset.beatmaps
-        ]
 
         app.session.logger.info(f'{user.name} wants to update a beatmapset ({set_id}).')
 
