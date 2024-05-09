@@ -19,6 +19,7 @@ from .common.constants import (
 )
 
 import hashlib
+import config
 import math
 import app
 
@@ -232,6 +233,9 @@ class Score:
         - Failed/Exited score
         - Hidden score
         """
+        if not config.ALLOW_RELAX and self.relaxing:
+            return ScoreStatus.Hidden
+
         if not self.passed:
             return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
 
