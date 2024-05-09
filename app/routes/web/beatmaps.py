@@ -237,7 +237,7 @@ def validate_upload_request(
     # If full-submit is true, the client will submit a patch file
     full_submit = (
         not app.session.storage.file_exists(f'{set_id}', 'osz2')
-        or osz2_hash == '0'
+        or not osz2_hash
     )
 
     # NOTE: In theory we could always set this to true, so we don't have
