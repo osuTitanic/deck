@@ -1,9 +1,10 @@
 
 from __future__ import annotations
 
-from typing import List, Callable, Tuple, Any
+from typing import List, Callable, Tuple, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
+from zipfile import ZipFile
 
 from app.common.database import users, beatmapsets, beatmaps, topics, groups, posts
 from app.common.database.objects import DBUser, DBBeatmapset
@@ -21,9 +22,12 @@ from fastapi import (
     File
 )
 
+import hashlib
+import base64
 import bcrypt
 import config
 import app
+import io
 
 router = APIRouter()
 
@@ -195,6 +199,99 @@ def create_new_beatmaps(
     # Return new beatmap ids to the client
     return current_beatmap_ids + new_beatmap_ids
 
+def calculate_bpm(timing_points: List[dict]) -> float:
+    if not timing_points:
+        return 0.0
+
+    lowest_beat_length = 5000
+
+    for point in timing_points:
+        if point['inherited']:
+            continue
+
+        lowest_beat_length = min(
+            lowest_beat_length,
+            point['beatLength']
+        )
+
+    return 60000 / max(1, lowest_beat_length)
+
+def calculate_max_combo(general_section: dict) -> int:
+    # TODO: How do I calculate max combo??
+    return (
+        general_section['circlesCount'] + 2 *
+        general_section['slidersCount'] + 3 *
+        general_section['spinnersCount']
+    )
+
+def calculate_total_length(hit_objects: List[dict]) -> int:
+    return hit_objects[-1]['endTime'] / 1000
+
+def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
+    app.session.logger.debug(f'Updating beatmap package...')
+
+    buffer = io.BytesIO()
+    zip = ZipFile(buffer, 'w')
+
+    for filename, data in files.items():
+        zip.writestr(filename, data)
+
+    zip.close()
+    buffer.seek(0)
+
+    app.session.storage.upload_osz(
+        set_id,
+        buffer.getvalue()
+    )
+
+def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_data: dict) -> None:
+    # Map is in "wip" state when only 1 beatmap is submitted
+    status = (-1 if len(beatmap_data) <= 1 else 0)
+
+    # Update beatmapset metadata
+    beatmapsets.update(
+        set_id,
+        {
+            'artist': metadata.get('Artist'),
+            'title': metadata.get('Title'),
+            'creator': metadata.get('Creator'),
+            'source': metadata.get('Source'),
+            'tags': metadata.get('Tags'),
+            'artist_unicode': metadata.get('ArtistUnicode'),
+            'title_unicode': metadata.get('TitleUnicode'),
+            'source_unicode': metadata.get('SourceUnicode'),
+            'genre_id': metadata.get('Genre', 0),
+            'language_id': metadata.get('Language', 0),
+            'has_video': metadata.get('VideoHash', False),
+            'last_update': datetime.now(),
+            'status': status
+        }
+    )
+
+    for filename, beatmap in beatmap_data.items():
+        # Check if beatmap was parsed correctly
+        assert beatmap['hitObjects']
+        assert beatmap['timingPoints']
+
+        beatmaps.update(
+            beatmap['metadataSection']['beatmapID'],
+            {
+                'filename': filename,
+                'last_update': datetime.now(),
+                'version': beatmap['metadataSection']['version'] or 'Normal',
+                'mode': beatmap['generalSection']['mode'],
+                'total_length': calculate_total_length(beatmap['hitObjects']),
+                'max_combo': calculate_max_combo(beatmap['generalSection']),
+                'bpm': calculate_bpm(beatmap['timingPoints']),
+                'md5': hashlib.md5(files[filename]).hexdigest(),
+                'hp': beatmap['difficultySection']['hpDrainRate'],
+                'cs': beatmap['difficultySection']['circleSize'],
+                'od': beatmap['difficultySection']['overallDifficulty'],
+                'ar': beatmap['difficultySection']['approachRate'],
+                'status': status
+            },
+        )
+
 @router.get('/osu-osz2-bmsubmit-getid.php')
 def validate_upload_request(
     session: Session = Depends(app.session.database.yield_session),
@@ -349,7 +446,7 @@ def upload_beatmap(
         )
 
     if not osz2_file:
-        app.session.logger.warning(f'Failed to upload beatmap: Failed to process osz2 file ({full_submit})')
+        app.session.logger.warning(f'Failed to upload beatmap: Failed to read osz2 file ({full_submit})')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
     # Upload the osz2 file to storage
@@ -362,9 +459,24 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Failed to decrypt osz2 file.')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
-    # TODO: Process the decrypted osz2 file
-    app.session.logger.debug(data['beatmaps'])
-    app.session.logger.debug(data['metadata'])
+    try:
+        # Decode beatmap files
+        files = {
+            filename: base64.b64decode(content)
+            for filename, content in data['files'].items()
+        }
+
+        update_beatmap_package(set_id, files)
+        update_beatmap_metadata(set_id, files, data['metadata'], data['beatmaps'])
+
+        # TODO: Validate osz2 content on osz2-service
+        # TODO: Upload beatmap thumbnail
+        # TODO: Upload beatmap files
+        # TODO: Upload beatmap audio
+
+    except Exception as e:
+        app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
+        return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
     # TODO: Post to discord webhook
     app.session.logger.info(
