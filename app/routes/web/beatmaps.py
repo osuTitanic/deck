@@ -5,7 +5,7 @@ from typing import List, Callable, Tuple, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.common.database import users, beatmapsets, beatmaps, topics, groups
+from app.common.database import users, beatmapsets, beatmaps, topics, groups, posts
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.cache import status
@@ -276,3 +276,33 @@ def forum_post(
 ):
     # Creates the forum post and returns its threadId
     ...
+
+@router.get('/osu-get-beatmap-topic.php')
+def topic_contents(
+    session: Session = Depends(app.session.database.yield_session),
+    username: str = Query(..., alias='u'),
+    password: str = Query(..., alias='h'),
+    set_id: int = Query(..., alias='s')
+):
+    error, user = authenticate_user(username, password, session)
+
+    if error:
+        # Failed to authenticate user
+        return error
+
+    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
+        app.session.logger.warning(f'Failed to fetch beatmapset topic: Beatmapset not found.')
+        return error_response(1)
+
+    if not (topic := topics.fetch_one(beatmapset.topic_id, session)):
+        app.session.logger.warning(f'Failed to fetch beatmapset topic: Topic not found.')
+        return error_response(1)
+
+    first_post = posts.fetch_initial_post(topic.id, session)
+
+    return Response('3'.join([
+        f'0',
+        f'{topic.id}',
+        f'{topic.title}',
+        f'{first_post.content if first_post else ""}',
+    ]))
