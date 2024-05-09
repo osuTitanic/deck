@@ -230,10 +230,6 @@ def validate_upload_request(
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is not on Titanic.')
             return error_response(1)
 
-        if beatmapset.status < -1:
-            app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is graveyarded.')
-            return error_response(4)
-
         if beatmapset.status > 1:
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is ranked or loved.')
             return error_response(3)
@@ -290,14 +286,83 @@ def validate_upload_request(
 
 @router.post('/osu-osz2-bmsubmit-upload.php')
 def upload_beatmap(
+    session: Session = Depends(app.session.database.yield_session),
     full_submit: bool = Depends(integer_boolean('t')),
-    osz2_file: UploadFile = File(..., alias='0'),
+    submission_file: UploadFile = File(..., alias='0'),
     osz2_hash: str = Query(..., alias='z'),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='s')
 ):
-    # TODO: Upload the beatmap
+    if not config.OSZ2_SERVICE_URL:
+        app.session.logger.warning('The osz2-service url was not found. Aborting...')
+        return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
+
+    error, user = authenticate_user(username, password, session)
+
+    if error:
+        # Failed to authenticate user
+        return error
+
+    beatmapset = beatmapsets.fetch_one(set_id, session)
+
+    if not beatmapset:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset not found.')
+        return error_response(5, 'The beatmapset you are trying to upload to does not exist. Please try again!')
+
+    if beatmapset.creator_id != user.id:
+        app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset.')
+        return error_response(1)
+
+    if beatmapset.server != 1:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is not on Titanic.')
+        return error_response(1)
+
+    if beatmapset.status > 0:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is ranked or loved.')
+        return error_response(3)
+
+    if full_submit:
+        # User uploaded the full osz2 file
+        osz2_file = submission_file.file.read()
+
+    else:
+        # User uploaded a patch file
+        current_osz2_file = app.session.storage.get_osz2_internal(set_id)
+
+        if not current_osz2_file:
+            app.session.logger.warning(f'Failed to upload beatmap: Full submit requested but osz2 file is missing.')
+            return error_response(5, 'The osz2 file is missing. Please try again!')
+
+        # Apply the patch to the current osz2 file
+        osz2_file = beatmap_helper.patch_osz2(
+            submission_file.file.read(),
+            current_osz2_file
+        )
+
+    if not osz2_file:
+        app.session.logger.warning(f'Failed to upload beatmap: Failed to process osz2 file ({full_submit})')
+        return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
+
+    # Upload the osz2 file to storage
+    app.session.storage.upload_osz2(set_id, osz2_file)
+
+    # Decrypt osz2 file
+    data = beatmap_helper.decrypt_osz2(osz2_file)
+
+    if not data:
+        app.session.logger.warning(f'Failed to upload beatmap: Failed to decrypt osz2 file.')
+        return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
+
+    # TODO: Process the decrypted osz2 file
+    app.session.logger.debug(data['beatmaps'])
+    app.session.logger.debug(data['metadata'])
+
+    # TODO: Post to discord webhook
+    app.session.logger.info(
+        f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset (http://{config.DOMAIN_NAME}/s/{set_id}).'
+    )
+
     return Response('0')
 
 @router.post('/osu-osz2-bmsubmit-post.php')
