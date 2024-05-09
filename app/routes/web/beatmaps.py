@@ -291,7 +291,7 @@ def validate_upload_request(
 @router.post('/osu-osz2-bmsubmit-upload.php')
 def upload_beatmap(
     full_submit: bool = Depends(integer_boolean('t')),
-    osz2_file: UploadFile = File(..., alias='osz2'),
+    osz2_file: UploadFile = File(..., alias='0'),
     osz2_hash: str = Query(..., alias='z'),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
