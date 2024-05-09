@@ -118,7 +118,7 @@ def remaining_beatmap_uploads(user: DBUser, session: Session) -> int:
 
     if 'Admins' in group_names:
         # Admins have unlimited uploads
-        return 1
+        return 10
 
     unranked_beatmaps = beatmapsets.fetch_unranked_count(
         user.id,
@@ -248,6 +248,7 @@ def validate_upload_request(
         f'{set_id}',
         ','.join(map(str, beatmap_ids)),
         f'{int(full_submit)}',
+        f'{remaining_beatmaps}',
         f'{int(bubbled)}'
     ]))
 
