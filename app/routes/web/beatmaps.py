@@ -208,7 +208,11 @@ def validate_upload_request(
         app.session.logger.warning('The osz2-service url was not found. Aborting...')
         return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
 
-    error, user = authenticate_user(username, password, session)
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session
+    )
 
     if error:
         # Failed to authenticate user
@@ -298,7 +302,11 @@ def upload_beatmap(
         app.session.logger.warning('The osz2-service url was not found. Aborting...')
         return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
 
-    error, user = authenticate_user(username, password, session)
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session
+    )
 
     if error:
         # Failed to authenticate user
@@ -360,7 +368,8 @@ def upload_beatmap(
 
     # TODO: Post to discord webhook
     app.session.logger.info(
-        f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset (http://{config.DOMAIN_NAME}/s/{set_id}).'
+        f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
+        f'(http://osu.{config.DOMAIN_NAME}/s/{set_id}).'
     )
 
     return Response('0')
@@ -385,7 +394,11 @@ def topic_contents(
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='s')
 ):
-    error, user = authenticate_user(username, password, session)
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session
+    )
 
     if error:
         # Failed to authenticate user
