@@ -5,7 +5,7 @@ from typing import List, Callable, Tuple, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.common.database import users, beatmapsets, beatmaps, topics
+from app.common.database import users, beatmapsets, beatmaps, topics, groups
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.cache import status
@@ -108,8 +108,36 @@ def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
     )
 
 def remaining_beatmap_uploads(user: DBUser, session: Session) -> int:
-    # TODO: Calculate the remaining beatmap uploads
-    return 5
+    user_groups = groups.fetch_user_groups(
+        user.id,
+        include_hidden=True,
+        session=session
+    )
+
+    group_names = [group.name for group in user_groups]
+
+    if 'Admins' in group_names:
+        # Admins have unlimited uploads
+        return 1
+
+    unranked_beatmaps = beatmapsets.fetch_unranked_count(
+        user.id,
+        session=session
+    )
+
+    ranked_beatmaps = beatmapsets.fetch_ranked_count(
+        user.id,
+        session=session
+    )
+
+    if 'Supporter' in group_names:
+        # Supporters can upload up to 8 pending maps plus
+        # 1 per ranked map, up to a maximum of 12
+        return (8 - unranked_beatmaps) + min(ranked_beatmaps, 12)
+
+    # Regular users can upload up to 4 pending maps plus
+    # 1 per ranked map, up to a maximum of 8
+    return (4 - unranked_beatmaps) + min(ranked_beatmaps, 4)
 
 def create_beatmapset(user: DBUser, beatmap_ids: List[int], session: Session) -> Tuple[int, List[int]]:
     # Create new beatmapset
@@ -145,7 +173,7 @@ def validate_upload_request(
 ) -> Response:
     if not config.OSZ2_SERVICE_URL:
         app.session.logger.warning('The osz2-service url was not found. Aborting...')
-        return error_response(5, 'Beatmap submission was disabled by an admin.')
+        return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
 
     error, user = authenticate_user(username, password, session)
 
