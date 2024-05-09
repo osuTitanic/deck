@@ -298,7 +298,7 @@ def upload_beatmap(
     set_id: int = Query(..., alias='s')
 ):
     # TODO: Upload the beatmap
-    return 0
+    return Response('0')
 
 @router.post('/osu-osz2-bmsubmit-post.php')
 def forum_post(
@@ -311,7 +311,7 @@ def forum_post(
     notify: bool = Depends(integer_boolean_form('notify'))
 ):
     # TODO: Create the forum post and return its threadId
-    return 0
+    return Response('0')
 
 @router.get('/osu-get-beatmap-topic.php')
 def topic_contents(
