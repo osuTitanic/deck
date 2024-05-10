@@ -9,6 +9,7 @@ from zipfile import ZipFile
 from app.common.database import users, beatmapsets, beatmaps, topics, groups, posts
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
+from app.common.helpers import performance
 from app.common.cache import status
 
 from fastapi import (
@@ -245,22 +246,30 @@ def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_da
     )
 
     for filename, beatmap in beatmap_data.items():
+        difficulty_attributes = performance.calculate_difficulty(
+            files[filename],
+            beatmap['ruleset']['onlineID']
+        )
+
+        assert difficulty_attributes is not None
+
         beatmaps.update(
             beatmap['onlineID'],
             {
+                'status': status,
                 'filename': filename,
                 'last_update': datetime.now(),
+                'total_length': round(beatmap['length'] / 1000),
+                'md5': hashlib.md5(files[filename]).hexdigest(),
                 'version': beatmap['difficultyName'] or 'Normal',
                 'mode': beatmap['ruleset']['onlineID'],
-                'total_length': round(beatmap['length'] / 1000),
-                'max_combo': beatmap['maxCombo'],
                 'bpm': beatmap['bpm'],
-                'md5': hashlib.md5(files[filename]).hexdigest(),
                 'hp': beatmap['difficulty']['drainRate'],
                 'cs': beatmap['difficulty']['circleSize'],
                 'od': beatmap['difficulty']['overallDifficulty'],
                 'ar': beatmap['difficulty']['approachRate'],
-                'status': status
+                'max_combo': difficulty_attributes.max_combo,
+                'diff': difficulty_attributes.stars
             },
             session=session
         )
