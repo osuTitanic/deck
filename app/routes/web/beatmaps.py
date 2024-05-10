@@ -199,34 +199,6 @@ def create_new_beatmaps(
     # Return new beatmap ids to the client
     return current_beatmap_ids + new_beatmap_ids
 
-def calculate_bpm(timing_points: List[dict]) -> float:
-    if not timing_points:
-        return 0.0
-
-    lowest_beat_length = 5000
-
-    for point in timing_points:
-        if point['inherited']:
-            continue
-
-        lowest_beat_length = min(
-            lowest_beat_length,
-            point['beatLength']
-        )
-
-    return 60000 / max(1, lowest_beat_length)
-
-def calculate_max_combo(general_section: dict) -> int:
-    # TODO: How do I calculate max combo??
-    return (
-        general_section['circlesCount'] + 2 *
-        general_section['slidersCount'] + 3 *
-        general_section['spinnersCount']
-    )
-
-def calculate_total_length(hit_objects: List[dict]) -> int:
-    return hit_objects[-1]['endTime'] / 1000
-
 def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
     app.session.logger.debug(f'Updating beatmap package...')
 
@@ -269,25 +241,21 @@ def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_da
     )
 
     for filename, beatmap in beatmap_data.items():
-        # Check if beatmap was parsed correctly
-        assert beatmap['hitObjects']
-        assert beatmap['timingPoints']
-
         beatmaps.update(
-            beatmap['metadataSection']['beatmapID'],
+            beatmap['onlineID'],
             {
                 'filename': filename,
                 'last_update': datetime.now(),
-                'version': beatmap['metadataSection']['version'] or 'Normal',
-                'mode': beatmap['generalSection']['mode'],
-                'total_length': calculate_total_length(beatmap['hitObjects']),
-                'max_combo': calculate_max_combo(beatmap['generalSection']),
-                'bpm': calculate_bpm(beatmap['timingPoints']),
+                'version': beatmap['difficultyName'] or 'Normal',
+                'mode': beatmap['ruleset']['onlineID'],
+                'total_length': round(beatmap['length'] / 1000),
+                'max_combo': beatmap['maxCombo'],
+                'bpm': beatmap['bpm'],
                 'md5': hashlib.md5(files[filename]).hexdigest(),
-                'hp': beatmap['difficultySection']['hpDrainRate'],
-                'cs': beatmap['difficultySection']['circleSize'],
-                'od': beatmap['difficultySection']['overallDifficulty'],
-                'ar': beatmap['difficultySection']['approachRate'],
+                'hp': beatmap['difficulty']['drainRate'],
+                'cs': beatmap['difficulty']['circleSize'],
+                'od': beatmap['difficulty']['overallDifficulty'],
+                'ar': beatmap['difficulty']['approachRate'],
                 'status': status
             },
         )
