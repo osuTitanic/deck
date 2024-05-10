@@ -465,9 +465,6 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Failed to read osz2 file ({full_submit})')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
-    # Upload the osz2 file to storage
-    app.session.storage.upload_osz2(set_id, osz2_file)
-
     # Decrypt osz2 file
     data = beatmap_helper.decrypt_osz2(osz2_file)
 
@@ -492,6 +489,9 @@ def upload_beatmap(
         session.rollback()
         app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
+
+    # Upload the osz2 file to storage
+    app.session.storage.upload_osz2(set_id, osz2_file)
 
     # TODO: Post to discord webhook
     app.session.logger.info(
