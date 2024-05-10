@@ -250,6 +250,35 @@ def resize_image(
 
     return image_buffer.getvalue()
 
+def resize_and_crop_image(
+    image: bytes,
+    target_width: int,
+    target_height: int
+) -> bytes:
+    img = Image.open(io.BytesIO(image))
+    image_width, image_height = img.size
+
+    aspect = image_width / float(image_height)
+    target_aspect = target_width / float(target_height)
+
+    if aspect > target_aspect:
+        # Crop off left and right
+        new_width = int(image_height * target_aspect)
+        offset = (image_width - new_width) / 2
+        box = (offset, 0, image_width - offset, image_height)
+
+    else:
+        # Crop off top and bottom
+        new_height = int(image_width / target_aspect)
+        offset = (image_height - new_height) / 2
+        box = (0, offset, image_width, image_height - offset)
+
+    image_buffer = io.BytesIO()
+    img = img.crop(box)
+    img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    img.save(image_buffer, format='JPEG')
+    return image_buffer.getvalue()
+
 def parse_osu_config(config: str) -> Dict[str, str]:
     return {
         k.strip():v.strip()
