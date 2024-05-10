@@ -200,7 +200,7 @@ def create_new_beatmaps(
     return current_beatmap_ids + new_beatmap_ids
 
 def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
-    app.session.logger.debug(f'Updating beatmap package...')
+    app.session.logger.debug(f'Uploading beatmap package...')
 
     buffer = io.BytesIO()
     zip = ZipFile(buffer, 'w')
@@ -217,6 +217,8 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
     )
 
 def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_data: dict) -> None:
+    app.session.logger.debug(f'Updating beatmap metadata...')
+
     # Map is in "wip" state when only 1 beatmap is submitted
     status = (-1 if len(beatmap_data) <= 1 else 0)
 
@@ -258,6 +260,24 @@ def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_da
                 'ar': beatmap['difficulty']['approachRate'],
                 'status': status
             },
+        )
+
+def update_beatmap_thumbnail(set_id: int, files: dict) -> None:
+    ... # TODO
+
+def update_beatmap_audio(set_id: int, files: dict) -> None:
+    ... # TODO
+
+def update_beatmap_files(files: dict, beatmaps: dict) -> None:
+    app.session.logger.debug(f'Uploading beatmap files...')
+
+    for filename, content in files.items():
+        if not filename.endswith('.osu'):
+            continue
+
+        app.session.storage.upload_beatmap_file(
+            beatmaps[filename]['onlineID'],
+            content
         )
 
 @router.get('/osu-osz2-bmsubmit-getid.php')
@@ -434,15 +454,14 @@ def upload_beatmap(
             for filename, content in data['files'].items()
         }
 
-        update_beatmap_package(set_id, files)
         update_beatmap_metadata(set_id, files, data['metadata'], data['beatmaps'])
-
-        # TODO: Validate osz2 content on osz2-service
-        # TODO: Upload beatmap thumbnail
-        # TODO: Upload beatmap files
-        # TODO: Upload beatmap audio
+        update_beatmap_package(set_id, files)
+        update_beatmap_thumbnail(set_id, files)
+        update_beatmap_audio(set_id, files)
+        update_beatmap_files(files, data['beatmaps'])
 
     except Exception as e:
+        session.rollback()
         app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
