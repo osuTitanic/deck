@@ -2,7 +2,7 @@ FROM python:3.11-bullseye
 
 # Installing/Updating system dependencies
 RUN apt update -y
-RUN apt install postgresql git curl ffmpeg -y
+RUN apt install postgresql git curl ffmpeg libavcodec-extra -y
 
 # Install rust toolchain
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y
