@@ -1,12 +1,13 @@
 
 from __future__ import annotations
 
+from app.common.database import DBScore, DBBeatmapset
+
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from concurrent.futures import Future
+from pydub import AudioSegment
 from typing import Dict
 from PIL import Image
-
-from app.common.database import DBScore, DBBeatmapset
 
 import config
 import base64
@@ -278,6 +279,27 @@ def resize_and_crop_image(
     img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
     img.save(image_buffer, format='JPEG')
     return image_buffer.getvalue()
+
+def extract_audio_snippet(
+    audio: bytes,
+    offset_ms: int,
+    duration_ms: int = 10000,
+    bitrate: int = '64k'
+) -> bytes:
+    # Load audio and extract snippet
+    audio = AudioSegment.from_file(io.BytesIO(audio))
+
+    if offset_ms < 0:
+        # Set default offset
+        audio_length = audio.duration_seconds * 1000
+        offset_ms = audio_length / 2.5
+
+    snippet = audio[offset_ms:offset_ms + duration_ms]
+
+    # Export snippet as mp3
+    snippet_buffer = io.BytesIO()
+    snippet.export(snippet_buffer, format='mp3', bitrate=bitrate)
+    return snippet_buffer.getvalue()
 
 def parse_osu_config(config: str) -> Dict[str, str]:
     return {
