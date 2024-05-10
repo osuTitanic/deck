@@ -26,6 +26,7 @@ import hashlib
 import base64
 import bcrypt
 import config
+import utils
 import app
 import io
 
@@ -262,10 +263,37 @@ def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_da
             },
         )
 
-def update_beatmap_thumbnail(set_id: int, files: dict) -> None:
-    ... # TODO
+def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
+    app.session.logger.debug(f'Uploading beatmap thumbnail...')
 
-def update_beatmap_audio(set_id: int, files: dict) -> None:
+    background_files = [
+        beatmap['metadata']['backgroundFile']
+        for beatmap in beatmaps.values()
+        if beatmap['metadata']['backgroundFile']
+    ]
+
+    if not background_files:
+        app.session.logger.debug(f'Background file not specified. Skipping...')
+        return
+
+    target_background = background_files[0]
+
+    if target_background not in files:
+        app.session.logger.debug(f'Background file not found. Skipping...')
+        return
+
+    thumbnail = utils.resize_and_crop_image(
+        files[target_background],
+        target_width=160,
+        target_height=120
+    )
+
+    app.session.storage.upload_background(
+        set_id,
+        thumbnail
+    )
+
+def update_beatmap_audio(set_id: int, files: dict, beatmaps: dict) -> None:
     ... # TODO
 
 def update_beatmap_files(files: dict, beatmaps: dict) -> None:
@@ -455,10 +483,10 @@ def upload_beatmap(
         }
 
         update_beatmap_metadata(set_id, files, data['metadata'], data['beatmaps'])
-        update_beatmap_package(set_id, files)
-        update_beatmap_thumbnail(set_id, files)
-        update_beatmap_audio(set_id, files)
+        update_beatmap_thumbnail(set_id, files, data['beatmaps'])
+        update_beatmap_audio(set_id, files, data['beatmaps'])
         update_beatmap_files(files, data['beatmaps'])
+        update_beatmap_package(set_id, files)
 
     except Exception as e:
         session.rollback()
