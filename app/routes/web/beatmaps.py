@@ -217,7 +217,7 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
         buffer.getvalue()
     )
 
-def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_data: dict) -> None:
+def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_data: dict, session: Session) -> None:
     app.session.logger.debug(f'Updating beatmap metadata...')
 
     # Map is in "wip" state when only 1 beatmap is submitted
@@ -240,7 +240,8 @@ def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_da
             'has_video': metadata.get('VideoHash', False),
             'last_update': datetime.now(),
             'status': status
-        }
+        },
+        session=session
     )
 
     for filename, beatmap in beatmap_data.items():
@@ -261,6 +262,7 @@ def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_da
                 'ar': beatmap['difficulty']['approachRate'],
                 'status': status
             },
+            session=session
         )
 
 def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
@@ -294,7 +296,35 @@ def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
     )
 
 def update_beatmap_audio(set_id: int, files: dict, beatmaps: dict) -> None:
-    ... # TODO
+    app.session.logger.debug(f'Uploading beatmap audio preview...')
+
+    beatmaps_with_audio = [
+        beatmap
+        for beatmap in beatmaps.values()
+        if beatmap['metadata']['audioFile']
+    ]
+
+    if not beatmaps_with_audio:
+        app.session.logger.debug(f'Audio file not specified. Skipping...')
+        return
+
+    target_beatmap = beatmaps_with_audio[0]
+    audio_file = target_beatmap['metadata']['audioFile']
+    audio_offset = target_beatmap['metadata']['previewTime']
+
+    if audio_file not in files:
+        app.session.logger.debug(f'Audio file not found. Skipping...')
+        return
+
+    audio_snippet = utils.extract_audio_snippet(
+        files[audio_file],
+        offset_ms=audio_offset
+    )
+
+    app.session.storage.upload_mp3(
+        set_id,
+        audio_snippet
+    )
 
 def update_beatmap_files(files: dict, beatmaps: dict) -> None:
     app.session.logger.debug(f'Uploading beatmap files...')
@@ -479,7 +509,16 @@ def upload_beatmap(
             for filename, content in data['files'].items()
         }
 
-        update_beatmap_metadata(set_id, files, data['metadata'], data['beatmaps'])
+        # Update metadata for beatmapset and beatmaps
+        update_beatmap_metadata(
+            set_id,
+            files,
+            data['metadata'],
+            data['beatmaps'],
+            session
+        )
+
+        # Update beatmap assets
         update_beatmap_thumbnail(set_id, files, data['beatmaps'])
         update_beatmap_audio(set_id, files, data['beatmaps'])
         update_beatmap_files(files, data['beatmaps'])
