@@ -347,6 +347,45 @@ def update_beatmap_files(files: dict, beatmaps: dict) -> None:
             content
         )
 
+def create_beatmap_topic(
+    set_id: int,
+    user_id: int,
+    subject: str,
+    message: str,
+    wip: bool,
+    session: Session
+) -> int:
+    app.session.logger.debug(f'Creating beatmap topic...')
+
+    topic = topics.create(
+        forum_id=(10 if wip else 9),
+        title=subject,
+        creator_id=user_id,
+        can_star=True,
+        status_text=(
+            'Needs modding'
+            if wip else
+            'Waiting for BAT approval'
+        )
+    )
+
+    posts.create(
+        topic.id,
+        topic.forum_id,
+        topic.creator_id,
+        message,
+        session=session
+    )
+
+    beatmapsets.update(
+        set_id,
+        {'topic_id': topic.id},
+        session=session
+    )
+
+    app.session.logger.info(f'Created beatmap topic for beatmapset ({topic.id})')
+    return topic.id
+
 @router.get('/osu-osz2-bmsubmit-getid.php')
 def validate_upload_request(
     session: Session = Depends(app.session.database.yield_session),
@@ -553,6 +592,7 @@ def upload_beatmap(
 
 @router.post('/osu-osz2-bmsubmit-post.php')
 def forum_post(
+    session: Session = Depends(app.session.database.yield_session),
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
     set_id: int = Form(..., alias='b'),
@@ -561,8 +601,81 @@ def forum_post(
     complete: bool = Depends(integer_boolean_form('complete')),
     notify: bool = Depends(integer_boolean_form('notify'))
 ):
-    # TODO: Create the forum post and return its threadId
-    return Response('0')
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session
+    )
+
+    # TODO: Forum subscriptions/notifications
+
+    if error:
+        # Failed to authenticate user
+        return Response(status_code=403)
+
+    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
+        app.session.logger.warning(f'Failed to post beatmapset topic: Beatmapset not found.')
+        return Response(status_code=404)
+
+    if beatmapset.creator_id != user.id:
+        app.session.logger.warning(f'Failed to post beatmapset topic: User does not own the beatmapset.')
+        return Response(status_code=403)
+
+    # Update status based on "comlete" flag
+    # and the beatmapset description
+    beatmapsets.update(
+        set_id,
+        {
+            'status': 0 if complete else -1,
+            'last_update': datetime.now(),
+            'description': (
+                message.split('---------------\n', 1)[-1]
+            )
+        },
+        session=session
+    )
+
+    if not beatmapset.topic_id:
+        topic_id = create_beatmap_topic(
+            set_id, user.id,
+            subject, message,
+            not complete, session
+        )
+        return Response(f'{topic_id}')
+
+    if not (topic := topics.fetch_one(beatmapset.topic_id, session)):
+        topic_id = create_beatmap_topic(
+            set_id, user.id,
+            subject, message,
+            not complete, session
+        )
+        return Response(f'{topic_id}')
+
+    topics.update(
+        topic.id,
+        {
+            'title': subject,
+            'forum_id': (9 if complete else 10),
+            'status_text': (
+                'Needs modding'
+                if not complete else
+                'Waiting for BAT approval'
+            )
+        },
+        session=session
+    )
+
+    if first_post := posts.fetch_initial_post(topic.id, session):
+        posts.update(
+            first_post.id,
+            {
+                'content': message,
+                'forum_id': (9 if complete else 10)
+            },
+            session=session
+        )
+
+    return Response(f'{topic.id}')
 
 @router.get('/osu-get-beatmap-topic.php')
 def topic_contents(
