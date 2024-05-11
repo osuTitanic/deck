@@ -245,6 +245,11 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
         session=session
     )
 
+    beatmap_ids = [
+        beatmap.id
+        for beatmap in beatmapset.beatmaps
+    ]
+
     for filename, beatmap in beatmap_data.items():
         difficulty_attributes = performance.calculate_difficulty(
             files[filename],
@@ -252,6 +257,7 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
         )
 
         assert difficulty_attributes is not None
+        assert beatmap['onlineID'] in beatmap_ids
 
         beatmaps.update(
             beatmap['onlineID'],
@@ -576,7 +582,6 @@ def upload_beatmap(
             data['beatmaps'],
             session
         )
-        # TODO: Validate beatmap ids
 
         # Update beatmap assets
         update_beatmap_thumbnail(set_id, files, data['beatmaps'])
