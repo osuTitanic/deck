@@ -218,15 +218,15 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
         buffer.getvalue()
     )
 
-def update_beatmap_metadata(set_id: int, files: dict, metadata: dict, beatmap_data: dict, session: Session) -> None:
+def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dict, beatmap_data: dict, session: Session) -> None:
     app.session.logger.debug(f'Updating beatmap metadata...')
 
-    # Map is in "wip" state when only 1 beatmap is submitted
-    status = (-1 if len(beatmap_data) <= 1 else 0)
+    # Map is in "wip", until the user posts it to the forums
+    status = (-1 if beatmapset.status <= -1 else 0)
 
     # Update beatmapset metadata
     beatmapsets.update(
-        set_id,
+        beatmapset.id,
         {
             'artist': metadata.get('Artist'),
             'title': metadata.get('Title'),
@@ -521,12 +521,13 @@ def upload_beatmap(
 
         # Update metadata for beatmapset and beatmaps
         update_beatmap_metadata(
-            set_id,
+            beatmapset,
             files,
             data['metadata'],
             data['beatmaps'],
             session
         )
+        # TODO: Validate beatmap ids
 
         # Update beatmap assets
         update_beatmap_thumbnail(set_id, files, data['beatmaps'])
