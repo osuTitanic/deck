@@ -557,6 +557,7 @@ def upload_beatmap(
     data = beatmap_helper.decrypt_osz2(osz2_file)
 
     if not data:
+        app.session.storage.remove_osz2(set_id)
         app.session.logger.warning(f'Failed to upload beatmap: Failed to decrypt osz2 file.')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
