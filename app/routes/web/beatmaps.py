@@ -283,6 +283,9 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
 def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
     app.session.logger.debug(f'Uploading beatmap thumbnail...')
 
+    # Delete cached thumbnails
+    app.session.redis.delete(f'mt:{set_id}', f'mt:{set_id}l')
+
     background_files = [
         beatmap['metadata']['backgroundFile']
         for beatmap in beatmaps.values()
@@ -312,6 +315,9 @@ def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
 
 def update_beatmap_audio(set_id: int, files: dict, beatmaps: dict) -> None:
     app.session.logger.debug(f'Uploading beatmap audio preview...')
+
+    # Delete cached preview
+    app.session.redis.delete(f'mp3:{set_id}')
 
     beatmaps_with_audio = [
         beatmap
