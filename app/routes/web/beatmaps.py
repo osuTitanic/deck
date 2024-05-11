@@ -591,7 +591,7 @@ def topic_contents(
 
     first_post = posts.fetch_initial_post(topic.id, session)
 
-    return Response('3'.join([
+    return Response('\u0003'.join([
         f'0',
         f'{topic.id}',
         f'{topic.title}',
