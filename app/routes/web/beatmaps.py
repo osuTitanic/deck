@@ -353,6 +353,7 @@ def create_beatmap_topic(
     subject: str,
     message: str,
     wip: bool,
+    notify: bool,
     session: Session
 ) -> int:
     app.session.logger.debug(f'Creating beatmap topic...')
@@ -382,6 +383,14 @@ def create_beatmap_topic(
         {'topic_id': topic.id},
         session=session
     )
+
+    # Update subscription/notification status
+    if notify:
+        topics.add_subscriber(
+            topic.id,
+            user_id,
+            session=session
+        )
 
     app.session.logger.info(f'Created beatmap topic for beatmapset ({topic.id})')
     return topic.id
@@ -607,8 +616,6 @@ def forum_post(
         session=session
     )
 
-    # TODO: Forum subscriptions/notifications
-
     if error:
         # Failed to authenticate user
         return Response(status_code=403)
@@ -639,7 +646,8 @@ def forum_post(
         topic_id = create_beatmap_topic(
             set_id, user.id,
             subject, message,
-            not complete, session
+            not complete, notify,
+            session=session
         )
         return Response(f'{topic_id}')
 
@@ -647,7 +655,8 @@ def forum_post(
         topic_id = create_beatmap_topic(
             set_id, user.id,
             subject, message,
-            not complete, session
+            not complete, notify,
+            session=session
         )
         return Response(f'{topic_id}')
 
@@ -672,6 +681,21 @@ def forum_post(
                 'content': message,
                 'forum_id': (9 if complete else 10)
             },
+            session=session
+        )
+
+    # Update subscription/notification status
+    if notify:
+        topics.add_subscriber(
+            topic.id,
+            user.id,
+            session=session
+        )
+
+    else:
+        topics.delete_subscriber(
+            topic.id,
+            user.id,
             session=session
         )
 
