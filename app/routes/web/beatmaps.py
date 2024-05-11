@@ -501,6 +501,7 @@ def upload_beatmap(
         )
 
     if not osz2_file:
+        app.session.storage.remove_osz2(set_id)
         app.session.logger.warning(f'Failed to upload beatmap: Failed to read osz2 file ({full_submit})')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
