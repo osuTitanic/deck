@@ -275,6 +275,11 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
 def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dict, beatmap_data: dict, session: Session) -> None:
     app.session.logger.debug(f'Updating beatmap metadata...')
 
+    file_extensions = [
+        filename.split('.')[-1]
+        for filename in files.keys()
+    ]
+
     # Map is in "wip", until the user posts it to the forums
     status = (-1 if beatmapset.status <= -1 else 0)
 
@@ -293,6 +298,10 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
             'genre_id': metadata.get('Genre', 0),
             'language_id': metadata.get('Language', 0),
             'has_video': metadata.get('VideoHash', False),
+            'has_storyboard': (
+                'osb' in file_extensions or
+                'osq' in file_extensions
+            ),
             'last_update': datetime.now(),
             'status': status
         },
