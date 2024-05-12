@@ -387,6 +387,7 @@ def create_beatmap_topic(
         topic.forum_id,
         topic.creator_id,
         message,
+        edit_locked=True,
         session=session
     )
 
