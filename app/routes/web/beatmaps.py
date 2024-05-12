@@ -243,7 +243,7 @@ def update_beatmaps(
     # Return new beatmap ids to the client
     return current_beatmap_ids + new_beatmap_ids
 
-def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
+def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict, session: Session) -> None:
     app.session.logger.debug(f'Uploading beatmap package...')
 
     buffer = io.BytesIO()
@@ -258,6 +258,18 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes]) -> None:
     app.session.storage.upload_osz(
         set_id,
         buffer.getvalue()
+    )
+
+    osz_size = len(buffer.getvalue())
+    osz_size_novideo = osz_size - metadata.get('VideoDataLength', 0)
+
+    beatmapsets.update(
+        set_id,
+        {
+            'osz_filesize': osz_size,
+            'osz_filesize_novideo': osz_size_novideo
+        },
+        session=session
     )
 
 def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dict, beatmap_data: dict, session: Session) -> None:
@@ -637,12 +649,18 @@ def upload_beatmap(
             session
         )
 
+        # Create & upload .osz file
+        update_beatmap_package(
+            set_id,
+            files,
+            data['metadata'],
+            session
+        )
+
         # Update beatmap assets
         update_beatmap_thumbnail(set_id, files, data['beatmaps'])
         update_beatmap_audio(set_id, files, data['beatmaps'])
         update_beatmap_files(files, data['beatmaps'])
-        update_beatmap_package(set_id, files)
-
     except Exception as e:
         session.rollback()
         app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
