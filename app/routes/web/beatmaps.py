@@ -63,23 +63,23 @@ def authenticate_user(
     player = users.fetch_by_name(username, session=session)
 
     if not player:
-        app.session.logger.warning(f'Failed to authenticate user: User not found.')
+        app.session.logger.warning(f'Failed to authenticate user: User not found')
         return error_response(5, 'Authentication failed. Please check your login credentials.'), None
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        app.session.logger.warning(f'Failed to authenticate user: Invalid password.')
+        app.session.logger.warning(f'Failed to authenticate user: Invalid password')
         return error_response(5, 'Authentication failed. Please check your login credentials.'), None
 
     if player.silence_end and player.silence_end > datetime.now():
-        app.session.logger.warning(f'Failed to authenticate user: User is silenced.')
+        app.session.logger.warning(f'Failed to authenticate user: User is silenced')
         return error_response(5, 'You are not allowed to upload beatmaps while silenced.'), None
 
     if player.restricted:
-        app.session.logger.warning(f'Failed to authenticate user: User is restricted.')
+        app.session.logger.warning(f'Failed to authenticate user: User is restricted')
         return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.'), None
 
     if not status.exists(player.id):
-        app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho.')
+        app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho')
         return error_response(5, 'You are not connected to bancho, please try again!'), None
 
     return None, player
@@ -98,7 +98,7 @@ def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
 def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
     inactive_sets = beatmapsets.fetch_inactive(user.id)
 
-    app.session.logger.debug(f'Found {len(inactive_sets)} inactive beatmapsets.')
+    app.session.logger.debug(f'Found {len(inactive_sets)} inactive beatmapsets')
 
     for set in inactive_sets:
         # Delete beatmaps
@@ -168,11 +168,11 @@ def create_beatmapset(
         for _ in beatmap_ids
     ]
 
-    app.session.logger.info(f'Created new beatmapset ({set.id}) for user {user.name}.')
+    app.session.logger.info(f'Created new beatmapset ({set.id}) for user {user.name}')
 
     return set.id, [beatmap.id for beatmap in new_beatmaps]
 
-def create_new_beatmaps(
+def update_beatmaps(
     beatmap_ids: List[int],
     beatmapset: DBBeatmapset,
     session: Session
@@ -182,6 +182,24 @@ def create_new_beatmaps(
         beatmap.id
         for beatmap in beatmapset.beatmaps
     ]
+
+    if len(beatmap_ids) < len(current_beatmap_ids):
+        # Check if beatmap ids are valid & part of the set
+        for beatmap_id in beatmap_ids:
+            assert beatmap_id in current_beatmap_ids
+
+        # Remove beatmaps
+        deleted_maps = [
+            beatmap_id
+            for beatmap_id in current_beatmap_ids
+            if beatmap_id not in beatmap_ids
+        ]
+
+        for beatmap_id in deleted_maps:
+            beatmaps.delete_by_id(beatmap_id, session=session)
+
+        app.session.logger.debug(f'Deleted {len(deleted_maps)} beatmaps')
+        return beatmap_ids
 
     # Calculate how many new beatmaps we need to create
     required_maps = max(
@@ -197,6 +215,8 @@ def create_new_beatmaps(
         ).id
         for _ in range(required_maps)
     ]
+
+    app.session.logger.debug(f'Created {required_maps} new beatmaps')
 
     # Return new beatmap ids to the client
     return current_beatmap_ids + new_beatmap_ids
@@ -440,19 +460,19 @@ def validate_upload_request(
     if (set_id > 0) and (beatmapset := beatmapsets.fetch_one(set_id, session)):
         # User wants to update an existing beatmapset
         if beatmapset.creator_id != user.id:
-            app.session.logger.warning(f'Failed to update beatmapset: User does not own the beatmapset.')
+            app.session.logger.warning(f'Failed to update beatmapset: User does not own the beatmapset')
             return error_response(1)
 
         if beatmapset.server != 1:
-            app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is not on Titanic.')
+            app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is not on Titanic')
             return error_response(1)
 
         if beatmapset.status > 1:
-            app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is ranked or loved.')
+            app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is ranked or loved')
             return error_response(3)
 
-        # Create new beatmaps if necessary
-        beatmap_ids = create_new_beatmaps(
+        # Create/Remove new beatmaps if necessary
+        beatmap_ids = update_beatmaps(
             beatmap_ids,
             beatmapset,
             session=session
@@ -464,12 +484,12 @@ def validate_upload_request(
             session
         )
 
-        app.session.logger.info(f'{user.name} wants to update a beatmapset ({set_id}).')
+        app.session.logger.info(f'{user.name} wants to update a beatmapset ({set_id})')
 
     else:
         # User wants to upload a new beatmapset
         if remaining_beatmaps <= 0:
-            app.session.logger.warning(f'Failed to create beatmapset: User has no remaining beatmap uploads.')
+            app.session.logger.warning(f'Failed to create beatmapset: User has no remaining beatmap uploads')
             return error_response(5, "You have reached your maximum amount of beatmaps you can upload.")
 
         # Create a new empty beatmapset inside the database
@@ -528,19 +548,19 @@ def upload_beatmap(
     beatmapset = beatmapsets.fetch_one(set_id, session)
 
     if not beatmapset:
-        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset not found.')
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset not found')
         return error_response(5, 'The beatmapset you are trying to upload to does not exist. Please try again!')
 
     if beatmapset.creator_id != user.id:
-        app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset.')
+        app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
         return error_response(1)
 
     if beatmapset.server != 1:
-        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is not on Titanic.')
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is not on Titanic')
         return error_response(1)
 
     if beatmapset.status > 0:
-        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is ranked or loved.')
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is ranked or loved')
         return error_response(3)
 
     if full_submit:
@@ -552,7 +572,7 @@ def upload_beatmap(
         current_osz2_file = app.session.storage.get_osz2_internal(set_id)
 
         if not current_osz2_file:
-            app.session.logger.warning(f'Failed to upload beatmap: Full submit requested but osz2 file is missing.')
+            app.session.logger.warning(f'Failed to upload beatmap: Full submit requested but osz2 file is missing')
             return error_response(5, 'The osz2 file is missing. Please try again!')
 
         # Apply the patch to the current osz2 file
@@ -571,7 +591,7 @@ def upload_beatmap(
 
     if not data:
         app.session.storage.remove_osz2(set_id)
-        app.session.logger.warning(f'Failed to upload beatmap: Failed to decrypt osz2 file.')
+        app.session.logger.warning(f'Failed to upload beatmap: Failed to decrypt osz2 file')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
     try:
@@ -607,7 +627,7 @@ def upload_beatmap(
     # TODO: Post to discord webhook
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
-        f'(http://osu.{config.DOMAIN_NAME}/s/{set_id}).'
+        f'(http://osu.{config.DOMAIN_NAME}/s/{set_id})'
     )
 
     return Response('0')
@@ -634,11 +654,11 @@ def forum_post(
         return Response(status_code=403)
 
     if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
-        app.session.logger.warning(f'Failed to post beatmapset topic: Beatmapset not found.')
+        app.session.logger.warning(f'Failed to post beatmapset topic: Beatmapset not found')
         return Response(status_code=404)
 
     if beatmapset.creator_id != user.id:
-        app.session.logger.warning(f'Failed to post beatmapset topic: User does not own the beatmapset.')
+        app.session.logger.warning(f'Failed to post beatmapset topic: User does not own the beatmapset')
         return Response(status_code=403)
 
     # Update status based on "comlete" flag
@@ -732,11 +752,11 @@ def topic_contents(
         return error
 
     if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
-        app.session.logger.warning(f'Failed to fetch beatmapset topic: Beatmapset not found.')
+        app.session.logger.warning(f'Failed to fetch beatmapset topic: Beatmapset not found')
         return error_response(1)
 
     if not (topic := topics.fetch_one(beatmapset.topic_id, session)):
-        app.session.logger.warning(f'Failed to fetch beatmapset topic: Topic not found.')
+        app.session.logger.warning(f'Failed to fetch beatmapset topic: Topic not found')
         return error_response(1)
 
     first_post = posts.fetch_initial_post(topic.id, session)
