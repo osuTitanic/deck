@@ -95,6 +95,28 @@ def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
         if topic else False
     )
 
+def pop_bubble(beatmapset: DBBeatmapset, session: Session) -> None:
+    topic = topics.fetch_one(
+        beatmapset.topic_id,
+        session=session
+    )
+
+    if topic:
+        # Set icon to "bubblepop"
+        topics.update(
+            topic.id,
+            {'icon_id': 4}, # TODO: Make an enum for this
+            session=session
+        )
+
+    beatmapsets.update(
+        beatmapset.id,
+        {'star_priority': DBBeatmapset.star_priority + 5},
+        session=session
+    )
+
+    app.session.logger.debug('Beatmap bubble was popped')
+
 def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
     inactive_sets = beatmapsets.fetch_inactive(user.id)
 
@@ -299,6 +321,11 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
             },
             session=session
         )
+
+    if is_bubbled(beatmapset, session):
+        # Bubble should be popped when the beatmap
+        # gets updated. It will re-gain 5 star priority
+        pop_bubble(beatmapset, session)
 
 def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
     app.session.logger.debug(f'Uploading beatmap thumbnail...')
