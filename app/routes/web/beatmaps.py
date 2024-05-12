@@ -10,6 +10,7 @@ from app.common.database import users, beatmapsets, beatmaps, topics, groups, po
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.helpers import performance
+from app.common.streams import StreamIn
 from app.common.cache import status
 
 from fastapi import (
@@ -242,6 +243,26 @@ def update_beatmaps(
 
     # Return new beatmap ids to the client
     return current_beatmap_ids + new_beatmap_ids
+
+def update_osz2_hashes(set_id: int, osz2_file: bytes, session: Session) -> None:
+    stream = StreamIn(osz2_file)
+    magic = stream.read(3)
+    version = stream.read(1)
+    iv = stream.read(16)
+
+    meta_hash = stream.read(16).hex()
+    info_hash = stream.read(16).hex()
+    body_hash = stream.read(16).hex()
+
+    beatmapsets.update(
+        set_id,
+        {
+            'meta_hash': meta_hash,
+            'info_hash': info_hash,
+            'body_hash': body_hash
+        },
+        session=session
+    )
 
 def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict, session: Session) -> None:
     app.session.logger.debug(f'Uploading beatmap package...')
@@ -670,13 +691,16 @@ def upload_beatmap(
         update_beatmap_thumbnail(set_id, files, data['beatmaps'])
         update_beatmap_audio(set_id, files, data['beatmaps'])
         update_beatmap_files(files, data['beatmaps'])
+
+        # Upload the osz2 file to storage
+        app.session.storage.upload_osz2(set_id, osz2_file)
+
+        # Update osz2 hashes
+        update_osz2_hashes(set_id, osz2_file, session)
     except Exception as e:
         session.rollback()
         app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
-
-    # Upload the osz2 file to storage
-    app.session.storage.upload_osz2(set_id, osz2_file)
 
     # TODO: Post to discord webhook
     app.session.logger.info(
