@@ -86,6 +86,7 @@ def authenticate_user(
     return None, player
 
 def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
+    """Check if a beatmap has the 'bubble' icon on the forums"""
     topic = topics.fetch_one(
         beatmapset.topic_id,
         session=session
@@ -97,6 +98,7 @@ def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
     )
 
 def pop_bubble(beatmapset: DBBeatmapset, session: Session) -> None:
+    """Change the forum icon of the beatmap and increase its star priority by 5"""
     topic = topics.fetch_one(
         beatmapset.topic_id,
         session=session
@@ -134,6 +136,7 @@ def is_full_submit(set_id: int, osz2_hash: str) -> bool:
     return osz2_hash != hashlib.md5(osz2_file).hexdigest()
 
 def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
+    """Delete any beatmaps with the '-1' status, that got never updated"""
     inactive_sets = beatmapsets.fetch_inactive(user.id)
 
     app.session.logger.debug(f'Found {len(inactive_sets)} inactive beatmapsets')
@@ -215,6 +218,7 @@ def update_beatmaps(
     beatmapset: DBBeatmapset,
     session: Session
 ) -> List[int]:
+    """Create/Delete beatmaps based on the amount of beatmaps the client requested"""
     # Get current beatmaps
     current_beatmap_ids = [
         beatmap.id
@@ -299,6 +303,7 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
     osz_size = len(buffer.getvalue())
     osz_size_novideo = osz_size - metadata.get('VideoDataLength', 0)
 
+    # Update osz file sizes for osu!direct
     beatmapsets.update(
         set_id,
         {
