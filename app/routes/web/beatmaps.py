@@ -118,6 +118,21 @@ def pop_bubble(beatmapset: DBBeatmapset, session: Session) -> None:
 
     app.session.logger.debug('Beatmap bubble was popped')
 
+def is_full_submit(set_id: int, osz2_hash: str) -> bool:
+    """Determine if the client should upload the full osz2 or a patch file"""
+    if not osz2_hash:
+        # Client has no osz2 it can patch
+        return True
+
+    osz2_file = app.session.storage.get_osz2_internal(set_id)
+
+    if not osz2_file:
+        # We don't have an osz2 we can patch
+        return True
+
+    # Check if osz2 file is outdated
+    return osz2_hash != hashlib.md5(osz2_file).hexdigest()
+
 def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
     inactive_sets = beatmapsets.fetch_inactive(user.id)
 
@@ -573,10 +588,7 @@ def validate_upload_request(
 
     # Either we don't have the osz2 file or the client has no osz2 file
     # If full-submit is true, the client will submit a patch file
-    full_submit = (
-        not app.session.storage.file_exists(f'{set_id}', 'osz2')
-        or not osz2_hash
-    )
+    full_submit = is_full_submit(set_id, osz2_hash)
 
     # NOTE: In theory we could always set this to true, so we don't have
     #       to store the osz2 files, but i've decided against this
