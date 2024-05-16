@@ -951,7 +951,7 @@ def legacy_score_submission(
     score.pp = score.calculate_ppv2()
 
     if (error := perform_score_validation(score, player)) != None:
-        raise HTTPException(400, detail=error.body)
+        raise HTTPException(400, detail=error.body.decode())
 
     if score.relaxing:
         # Recalculate rx total score
