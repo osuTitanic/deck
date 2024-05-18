@@ -48,13 +48,12 @@ router = APIRouter()
 
 async def parse_score_data(request: Request) -> Score:
     """Parse the score submission request and return a score object"""
-    user_agent = request.headers.get('user-agent', '')
+    user_agent = request.headers.get('user-agent', 'osu!')
 
     if not regexes.OSU_USER_AGENT.match(user_agent):
         officer.call(
             f'Failed to submit score: Invalid user agent: "{user_agent}"'
         )
-        # TODO: Restrict user?
         raise HTTPException(400)
 
     query = request.query_params
