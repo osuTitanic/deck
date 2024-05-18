@@ -113,6 +113,13 @@ class Score:
         return f'<Score {self.username} ({self.score_checksum})>'
 
     @property
+    def elapsed_time(self) -> int:
+        if self.passed:
+            return self.beatmap.total_length
+
+        return self.failtime // 1000
+
+    @property
     def total_hits(self) -> int:
         if self.play_mode == GameMode.CatchTheBeat:
             return self.c50 + self.c100 + self.c300 + self.cKatu
