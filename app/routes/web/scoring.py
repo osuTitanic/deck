@@ -436,13 +436,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     old_stats = copy(user_stats)
 
     user_stats.playcount += 1
-    user_stats.playtime += score.beatmap.total_length \
-                      if score.passed else \
-                      score.failtime / 1000
-
-    if score.status != ScoreStatus.Failed:
-        user_stats.tscore += score.total_score
-        user_stats.total_hits += score.total_hits
+    user_stats.playtime += score.elapsed_time
+    user_stats.tscore += score.total_score
+    user_stats.total_hits += score.total_hits
 
     score.session.commit()
 
