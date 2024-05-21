@@ -48,13 +48,12 @@ router = APIRouter()
 
 async def parse_score_data(request: Request) -> Score:
     """Parse the score submission request and return a score object"""
-    user_agent = request.headers.get('user-agent', '')
+    user_agent = request.headers.get('user-agent', 'osu!')
 
     if not regexes.OSU_USER_AGENT.match(user_agent):
         officer.call(
             f'Failed to submit score: Invalid user agent: "{user_agent}"'
         )
-        # TODO: Restrict user?
         raise HTTPException(400)
 
     query = request.query_params
@@ -437,13 +436,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     old_stats = copy(user_stats)
 
     user_stats.playcount += 1
-    user_stats.playtime += score.beatmap.total_length \
-                      if score.passed else \
-                      score.failtime / 1000
-
-    if score.status != ScoreStatus.Failed:
-        user_stats.tscore += score.total_score
-        user_stats.total_hits += score.total_hits
+    user_stats.playtime += score.elapsed_time
+    user_stats.tscore += score.total_score
+    user_stats.total_hits += score.total_hits
 
     score.session.commit()
 
@@ -951,7 +946,7 @@ def legacy_score_submission(
     score.pp = score.calculate_ppv2()
 
     if (error := perform_score_validation(score, player)) != None:
-        raise HTTPException(400, detail=error.body)
+        raise HTTPException(400, detail=error.body.decode())
 
     if score.relaxing:
         # Recalculate rx total score

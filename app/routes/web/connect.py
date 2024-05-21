@@ -27,15 +27,18 @@ def connect(
     version: str = Query(..., alias='v')
 ):
     if not (match := regexes.OSU_VERSION.match(version)):
-        raise HTTPException(400)
+        return ""
 
     if not (player := users.fetch_by_name(username)):
-        raise HTTPException(401)
+        return ""
 
     if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-        raise HTTPException(401)
+        return ""
 
-    users.update(player.id, {'latest_activity': datetime.now()})
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()}
+    )
 
     app.session.logger.info(
         f'Player "{player.name}" with version "{version}" is about to connect to bancho.'

@@ -113,14 +113,21 @@ class Score:
         return f'<Score {self.username} ({self.score_checksum})>'
 
     @property
+    def elapsed_time(self) -> int:
+        if self.passed:
+            return self.beatmap.total_length
+
+        return self.failtime // 1000
+
+    @property
     def total_hits(self) -> int:
         if self.play_mode == GameMode.CatchTheBeat:
-            return self.c50 + self.c100 + self.c300 + self.cMiss + self.cKatu
+            return self.c50 + self.c100 + self.c300 + self.cKatu
 
         elif self.play_mode == GameMode.OsuMania:
-            return self.c300 + self.c100 + self.c50 + self.cGeki + self.cKatu + self.cMiss
+            return self.c50 + self.c100 + self.c300 + self.cGeki + self.cKatu
 
-        return self.c50 + self.c100 + self.c300 + self.cMiss
+        return self.c50 + self.c100 + self.c300
 
     @property
     def accuracy(self) -> float:
@@ -163,7 +170,7 @@ class Score:
             return False
 
         # NOTE: The client is somehow sending these kinds of mod values.
-        #       I don't know if this is however... The wiki says, its normal:
+        #       The wiki says it's normal, so shruge...
         #       https://github.com/ppy/osu-api/wiki#mods
 
         if self.check_mods(Mods.DoubleTime | Mods.Nightcore):
