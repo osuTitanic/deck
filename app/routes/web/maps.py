@@ -3,7 +3,8 @@ from app.common.database.repositories import beatmaps
 
 from fastapi import (
     HTTPException,
-    APIRouter
+    APIRouter,
+    Response
 )
 
 import app
@@ -24,4 +25,10 @@ def get_map(filename: str):
     if not (file := app.session.storage.get_beatmap(beatmap.id)):
         raise HTTPException(404)
 
-    return file
+    return Response(
+        content=file,
+        media_type='application/octet-stream',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+    )
