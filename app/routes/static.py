@@ -1,19 +1,16 @@
 
 from __future__ import annotations
 
+from app.common.database.repositories import beatmapsets
+from app.routes import avatar
+
 from fastapi.responses import StreamingResponse
 from fastapi import (
     HTTPException,
     APIRouter,
     Response,
-    Request,
-    Query
+    Request
 )
-
-from app.common.database.repositories import users
-from app.common.database import DBBeatmapset
-
-from . import avatar
 
 import bcrypt
 import app
@@ -49,7 +46,12 @@ def osz(id: str):
     set_id = int(id.replace('n', ''))
     no_video = 'n' in id
 
-    # Fetch osz file
+    if not (beatmapset := beatmapsets.fetch_one(set_id)):
+        raise HTTPException(404)
+
+    if not beatmapset.available:
+        raise HTTPException(451)
+
     if not (response := app.session.storage.api.osz(set_id, no_video)):
         raise HTTPException(404)
 
@@ -57,7 +59,7 @@ def osz(id: str):
         response.iter_content(6400),
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename={set_id}.osz',
+            'Content-Disposition': f'attachment; filename={set_id} {beatmapset.artist} - {beatmapset.title}.osz',
             'Content-Length': response.headers.get('Content-Length', 0)
         }
     )
