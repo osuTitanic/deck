@@ -249,7 +249,13 @@ class Score:
         if not self.personal_best:
             return ScoreStatus.Best
 
-        better_score = self.pp > self.personal_best.pp
+        # Use pp to determine the better score, but fallback
+        # to total score, if the pp is the same (spin to win)
+        better_score = (
+            self.pp > self.personal_best.pp
+            if self.pp != self.personal_best.pp
+            else self.total_score > self.personal_best.total_score
+        )
 
         if not better_score:
             if self.enabled_mods.value == self.personal_best.mods:
