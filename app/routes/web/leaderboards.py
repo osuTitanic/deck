@@ -184,11 +184,6 @@ def get_scores(
         beatmap.diff
     ))
 
-    # response.append(str(
-    #     ratings.fetch_average(beatmap.md5),
-    #     session
-    # ))
-
     if personal_best:
         index = scores.fetch_score_index(
             player.id,
@@ -201,7 +196,7 @@ def get_scores(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            utils.score_string(personal_best, index, request_version)
         )
     else:
         response.append('')
