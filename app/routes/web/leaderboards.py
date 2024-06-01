@@ -196,7 +196,7 @@ def get_scores(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            utils.score_string(personal_best, index, request_version)
         )
     else:
         response.append('')
