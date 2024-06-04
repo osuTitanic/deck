@@ -11,7 +11,6 @@ from fastapi import (
 
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
-from collections import defaultdict
 from copy import copy
 
 from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType
@@ -61,30 +60,11 @@ async def parse_score_data(request: Request) -> Score:
 
     if score_data := query.get('score'):
         # Legacy score was submitted
-        failtime: Optional[str] = query.get('ft', 0)
-        exited: Optional[str] = query.get('x', False)
-
-        # Get replay
-        if replay_file := form.get('score'):
-            if replay_file.filename != 'replay':
-                app.session.logger.warning(f'Got invalid replay name: {replay.filename}')
-                raise HTTPException(400)
-
-            replay = await replay_file.read()
-
-        try:
-            return Score.parse(
-                score_data,
-                replay,
-                bool(exited),
-                int(failtime)
-            )
-        except Exception as e:
-            officer.call(
-                f'Failed to parse score data: {e}',
-                exc_info=e
-            )
-            raise HTTPException(400)
+        return await parse_legacy_score_data(
+            score_data,
+            query,
+            form
+        )
 
     # NOTE: The form data can contain two "score" sections, where
     #       one of them is the score data, and the other is the replay
@@ -157,6 +137,32 @@ async def parse_score_data(request: Request) -> Score:
     score.client_hash = client_hash
     score.processes = processes
     return score
+
+async def parse_legacy_score_data(score_data: str, query: dict, form: dict) -> Score:
+    failtime: Optional[str] = query.get('ft', 0)
+    exited: Optional[str] = query.get('x', False)
+
+    # Get replay
+    if replay_file := form.get('score'):
+        if replay_file.filename != 'replay':
+            app.session.logger.warning(f'Got invalid replay name: {replay.filename}')
+            raise HTTPException(400)
+
+        replay = await replay_file.read()
+
+    try:
+        return Score.parse(
+            score_data,
+            replay,
+            bool(exited),
+            int(failtime)
+        )
+    except Exception as e:
+        officer.call(
+            f'Failed to parse score data: {e}',
+            exc_info=e
+        )
+        raise HTTPException(400)
 
 def validate_replay(replay_bytes: bytes) -> bool:
     """Validate the replay contents"""
