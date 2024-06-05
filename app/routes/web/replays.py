@@ -14,6 +14,7 @@ from fastapi import (
     HTTPException,
     APIRouter,
     Response,
+    Request,
     Depends,
     Query
 )
@@ -21,10 +22,12 @@ from fastapi import (
 router = APIRouter()
 
 import bcrypt
+import utils
 import app
 
 @router.get('/osu-getreplay.php')
 def get_replay(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     score_id: int = Query(..., alias='c'),
     mode: int = Query(0, alias='m'),
@@ -72,5 +75,18 @@ def get_replay(
     if not (replay := app.session.storage.get_replay(score_id)):
         app.session.logger.warning(f'Failed to get replay "{score_id}": Not found on storage')
         raise HTTPException(404)
+
+    utils.track(
+        'viewed_replay',
+        user=player,
+        request=request,
+        properties={
+            'replay_size': len(replay),
+            'replay_hash': score.replay_md5,
+            'score_id': score_id,
+            'beatmap_id': score.beatmap_id,
+            'mode': mode
+        }
+    )
 
     return Response(replay)
