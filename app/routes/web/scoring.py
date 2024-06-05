@@ -954,6 +954,9 @@ def score_submission(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
 
+    # Submit score to amplitude analytics api
+    score_analytics(score, player, request)
+
     score.session.close()
 
     # Send highlights on #announce
