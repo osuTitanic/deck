@@ -1130,7 +1130,7 @@ def legacy_score_submission(
     )
 
     # Submit score to amplitude analytics api
-    score_analytics(score, player, request)
+    score_analytics(score_object, player, request)
 
     if not score.passed:
         app.session.events.submit(
