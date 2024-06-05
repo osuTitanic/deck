@@ -6,6 +6,7 @@ from fastapi import (
     HTTPException,
     APIRouter,
     Response,
+    Request,
     Depends,
     Form
 )
@@ -24,10 +25,12 @@ from app.common.cache import status
 router = APIRouter()
 
 import bcrypt
+import utils
 import app
 
 @router.post('/osu-comment.php')
 def get_comments(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
@@ -39,7 +42,7 @@ def get_comments(
     content: Optional[str] = Form(None, alias='comment'),
     time: Optional[int] = Form(None, alias='starttime'),
     color: Optional[str] = Form(None, alias='f'),
-    target: Optional[str] = Form(None),
+    target: Optional[str] = Form(None)
 ):
     if not (user := users.fetch_by_name(username, session)):
         app.session.logger.warning("Failed to submit comment: Authentication")
@@ -144,6 +147,17 @@ def get_comments(
 
         app.session.logger.info(
             f'<{user.name} ({user.id})> -> Submitted comment on {target.name}: "{content}".'
+        )
+
+        utils.track(
+            'beatmap_comment',
+            user=user,
+            request=request,
+            properties={
+                'target': target.name,
+                'id': target_id,
+                'content': content
+            }
         )
 
         return Response(f'{time}|{content}\n')
