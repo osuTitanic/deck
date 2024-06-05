@@ -335,6 +335,9 @@ def track(
     user: DBUser,
     request: Request
 ) -> None:
+    if not user:
+        return
+
     if not status.exists(user.id):
         return
 
