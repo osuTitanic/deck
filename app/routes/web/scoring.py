@@ -560,7 +560,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 def unlock_achievements(
     score: Score,
     score_object: DBScore,
-    player: DBUser
+    player: DBUser,
+    request: Request
 ) -> List[str]:
     app.session.logger.debug('Checking achievements...')
 
@@ -602,6 +603,19 @@ def unlock_achievements(
             link=f'https://osu.{config.DOMAIN_NAME}/u/{player.id}#achievements'
         )
 
+    for achievement in new_achievements:
+        utils.track(
+            'achievement_unlocked',
+            user=player,
+            request=request,
+            properties={
+                'achievement': achievement.name,
+                'category': achievement.category,
+                'filename': achievement.filename,
+                'score_id': score_object.id
+            }
+        )
+
     return achievement_response
 
 def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
@@ -612,6 +626,75 @@ def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
         stats.update(user_stats.user_id, user_stats.mode, {'ppv1': user_stats.ppv1}, session=session)
         leaderboards.update(user_stats, country)
         histories.update_rank(user_stats, country, session=session)
+
+def score_analytics(score: DBScore, user: DBUser, request: Request):
+    utils.track(
+        'score_submission',
+        user=user,
+        request=request,
+        properties={
+            'score': {
+                'id': score.id,
+                'checksum': score.checksum,
+                'beatmap_id': score.beatmap_id,
+                'mode': score.mode,
+                'pp': score.pp,
+                'acc': score.acc,
+                'total_score': score.total_score,
+                'max_combo': score.max_combo,
+                'mods': score.mods,
+                'perfect': score.perfect,
+                'n300': score.n300,
+                'n100': score.n100,
+                'n50': score.n50,
+                'nmiss': score.nmiss,
+                'ngeki': score.ngeki,
+                'nkatu': score.nkatu,
+                'grade': score.grade,
+                'status': score.status,
+                'failed': score.failtime is not None,
+                'failtime': score.failtime
+            },
+            'beatmap': {
+                'id': score.beatmap.id,
+                'set_id': score.beatmap.set_id,
+                'mode': score.beatmap.mode,
+                'md5': score.beatmap.md5,
+                'status': score.beatmap.status,
+                'version': score.beatmap.version,
+                'filename': score.beatmap.filename,
+                'created_at': score.beatmap.created_at,
+                'last_update': score.beatmap.last_update,
+                'playcount': score.beatmap.playcount,
+                'passcount': score.beatmap.passcount,
+                'total_length': score.beatmap.total_length,
+                'max_combo': score.beatmap.max_combo,
+                'bpm': score.beatmap.bpm,
+                'cs': score.beatmap.cs,
+                'ar': score.beatmap.ar,
+                'od': score.beatmap.od,
+                'hp': score.beatmap.hp,
+                'sr': score.beatmap.diff
+            },
+            'beatmapset': {
+                'id': score.beatmap.set_id,
+                'title': score.beatmap.beatmapset.title,
+                'artist': score.beatmap.beatmapset.artist,
+                'creator': score.beatmap.beatmapset.creator,
+                'source': score.beatmap.beatmapset.source,
+                'tags': score.beatmap.beatmapset.tags,
+                'status': score.beatmap.beatmapset.status,
+                'has_video': score.beatmap.beatmapset.has_video,
+                'has_storyboard': score.beatmap.beatmapset.has_storyboard,
+                'server': score.beatmap.beatmapset.server,
+                'created_at': score.beatmap.beatmapset.created_at,
+                'added_at': score.beatmap.beatmapset.added_at,
+                'last_update': score.beatmap.beatmapset.last_update,
+                'language_id': score.beatmap.beatmapset.language_id,
+                'genre_id': score.beatmap.beatmapset.genre_id,
+            }
+        }
+    )
 
 def response_charts(
     score: Score,
@@ -702,6 +785,7 @@ def response_charts(
 @router.post("/osu-submit-modular-selector.php")
 @router.post('/osu-submit-modular.php')
 def score_submission(
+    request: Request,
     # This will get sent when the "FlashLightImageHack" flag is triggered
     # We don't need to use it, since the flag will already restrict them
     flashlight_screenshot: Optional[bytes] = Form(None, alias='i'),
@@ -845,7 +929,8 @@ def score_submission(
         achievement_response = unlock_achievements(
             score,
             score_object,
-            player
+            player,
+            request
         )
 
     new_rank = scores.fetch_score_index_by_tscore(
@@ -897,6 +982,7 @@ def score_submission(
 @router.post('/osu-submit.php')
 @router.post('/osu-submit-new.php')
 def legacy_score_submission(
+    request: Request,
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
 ):
@@ -1026,6 +1112,9 @@ def legacy_score_submission(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
 
+    # Submit score to amplitude analytics api
+    score_analytics(score, player, request)
+
     if not score.passed:
         app.session.events.submit(
             'user_update',
@@ -1042,7 +1131,8 @@ def legacy_score_submission(
         achievement_response = unlock_achievements(
             score,
             score_object,
-            player
+            player,
+            request
         )
 
     beatmap_rank = scores.fetch_score_index_by_id(
