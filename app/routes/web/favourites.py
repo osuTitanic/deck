@@ -12,17 +12,20 @@ from app.common.database.repositories import (
 from fastapi import (
     HTTPException,
     APIRouter,
+    Request,
     Depends,
     Query
 )
 
 import bcrypt
+import utils
 import app
 
 router = APIRouter()
 
 @router.get('/osu-addfavourite.php')
 def add_favourite(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
@@ -57,6 +60,16 @@ def add_favourite(
 
     app.session.logger.info(
         f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}'
+    )
+
+    utils.track(
+        'add_favourite',
+        user=player,
+        request=request,
+        properties={
+            'beatmapset_id': beatmap_set.id,
+            'favourite_amount': count
+        }
     )
 
     return f'Added to favourites! You have a total of {count} favourite{"s" if count > 1 else ""}'
