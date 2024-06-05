@@ -33,5 +33,3 @@ def get_screenshot(id: int):
             if utils.has_jpeg_headers(memoryview(image))
             else 'image/png'
     )
-
-# TODO: Move to seperate server
