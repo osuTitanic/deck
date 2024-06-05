@@ -1,9 +1,15 @@
 
-from fastapi import APIRouter, Response, Query, Depends
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
+from fastapi import (
+    APIRouter,
+    Response,
+    Request,
+    Depends,
+    Query
+)
 
 from app.common.cache import status
 from app.common.database.repositories import (
@@ -15,10 +21,12 @@ from app.common.database.repositories import (
 router = APIRouter()
 
 import bcrypt
+import utils
 import app
 
 @router.get('/osu-rate.php')
 def rate(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
@@ -70,6 +78,17 @@ def rate(
 
     app.session.logger.info(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
+    )
+
+    utils.track(
+        'beatmap_rating',
+        user=player,
+        request=request,
+        properties={
+            'beatmap_id': beatmap.id,
+            'beatmap_name': beatmap.full_name,
+            'rating': rating
+        }
     )
 
     return Response(

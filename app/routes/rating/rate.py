@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi import (
     APIRouter,
     Response,
+    Request,
     Depends,
     Query
 )
@@ -19,6 +20,7 @@ from app.common.database.repositories import (
 )
 
 import bcrypt
+import utils
 import app
 
 router = APIRouter()
@@ -26,6 +28,7 @@ router = APIRouter()
 @router.get('/ingame-rate.php')
 @router.get('/ingame-rate2.php')
 def ingame_rate(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
@@ -77,6 +80,17 @@ def ingame_rate(
 
     app.session.logger.info(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
+    )
+
+    utils.track(
+        'beatmap_rating',
+        user=player,
+        request=request,
+        properties={
+            'beatmap_id': beatmap.id,
+            'beatmap_name': beatmap.full_name,
+            'rating': rating
+        }
     )
 
     return Response(str(ratings.fetch_average(beatmap.md5, session)))
