@@ -1,8 +1,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session
+from fastapi import (
+    HTTPException,
+    APIRouter,
+    Request,
+    Depends,
+    Query
+)
 
 from app.common.cache import status
 from app.common.database import DBBeatmapset, DBUser
@@ -21,6 +27,7 @@ router = APIRouter()
 
 @router.get('/osu-search.php')
 def search(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     legacy_password: str | None = Query(None, alias='c'),
     page_offset: int | None = Query(None, alias='p'),
@@ -92,10 +99,24 @@ def search(
         app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
         return "-1\nServer error. Please try again!"
 
+    utils.track(
+        'direct_search',
+        user=player,
+        request=request,
+        properties={
+            'query': query,
+            'mode': mode,
+            'results': len(results),
+            'display_mode': display_mode.name,
+            'page': page_offset
+        }
+    )
+
     return "\n".join(response)
 
 @router.get('/osu-search-set.php')
 def pickup_info(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     beatmap_id: int | None = Query(None, alias='b'),
     topic_id: int | None = Query(None, alias='t'),
@@ -152,5 +173,15 @@ def pickup_info(
             beatmapset.id,
             beatmapset.has_video
         )
+
+    utils.track(
+        'direct_pickup',
+        user=player,
+        request=request,
+        properties={
+            'name': beatmapset.full_name,
+            'id': beatmapset.id
+        }
+    )
 
     return utils.online_beatmap(beatmapset)

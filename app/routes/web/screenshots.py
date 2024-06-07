@@ -43,6 +43,7 @@ async def read_screenshot(request: Request):
 
 @router.post('/osu-screenshot.php')
 def screenshot(
+    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     screenshot: bytes = Depends(read_screenshot),
     username: str = Query(..., alias='u'),
@@ -79,6 +80,16 @@ def screenshot(
 
     app.session.storage.upload_screenshot(id, screenshot)
     app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
+
+    utils.track(
+        'upload_screenshot',
+        user=player,
+        request=request,
+        properties={
+            'screenshot_id': id,
+            'screenshot_size': len(screenshot)
+        }
+    )
 
     return Response(str(id))
 

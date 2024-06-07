@@ -1,12 +1,15 @@
 
 from __future__ import annotations
 
+from app.common.database import DBUser, DBScore, DBBeatmapset
+from app.common.helpers import analytics, ip
+from app.common.cache import status
+
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from concurrent.futures import Future
+from fastapi import Request
 from typing import Dict
 from PIL import Image
-
-from app.common.database import DBScore, DBBeatmapset
 
 import config
 import base64
@@ -171,7 +174,10 @@ def online_beatmap(set: DBBeatmapset) -> str:
     ])
 
 def has_jpeg_headers(data_view: memoryview) -> bool:
-    return data_view[:4] == b"\xff\xd8\xff\xe0" and data_view[6:11] == b"JFIF\x00"
+    return (
+        data_view[:4] == b"\xff\xd8\xff\xe0"
+        and data_view[6:11] == b"JFIF\x00"
+    )
 
 def has_png_headers(data_view: memoryview) -> bool:
     return (
@@ -266,4 +272,34 @@ def thread_callback(future: Future):
     app.session.database.logger.debug(
         f'Thread completed: {e}',
         exc_info=e
+    )
+
+def track(
+    event: str,
+    properties: dict,
+    user: DBUser | None,
+    request: Request
+) -> None:
+    if not user:
+        return
+
+    if not status.exists(user.id):
+        return
+
+    ip_address = ip.resolve_ip_address_fastapi(request)
+    device_id = status.device_id(user.id)
+    version = status.version(user.id)
+
+    analytics.track(
+        event,
+        user_id=user.id,
+        device_id=device_id,
+        app_version=version,
+        ip=ip_address,
+        event_properties=properties,
+        user_properties={
+            'user_id': user.id,
+            'name': user.name,
+            'country': user.country
+        }
     )

@@ -27,6 +27,8 @@ MAILGUN_EMAIL = os.environ.get('MAILGUN_EMAIL', '')
 MAILGUN_URL = os.environ.get('MAILGUN_URL', 'api.eu.mailgun.net')
 MAILGUN_DOMAIN = MAILGUN_EMAIL.split('@')[-1]
 
+AMPLITUDE_API_KEY = os.environ.get('AMPLITUDE_API_KEY')
+
 EMAILS_ENABLED = MAILGUN_API_KEY is not None or SENDGRID_API_KEY is not None
 EMAIL = MAILGUN_EMAIL or SENDGRID_EMAIL
 
@@ -46,6 +48,7 @@ MENUICON_IMAGE = os.environ.get('MENUICON_IMAGE')
 MENUICON_URL = os.environ.get('MENUICON_URL')
 
 OFFICER_WEBHOOK_URL = os.environ.get('OFFICER_WEBHOOK_URL')
+EVENT_WEBHOOK_URL = os.environ.get('EVENT_WEBHOOK_URL')
 OSZ2_SERVICE_URL = os.environ.get('OSZ2_SERVICE_URL')
 
 BANCHO_IP = os.environ.get('PUBLIC_BANCHO_IP', None)
