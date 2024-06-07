@@ -148,15 +148,16 @@ class Score:
 
         elif self.play_mode == GameMode.OsuMania:
             return (
-                       (
-                         (self.c50 * 50.0) + (self.c100 * 100.0) + (self.cKatu * 200.0) + ((self.c300 + self.cGeki) * 300.0)
-                       )
-                       / (self.total_hits * 300.0)
-                   )
+                (
+                  (self.c50 * 50.0) +
+                  (self.c100 * 100.0) +
+                  (self.cKatu * 200.0) +
+                  ((self.c300 + self.cGeki) * 300.0)
+                )
+                / (self.total_hits * 300.0)
+            )
 
-        else:
-            app.session.logger.error('what?')
-            return 0.0
+        return 0.0
 
     @property
     def relaxing(self) -> bool:
@@ -221,11 +222,6 @@ class Score:
 
         if result is None:
             app.session.logger.warning('Failed to calculate pp: No result')
-            return 0.0
-
-        if math.isnan(result):
-            app.session.logger.warning(f'Failed to calculate pp: {result} value')
-            # mfw NaN pp
             return 0.0
 
         return result
@@ -307,41 +303,41 @@ class Score:
         failtime: Optional[int]
     ):
         """Parse a score string"""
-        items = formatted_string.split(':')
+        args = formatted_string.split(':')
 
         try:
-            version = int(items[17].strip())
-            flags = BadFlags(items[17].count(' '))
+            version = int(args[17].strip())
+            flags = BadFlags(args[17].count(' '))
         except IndexError:
             version = 0
             flags = BadFlags.Clean
 
         try:
-            date = items[16]
+            date = args[16]
         except IndexError:
             date = datetime.now()
 
         try:
-            play_mode = GameMode(int(items[15]))
+            play_mode = GameMode(int(args[15]))
         except IndexError:
             play_mode = GameMode.Osu
 
         return Score(
-            file_checksum=items[0],
-            username=items[1].strip(),
-            score_checksum=items[2],
-            count300=int(items[3]),
-            count100=int(items[4]),
-            count50=int(items[5]),
-            countGeki=int(items[6]),
-            countKatu=int(items[7]),
-            countMiss=int(items[8]),
-            total_score=int(items[9]),
-            max_combo=int(items[10]),
-            perfect=items[11].lower() == 'true',
-            grade=Grade[items[12]],
-            enabled_mods=Mods(int(items[13])),
-            passed=items[14].lower() == 'true',
+            file_checksum=args[0],
+            username=args[1].strip(),
+            score_checksum=args[2],
+            count300=int(args[3]),
+            count100=int(args[4]),
+            count50=int(args[5]),
+            countGeki=int(args[6]),
+            countKatu=int(args[7]),
+            countMiss=int(args[8]),
+            total_score=int(args[9]),
+            max_combo=int(args[10]),
+            perfect=args[11].lower() == 'true',
+            grade=Grade[args[12]],
+            enabled_mods=Mods(int(args[13])),
+            passed=args[14].lower() == 'true',
             play_mode=play_mode,
             date=date,
             version=version,
@@ -352,7 +348,7 @@ class Score:
         )
 
     def to_database(self) -> DBScore:
-        """Turn this score into a `DBScore` object, which can be used with sqlalchemy"""
+        """Convert this object into a `DBScore` object, which can be used with sqlalchemy"""
         return DBScore(
             beatmap_id=self.beatmap.id,
             user_id=self.user.id,
