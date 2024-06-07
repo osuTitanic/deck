@@ -332,7 +332,7 @@ def thread_callback(future: Future):
 def track(
     event: str,
     properties: dict,
-    user: DBUser,
+    user: DBUser | None,
     request: Request
 ) -> None:
     if not user:

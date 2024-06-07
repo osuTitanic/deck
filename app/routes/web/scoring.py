@@ -141,6 +141,7 @@ async def parse_score_data(request: Request) -> Score:
 async def parse_legacy_score_data(score_data: str, query: dict, form: dict) -> Score:
     failtime: Optional[str] = query.get('ft', 0)
     exited: Optional[str] = query.get('x', False)
+    replay: Optional[bytes] = None
 
     # Get replay
     if replay_file := form.get('score'):
