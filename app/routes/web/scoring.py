@@ -862,6 +862,11 @@ def score_submission(
             score.beatmap
         )
 
+    if score.version <= 0:
+        # Client didn't provide a version
+        # Try to get it from bancho instead
+        score.version = status.version(player.id) or 0
+
     if score.beatmap.is_ranked:
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
@@ -884,7 +889,6 @@ def score_submission(
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = score.client_hash
-        score_object.bad_flags = score.flags
 
         if not config.ALLOW_RELAX and score.relaxing:
             score_object.status = -1
@@ -1051,6 +1055,11 @@ def legacy_score_submission(
         object.user = score.user
         score.total_score = calculate_rx_score(object)
 
+    if score.version <= 0:
+        # Client didn't provide a version
+        # Try to get it from bancho instead
+        score.version = status.version(player.id) or 0
+
     if score.beatmap.is_ranked:
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
@@ -1073,7 +1082,6 @@ def legacy_score_submission(
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = ''
-        score_object.bad_flags = score.flags
 
         if not config.ALLOW_RELAX and score.relaxing:
             score_object.status = -1
