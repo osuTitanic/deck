@@ -114,6 +114,7 @@ class Score:
 
     @property
     def elapsed_time(self) -> int:
+        """Total time elapsed for this score, in seconds"""
         if self.passed:
             return self.beatmap.total_length
 
@@ -121,30 +122,52 @@ class Score:
 
     @property
     def total_hits(self) -> int:
-        if self.play_mode == GameMode.CatchTheBeat:
-            return self.c50 + self.c100 + self.c300 + self.cKatu
-
-        elif self.play_mode == GameMode.OsuMania:
+        """Total amount of note hits in this score"""
+        if self.play_mode in (GameMode.OsuMania, GameMode.Taiko):
+            # taiko uses geki & katu for hitting big notes with 2 keys
+            # mania uses geki & katu for rainbow 300 & 200
             return self.c50 + self.c100 + self.c300 + self.cGeki + self.cKatu
 
+        # standard and fruits
         return self.c50 + self.c100 + self.c300
 
     @property
+    def total_objects(self) -> int:
+        """Total amount of passed objects in this score, used for accuracy calculation"""
+        if self.play_mode == GameMode.Osu:
+            return self.c50 + self.c100 + self.c300 + self.cMiss
+
+        elif self.play_mode == GameMode.Taiko:
+            return self.c50 + self.c300 + self.cMiss
+
+        elif self.play_mode == GameMode.CatchTheBeat:
+            return self.c50 + self.c100 + self.c300 + self.cKatu + self.cMiss
+
+        else:
+            return self.c50 + self.c100 + self.c300 + self.cGeki + self.cKatu + self.cMiss
+
+    @property
     def accuracy(self) -> float:
-        if self.total_hits == 0:
+        if self.total_objects == 0:
             return 0.0
 
         if self.play_mode == GameMode.Osu:
             return (
                 ((self.c300 * 300.0) + (self.c100 * 100.0) + (self.c50 * 50.0))
-                / (self.total_hits * 300.0)
+                / (self.total_objects * 300.0)
             )
 
         elif self.play_mode == GameMode.Taiko:
-            return ((self.c100 * 0.5) + self.c300) / self.total_hits
+            return (
+                ((self.c100 * 0.5) + self.c300)
+                / self.total_objects
+            )
 
         elif self.play_mode == GameMode.CatchTheBeat:
-            return (self.c300 + self.c100 + self.c50) / self.total_hits
+            return (
+                (self.c300 + self.c100 + self.c50)
+                / self.total_objects
+            )
 
         elif self.play_mode == GameMode.OsuMania:
             return (
@@ -154,7 +177,7 @@ class Score:
                   (self.cKatu * 200.0) +
                   ((self.c300 + self.cGeki) * 300.0)
                 )
-                / (self.total_hits * 300.0)
+                / (self.total_objects * 300.0)
             )
 
         return 0.0
