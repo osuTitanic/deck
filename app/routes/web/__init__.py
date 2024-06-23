@@ -5,6 +5,7 @@ from . import leaderboards
 from . import screenshots
 from . import checktweets
 from . import favourites
+from . import beatmaps
 from . import comments
 from . import updates
 from . import scoring
@@ -24,6 +25,7 @@ router.include_router(leaderboards.router)
 router.include_router(screenshots.router)
 router.include_router(checktweets.router)
 router.include_router(favourites.router)
+router.include_router(beatmaps.router)
 router.include_router(comments.router)
 router.include_router(updates.router)
 router.include_router(scoring.router)

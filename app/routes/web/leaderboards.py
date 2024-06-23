@@ -155,8 +155,8 @@ def get_scores(
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
-    # Offset
-    response.append('0')
+    # Global offset
+    response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
@@ -274,8 +274,8 @@ def legacy_scores(
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
-    # Offset
-    response.append('0')
+    # Global offset
+    response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
@@ -378,8 +378,8 @@ def legacy_scores_no_ratings(
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
-    # Offset
-    response.append('0')
+    # Global offset
+    response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
