@@ -160,23 +160,7 @@ def get_scores(
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
-    # TODO: Title Configuration?
-    response.append(
-        '|'.join(
-            [(
-                '[bold:0,size:20]' +
-                beatmap.beatmapset.artist
-                if beatmap.beatmapset.artist
-                else ''
-            ),
-            (
-                '[]' +
-                beatmap.beatmapset.title
-                if beatmap.beatmapset.title
-                else ''
-            )]
-        )
-    )
+    response.append(beatmap.beatmapset.display_title)
 
     # NOTE: This was actually used for user ratings, but
     #       we are using the new star ratings instead
@@ -295,23 +279,7 @@ def legacy_scores(
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
-    # TODO: Title Configuration?
-    response.append(
-        '|'.join(
-            [(
-                '[bold:0,size:20]' +
-                beatmap.beatmapset.artist
-                if beatmap.beatmapset.artist
-                else ''
-            ),
-            (
-                '[]' +
-                beatmap.beatmapset.title
-                if beatmap.beatmapset.title
-                else ''
-            )]
-        )
-    )
+    response.append(beatmap.beatmapset.display_title)
 
     # NOTE: This was actually used for user ratings, but
     #       we are using the new star ratings instead
@@ -415,23 +383,7 @@ def legacy_scores_no_ratings(
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
-    # TODO: Title Configuration?
-    response.append(
-        '|'.join(
-            [(
-                '[bold:0,size:20]' +
-                beatmap.beatmapset.artist
-                if beatmap.beatmapset.artist
-                else ''
-            ),
-            (
-                '[]' +
-                beatmap.beatmapset.title
-                if beatmap.beatmapset.title
-                else ''
-            )]
-        )
-    )
+    response.append(beatmap.beatmapset.display_title)
 
     personal_best = scores.fetch_personal_best(
         beatmap.id,
