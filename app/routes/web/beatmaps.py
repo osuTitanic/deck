@@ -6,12 +6,20 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from zipfile import ZipFile
 
-from app.common.database import users, beatmapsets, beatmaps, topics, groups, posts
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.helpers import performance
 from app.common.streams import StreamIn
 from app.common.cache import status
+from app.common.database import (
+    nominations,
+    beatmapsets,
+    beatmaps,
+    topics,
+    groups,
+    users,
+    posts
+)
 
 from fastapi import (
     UploadFile,
@@ -115,6 +123,11 @@ def pop_bubble(beatmapset: DBBeatmapset, session: Session) -> None:
     beatmapsets.update(
         beatmapset.id,
         {'star_priority': DBBeatmapset.star_priority + 5},
+        session=session
+    )
+
+    nominations.delete_all(
+        beatmapset.id,
         session=session
     )
 
