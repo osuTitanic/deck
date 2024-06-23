@@ -214,7 +214,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     app.session.logger.debug('Performing score validation...')
 
     if (
-        score.total_hits <= 0 or
+        score.total_objects <= 0 or
         score.total_score <= 0 or
         score.max_combo <= 0
     ):
