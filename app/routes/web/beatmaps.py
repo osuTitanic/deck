@@ -14,11 +14,14 @@ from app.common.cache import status
 from app.common.database import (
     nominations,
     beatmapsets,
+    favourites,
     beatmaps,
+    ratings,
     topics,
     groups,
     users,
-    posts
+    posts,
+    plays
 )
 
 from fastapi import (
@@ -149,17 +152,33 @@ def is_full_submit(set_id: int, osz2_hash: str) -> bool:
     return osz2_hash != hashlib.md5(osz2_file).hexdigest()
 
 def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
-    """Delete any beatmaps with the '-1' status, that got never updated"""
-    inactive_sets = beatmapsets.fetch_inactive(user.id)
+    """Delete any beatmaps with the '-3' status, that got never updated"""
+    inactive_sets = beatmapsets.fetch_inactive(
+        user.id,
+        session=session
+    )
 
-    app.session.logger.debug(f'Found {len(inactive_sets)} inactive beatmapsets')
+    app.session.logger.debug(
+        f'Found {len(inactive_sets)} inactive beatmapsets'
+    )
+
+    # Remove assets from storage
+    for set in inactive_sets:
+        app.session.storage.remove_osz2(set.id)
+        app.session.storage.remove_osz(set.id)
+        app.session.storage.remove_background(set.id)
+        app.session.storage.remove_mp3(set.id)
+
+        for beatmap in set.beatmaps:
+            app.session.storage.remove_beatmap_file(beatmap.id)
 
     for set in inactive_sets:
-        # Delete beatmaps
-        beatmaps.delete_by_set_id(
-            set.id,
-            session=session
-        )
+        # Delete all related data
+        beatmaps.delete_by_set_id(set.id, session=session)
+        ratings.delete_by_set_id(set.id, session=session)
+        plays.delete_by_set_id(set.id, session=session)
+        nominations.delete_all(set.id, session=session)
+        favourites.delete_all(set.id, session=session)
 
     # Delete beatmapsets
     beatmapsets.delete_inactive(
