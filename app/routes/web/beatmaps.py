@@ -186,6 +186,18 @@ def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
         session=session
     )
 
+    # Hide beatmap topic
+    for set in inactive_sets:
+        topics.update(
+            set.topic_id,
+            {
+                'status_text': 'Deleted',
+                'hidden': True,
+                'locked_at': datetime.now()
+            },
+            session=session
+        )
+
 def remaining_beatmap_uploads(user: DBUser, session: Session) -> int:
     user_groups = groups.fetch_user_groups(
         user.id,
