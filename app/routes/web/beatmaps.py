@@ -512,6 +512,54 @@ def update_beatmap_files(files: dict, beatmaps: dict) -> None:
             content
         )
 
+def default_topic_message(set_id: int, session: Session) -> str:
+    beatmapset = beatmapsets.fetch_one(
+        set_id,
+        session=session
+    )
+
+    if not beatmapset:
+        return ''
+
+    submission_time = datetime.now().strftime('%A, %d. %B %Y %I:%M%p')
+
+    max_beatmap_length = max(
+        beatmap.total_length
+        for beatmap in beatmapset.beatmaps
+    )
+
+    max_beatmap_bpm = max(
+        beatmap.bpm
+        for beatmap in beatmapset.beatmaps
+    )
+
+    play_time_minutes = max_beatmap_length // 60
+    play_time_seconds = max_beatmap_length % 60
+
+    return '\n'.join([
+        f'[size=85]This beatmap was submitted using in-game submission on {submission_time}[/size]',
+        '',
+        f'[b]Artist:[/b] {beatmapset.artist}',
+        f'[b]Title:[/b] {beatmapset.title}',
+        f'[b]Source:[/b] {beatmapset.source}',
+        f'[b]Tags:[/b] {beatmapset.tags}',
+        f'[b]BPM:[/b] {max_beatmap_bpm}',
+        f'[b]Filesize:[/b] {round(beatmapset.osz_filesize / 1000)}kb',
+        f'[b]Play Time:[/b] {play_time_minutes}:{play_time_seconds}',
+        f'[b]Difficulties Available:[/b]',
+        '[list]',
+        *(
+            f'[*][url=http://osu.{config.DOMAIN_NAME}/api/beatmaps/osu/{beatmap.id}]{beatmap.version}[/url] ({round(beatmap.diff, 2)} stars)'
+            for beatmap in beatmapset.beatmaps
+        ),
+        '[/list]',
+        '',
+        f'[size=150][b]Download: [url=http://osu.{config.DOMAIN_NAME}/d/{beatmapset.id}]{beatmapset.artist} - {beatmapset.title}[/url][/b][/size]',
+        f'[b]Information:[/b] [url=http://osu.{config.DOMAIN_NAME}/s/{beatmapset.id}]Scores/Beatmap Listing[/url]',
+        '---------------',
+        'Use this space to tell the world about your map. It helps to include a list of changes as your map is modded!'
+    ])
+
 def create_beatmap_topic(
     set_id: int,
     user_id: int,
@@ -522,6 +570,12 @@ def create_beatmap_topic(
     session: Session
 ) -> int:
     app.session.logger.debug(f'Creating beatmap topic...')
+
+    if '---------------' not in message.splitlines():
+        message = default_topic_message(
+            set_id,
+            session=session
+        )
 
     topic = topics.create(
         forum_id=(10 if wip else 9),
