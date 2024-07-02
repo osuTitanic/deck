@@ -272,7 +272,7 @@ class Score:
         # to total score, if the pp is the same (spin to win)
         better_score = (
             self.pp > self.personal_best.pp
-            if self.pp != self.personal_best.pp
+            if round(self.pp, 6) != round(self.personal_best.pp, 6)
             else self.total_score > self.personal_best.total_score
         )
 
