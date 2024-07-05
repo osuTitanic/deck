@@ -134,11 +134,8 @@ class Score:
     @property
     def total_objects(self) -> int:
         """Total amount of passed objects in this score, used for accuracy calculation"""
-        if self.play_mode == GameMode.Osu:
+        if self.play_mode in (GameMode.Osu, GameMode.Taiko):
             return self.c50 + self.c100 + self.c300 + self.cMiss
-
-        elif self.play_mode == GameMode.Taiko:
-            return self.c50 + self.c300 + self.cMiss
 
         elif self.play_mode == GameMode.CatchTheBeat:
             return self.c50 + self.c100 + self.c300 + self.cKatu + self.cMiss
@@ -272,7 +269,7 @@ class Score:
         # to total score, if the pp is the same (spin to win)
         better_score = (
             self.pp > self.personal_best.pp
-            if self.pp != self.personal_best.pp
+            if round(self.pp, 6) != round(self.personal_best.pp, 6)
             else self.total_score > self.personal_best.total_score
         )
 
