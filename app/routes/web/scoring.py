@@ -65,6 +65,11 @@ async def parse_score_data(request: Request) -> Score:
             query,
             form
         )
+        return await parse_legacy_score_data(
+            score_data,
+            query,
+            form
+        )
 
     # NOTE: The form data can contain two "score" sections, where
     #       one of them is the score data, and the other is the replay
