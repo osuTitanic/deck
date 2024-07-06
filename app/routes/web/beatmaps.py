@@ -905,7 +905,8 @@ def forum_post(
             first_post.id,
             {
                 'content': message,
-                'forum_id': (9 if complete else 10)
+                'forum_id': (9 if complete else 10),
+                'deleted': False
             },
             session=session
         )
