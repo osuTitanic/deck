@@ -20,7 +20,7 @@ def index():
 def get_screenshot(id: int):
     if not (ss := screenshots.fetch_by_id(id)):
         raise HTTPException(404)
-    
+
     if ss.hidden:
         raise HTTPException(404)
 
@@ -29,7 +29,9 @@ def get_screenshot(id: int):
 
     return Response(
         image,
-        media_type='image/jpeg' \
+        media_type=(
+            'image/jpeg'
             if utils.has_jpeg_headers(memoryview(image))
             else 'image/png'
+        )
     )
