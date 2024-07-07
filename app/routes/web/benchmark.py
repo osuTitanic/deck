@@ -18,8 +18,8 @@ from app.common.database.repositories import (
 
 router = APIRouter()
 
-import app
 import bcrypt
+import app
 
 def calculate_grade(smoothness: float) -> str:
     if smoothness == 100: return 'SS'
@@ -37,7 +37,7 @@ def benchmark(
     password: str = Query(..., alias='p'),
     smoothness: float = Query(..., alias='s'),
     framerate: int = Query(..., alias='f'),
-    raw_score: int = Query(..., alias='r'),
+    raw_score: int = Query(..., alias='r')
 ):
     if not (player := users.fetch_by_name(username, session)):
         app.session.logger.warning(f'Failed to submit score: Invalid User')
@@ -48,9 +48,13 @@ def benchmark(
         raise HTTPException(401)
 
     if not status.exists(player.id):
-        app.session.logger.warning(f'Failed to submit benchmark: Inactive')
+        app.session.logger.warning(f'Failed to submit benchmark: Not connected to bancho')
         raise HTTPException(401)
     
+    if not player.activated:
+        app.session.logger.warning(f'Failed to submit benchmark: Not activated')
+        raise HTTPException(401)
+
     if player.restricted:
         app.session.logger.warning(f'Failed to submit benchmark: Restricted')
         raise HTTPException(401)
