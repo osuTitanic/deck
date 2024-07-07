@@ -7,7 +7,7 @@ from fastapi import (
     Response,
     Request,
     Depends,
-    Query
+    Form
 )
 
 from app.common.cache import status
@@ -29,15 +29,15 @@ def calculate_grade(smoothness: float) -> str:
     elif smoothness > 70: return 'C'
     else: return 'D'
 
-@router.get('/osu-benchmark.php')
+@router.post('/osu-benchmark.php')
 def benchmark(
     request: Request,
     session: Session = Depends(app.session.database.yield_session),
-    username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='p'),
-    smoothness: float = Query(..., alias='s', ge=0, le=100),
-    framerate: int = Query(..., alias='f', le=100_000),
-    raw_score: int = Query(..., alias='r', le=1_000_000)
+    username: str = Form(..., alias='u'),
+    password: str = Form(..., alias='p'),
+    smoothness: float = Form(..., alias='s', ge=0, le=100),
+    framerate: int = Form(..., alias='f', le=100_000),
+    raw_score: int = Form(..., alias='r', le=1_000_000)
 ):
     if not (player := users.fetch_by_name(username, session)):
         app.session.logger.warning(f'Failed to submit score: Invalid User')
