@@ -35,9 +35,9 @@ def benchmark(
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
-    smoothness: float = Query(..., alias='s'),
-    framerate: int = Query(..., alias='f'),
-    raw_score: int = Query(..., alias='r')
+    smoothness: float = Query(..., alias='s', ge=0, le=100),
+    framerate: int = Query(..., alias='f', le=100_000),
+    raw_score: int = Query(..., alias='r', le=1_000_000)
 ):
     if not (player := users.fetch_by_name(username, session)):
         app.session.logger.warning(f'Failed to submit score: Invalid User')
@@ -58,10 +58,6 @@ def benchmark(
     if player.restricted:
         app.session.logger.warning(f'Failed to submit benchmark: Restricted')
         raise HTTPException(401)
-    
-    if smoothness < 0 or smoothness > 100:
-        app.session.logger.warning(f'Failed to submit benchmark: Invalid Smoothness')
-        raise HTTPException(400)
 
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
