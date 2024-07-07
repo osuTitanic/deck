@@ -59,6 +59,10 @@ def benchmark(
         app.session.logger.warning(f'Failed to submit benchmark: Restricted')
         raise HTTPException(401)
     
+    if smoothness < 0 or smoothness > 100:
+        app.session.logger.warning(f'Failed to submit benchmark: Invalid Smoothness')
+        raise HTTPException(400)
+
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     benchmark = benchmarks.create(
