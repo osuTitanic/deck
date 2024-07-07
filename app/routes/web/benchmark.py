@@ -34,8 +34,8 @@ def benchmark(
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
     smoothness: float = Form(..., alias='s', ge=0, le=100),
-    framerate: int = Form(..., alias='f', le=100_000),
-    raw_score: int = Form(..., alias='r', le=1_000_000)
+    framerate: int = Form(..., alias='f', le=1_000_000),
+    raw_score: int = Form(..., alias='r', le=1_000_000_000)
 ):
     if not (player := users.fetch_by_name(username, session)):
         app.session.logger.warning(f'Failed to submit score: Invalid User')
