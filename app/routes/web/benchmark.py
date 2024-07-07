@@ -5,7 +5,6 @@ from fastapi import (
     HTTPException,
     APIRouter,
     Response,
-    Request,
     Depends,
     Form
 )
@@ -31,7 +30,6 @@ def calculate_grade(smoothness: float) -> str:
 
 @router.post('/osu-benchmark.php')
 def benchmark(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
