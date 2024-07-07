@@ -383,6 +383,10 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
             'genre_id': metadata.get('Genre', 0),
             'language_id': metadata.get('Language', 0),
             'has_video': metadata.get('VideoHash', False),
+            'display_title': (
+                f'[bold:0,size:20]{metadata.get("Artist", "")}|'
+                f'[]{metadata.get("Title", "")}'
+            ),
             'has_storyboard': (
                 'osb' in file_extensions or
                 'osq' in file_extensions
