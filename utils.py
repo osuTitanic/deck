@@ -283,7 +283,7 @@ def resize_and_crop_image(
     image_buffer = io.BytesIO()
     img = img.crop(box)
     img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    img.save(image_buffer, format='JPEG')
+    img.convert('RGB').save(image_buffer, format='JPEG')
     return image_buffer.getvalue()
 
 def extract_audio_snippet(
