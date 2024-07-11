@@ -234,7 +234,7 @@ def create_beatmapset(
     user: DBUser,
     beatmap_ids: List[int],
     session: Session
-) -> Tuple[int, List[int]]:
+) -> Tuple[int | None, List[int]]:
     # Create new beatmapset
     set = beatmapsets.create(
         id=beatmap_helper.next_beatmapset_id(session=session),
