@@ -751,11 +751,13 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is ranked or loved')
         return error_response(3)
 
-    if full_submit:
-        # User uploaded the full osz2 file
-        osz2_file = submission_file.file.read()
+    osz2_file = submission_file.file.read()
 
-    else:
+    if len(osz2_file) > 80_000_000:
+        app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large')
+        return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
+
+    if not full_submit:
         # User uploaded a patch file
         current_osz2_file = app.session.storage.get_osz2_internal(set_id)
 
@@ -765,7 +767,7 @@ def upload_beatmap(
 
         # Apply the patch to the current osz2 file
         osz2_file = beatmap_helper.patch_osz2(
-            submission_file.file.read(),
+            osz2_file,
             current_osz2_file
         )
 
