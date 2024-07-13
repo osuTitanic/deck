@@ -7,6 +7,7 @@ from app.common.cache import status
 
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from concurrent.futures import Future
+from pydub import AudioSegment
 from fastapi import Request
 from typing import Dict
 from PIL import Image
@@ -22,7 +23,11 @@ REQUIRED_BUCKETS = [
     'beatmaps',
     'avatars',
     'replays',
-    'release'
+    'release',
+    'audio',
+    'thumbnails',
+    'osz',
+    'osz2'
 ]
 
 def download(path: str, url: str):
@@ -251,6 +256,56 @@ def resize_image(
     img.save(image_buffer, format='PNG')
 
     return image_buffer.getvalue()
+
+def resize_and_crop_image(
+    image: bytes,
+    target_width: int,
+    target_height: int
+) -> bytes:
+    img = Image.open(io.BytesIO(image))
+    image_width, image_height = img.size
+
+    aspect = image_width / float(image_height)
+    target_aspect = target_width / float(target_height)
+
+    if aspect > target_aspect:
+        # Crop off left and right
+        new_width = int(image_height * target_aspect)
+        offset = (image_width - new_width) / 2
+        box = (offset, 0, image_width - offset, image_height)
+
+    else:
+        # Crop off top and bottom
+        new_height = int(image_width / target_aspect)
+        offset = (image_height - new_height) / 2
+        box = (0, offset, image_width, image_height - offset)
+
+    image_buffer = io.BytesIO()
+    img = img.crop(box)
+    img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    img.convert('RGB').save(image_buffer, format='JPEG')
+    return image_buffer.getvalue()
+
+def extract_audio_snippet(
+    audio: bytes,
+    offset_ms: int,
+    duration_ms: int = 10000,
+    bitrate: int = '64k'
+) -> bytes:
+    # Load audio and extract snippet
+    audio = AudioSegment.from_file(io.BytesIO(audio))
+
+    if offset_ms < 0:
+        # Set default offset
+        audio_length = audio.duration_seconds * 1000
+        offset_ms = audio_length / 2.5
+
+    snippet = audio[offset_ms:offset_ms + duration_ms]
+
+    # Export snippet as mp3
+    snippet_buffer = io.BytesIO()
+    snippet.export(snippet_buffer, format='mp3', bitrate=bitrate)
+    return snippet_buffer.getvalue()
 
 def parse_osu_config(config: str) -> Dict[str, str]:
     return {
