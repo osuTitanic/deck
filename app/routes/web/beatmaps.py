@@ -8,9 +8,12 @@ from zipfile import ZipFile
 
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
+from app.common.webhooks import Embed, Image, Author
+from app.common.constants import DatabaseStatus
 from app.common.helpers import performance
 from app.common.streams import StreamIn
 from app.common.cache import status
+from app.common import officer
 from app.common.database import (
     nominations,
     beatmapsets,
@@ -253,7 +256,9 @@ def create_beatmapset(
         for _ in beatmap_ids
     ]
 
-    app.session.logger.info(f'Created new beatmapset ({set.id}) for user {user.name}')
+    app.session.logger.info(
+        f'Created new beatmapset ({set.id}) for user {user.name}'
+    )
 
     return set.id, [beatmap.id for beatmap in new_beatmaps]
 
@@ -619,6 +624,21 @@ def create_beatmap_topic(
     app.session.logger.info(f'Created beatmap topic for beatmapset ({topic.id})')
     return topic.id
 
+def post_new_beatmap(beatmapset: DBBeatmapset) -> None:
+    embed = Embed(title=f'{beatmapset.artist} - {beatmapset.title}')
+    embed.thumbnail = Image(url=f'http://osu.{config.DOMAIN_NAME}/mt/{beatmapset.id}')
+    embed.author = Author(
+        name=f"{beatmapset.creator} uploaded a new beatmap!",
+        url=f'http://osu.{config.DOMAIN_NAME}/u/{beatmapset.creator_id}',
+        icon_url=f'http://osu.{config.DOMAIN_NAME}/a/{beatmapset.creator_id}'
+    )
+    embed.color = 0x66c453
+    embed.add_field(name="Title", value=beatmapset.title, inline=True)
+    embed.add_field(name="Artist", value=beatmapset.artist, inline=True)
+    embed.add_field(name="Creator", value=beatmapset.creator, inline=True)
+    embed.add_field(name="Link", value=f"http://osu.{config.DOMAIN_NAME}/s/{beatmapset.id}")
+    officer.event(embeds=[embed])
+
 @router.get('/osu-osz2-bmsubmit-getid.php')
 def validate_upload_request(
     session: Session = Depends(app.session.database.yield_session),
@@ -791,6 +811,8 @@ def upload_beatmap(
             for filename, content in data['files'].items()
         }
 
+        previous_status = beatmapset.status
+
         # Update metadata for beatmapset and beatmaps
         update_beatmap_metadata(
             beatmapset,
@@ -823,7 +845,10 @@ def upload_beatmap(
         app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
-    # TODO: Post to discord webhook
+    if previous_status == -3:
+        # Post to discord webhook
+        post_new_beatmap(beatmapset)
+
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
         f'(http://osu.{config.DOMAIN_NAME}/s/{set_id})'
