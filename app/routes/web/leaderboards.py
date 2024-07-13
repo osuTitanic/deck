@@ -152,11 +152,8 @@ def get_scores(
         ])
     )
 
-    if skip_scores or not beatmap.is_ranked:
-        return Response('\n'.join(response))
-
-    # Offset
-    response.append('0')
+    # Global offset
+    response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
@@ -167,6 +164,9 @@ def get_scores(
     response.append(str(
         beatmap.diff
     ))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
 
     if personal_best:
         index = scores.fetch_score_index(
@@ -271,11 +271,8 @@ def legacy_scores(
     # Status
     response.append(str(submission_status.value))
 
-    if skip_scores or not beatmap.is_ranked:
-        return Response('\n'.join(response))
-
-    # Offset
-    response.append('0')
+    # Global offset
+    response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
@@ -290,6 +287,9 @@ def legacy_scores(
     # response.append(str(
     #     ratings.fetch_average(beatmap.md5)
     # ))
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
 
     personal_best = scores.fetch_personal_best(
         beatmap.id,
@@ -375,15 +375,15 @@ def legacy_scores_no_ratings(
     # Status
     response.append(str(submission_status.value))
 
-    if skip_scores or not beatmap.is_ranked:
-        return Response('\n'.join(response))
-
-    # Offset
-    response.append('0')
+    # Global offset
+    response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
     # Example: https://i.imgur.com/BofeZ2z.png
     response.append(beatmap.beatmapset.display_title)
+
+    if skip_scores or not beatmap.is_ranked:
+        return Response('\n'.join(response))
 
     personal_best = scores.fetch_personal_best(
         beatmap.id,
