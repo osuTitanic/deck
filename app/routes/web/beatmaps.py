@@ -350,7 +350,7 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
     )
 
     osz_size = len(buffer.getvalue())
-    osz_size_novideo = osz_size - metadata.get('VideoDataLength', 0)
+    osz_size_novideo = osz_size - int(metadata.get('VideoDataLength', '0'))
 
     # Update osz file sizes for osu!direct
     beatmapsets.update(
