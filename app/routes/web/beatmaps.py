@@ -387,7 +387,7 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
             'source_unicode': metadata.get('SourceUnicode'),
             'genre_id': metadata.get('Genre', 0),
             'language_id': metadata.get('Language', 0),
-            'has_video': metadata.get('VideoHash', False),
+            'has_video': bool(metadata.get('VideoHash', None)),
             'display_title': (
                 f'[bold:0,size:20]{metadata.get("Artist", "")}|'
                 f'[]{metadata.get("Title", "")}'
