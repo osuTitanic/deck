@@ -135,11 +135,13 @@ def get_scores(
         #       Qualified: 4
         #       Ranked: 2
 
-        if submission_status == SubmissionStatus.Ranked:
-            submission_status = SubmissionStatus.EditableCutoff
-
-        elif submission_status == SubmissionStatus.EditableCutoff:
-            submission_status = SubmissionStatus.Ranked
+        submission_status = {
+            SubmissionStatus.Ranked: SubmissionStatus.Qualified,
+            SubmissionStatus.Qualified: SubmissionStatus.Ranked
+        }.get(
+            submission_status,
+            submission_status
+        )
 
     # Beatmap Info
     response.append(
@@ -265,13 +267,9 @@ def legacy_scores(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
-
     submission_status = SubmissionStatus.from_database(beatmap.status)
 
-    # Status
     response.append(str(submission_status.value))
-
-    # Global offset
     response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
@@ -283,10 +281,6 @@ def legacy_scores(
     response.append(str(
         beatmap.diff
     ))
-
-    # response.append(str(
-    #     ratings.fetch_average(beatmap.md5)
-    # ))
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
@@ -369,13 +363,9 @@ def legacy_scores_no_ratings(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
-
     submission_status = SubmissionStatus.from_database(beatmap.status)
 
-    # Status
     response.append(str(submission_status.value))
-
-    # Global offset
     response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
@@ -459,7 +449,6 @@ def legacy_scores_no_beatmap_data(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
-
     submission_status = SubmissionStatus.from_database(beatmap.status)
 
     # Status
@@ -522,7 +511,6 @@ def legacy_scores_no_personal_best(
         return Response('1') # Update Available
 
     response = []
-
     submission_status = SubmissionStatus.from_database(beatmap.status)
 
     # Status
@@ -567,7 +555,6 @@ def legacy_scores_status_change(
         return Response('1') # Update Available
 
     response = []
-
     submission_status = LegacyStatus.from_database(beatmap.status)
 
     # Status
