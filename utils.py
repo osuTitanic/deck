@@ -1,7 +1,8 @@
 
 from __future__ import annotations
 
-from app.common.database import DBUser, DBScore, DBBeatmapset
+from app.common.database.repositories import beatmapsets
+from app.common.database import DBUser, DBScore
 from app.common.helpers import analytics, ip
 from app.common.cache import status
 
@@ -9,7 +10,6 @@ from py3rijndael import RijndaelCbc, Pkcs7Padding
 from concurrent.futures import Future
 from pydub import AudioSegment
 from fastapi import Request
-from typing import Dict
 from PIL import Image
 
 import config
@@ -184,11 +184,7 @@ def update_osz_filesize(set_id: int, has_video: bool = False):
         no_video=False
     )
 
-    instance = app.session.database.session
-    instance.query(DBBeatmapset) \
-            .filter(DBBeatmapset.id == set_id) \
-            .update(updates)
-    instance.commit()
+    beatmapsets.update(set_id, updates)
 
 def resize_image(
     image: bytes,
@@ -271,7 +267,7 @@ def extract_audio_snippet(
     return snippet_buffer.getvalue()
 
 def thread_callback(future: Future):
-    if (e := future.exception()):
+    if e := future.exception():
         app.session.database.logger.error(
             f'Failed to execute thread: {e}',
             exc_info=e
