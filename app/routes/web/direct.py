@@ -25,6 +25,45 @@ import app
 
 router = APIRouter()
 
+def online_beatmap(set: DBBeatmapset) -> str:
+    ratings = [r.rating for r in set.ratings]
+    avg_rating = (
+        sum(ratings) / len(ratings)
+        if ratings else 0
+    )
+
+    versions = ",".join(
+        [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
+    )
+
+    status = {
+        -2: "3",
+        -1: "3",
+        0: "3",
+        1: "1",
+        2: "2",
+        3: "1",
+        4: "2"
+    }[set.status]
+
+    return "|".join([
+        f'{set.id} {set.artist} - {set.title}.osz',
+        set.artist  if set.artist else "",
+        set.title   if set.title else "",
+        set.creator if set.creator else "",
+        status,
+        str(avg_rating),
+        str(set.last_update),
+        str(set.id),
+        str(set.id), # TODO: threadId
+        str(int(set.has_video)),
+        str(int(set.has_storyboard)),
+        str(set.osz_filesize),
+        str(set.osz_filesize_novideo),
+        versions,
+        str(set.id), # TODO: postId
+    ])
+
 @router.get('/osu-search.php')
 def search(
     request: Request,
@@ -41,7 +80,7 @@ def search(
     page_offset = page_offset or 0
     player = None
 
-    # NOTE: Old clients don't have authentication for osu! direct
+    # Skip authentication for old clients
     if legacy_password or password:
         if not (player := users.fetch_by_name(username, session=session)):
             return '-1\nFailed to authenticate user'
@@ -92,9 +131,7 @@ def search(
             ))
 
         for set in results:
-            response.append(
-                utils.online_beatmap(set)
-            )
+            response.append(online_beatmap(set))
     except Exception as e:
         app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
         return "-1\nServer error. Please try again!"
@@ -129,7 +166,7 @@ def pickup_info(
     beatmapset: DBBeatmapset | None = None
     player: DBUser | None = None
 
-    # NOTE: Old clients don't have authentication for osu! direct
+    # Skip authentication for old clients
     if username and password:
         if not (player := users.fetch_by_name(username, session=session)):
             raise HTTPException(401)
@@ -184,4 +221,4 @@ def pickup_info(
         }
     )
 
-    return utils.online_beatmap(beatmapset)
+    return online_beatmap(beatmapset)

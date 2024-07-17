@@ -11,7 +11,7 @@ from fastapi import (
     Query
 )
 
-from app.common.cache import status
+from app.common.database import DBBeatmapset, DBScore
 from app.common.database.repositories import (
     relationships,
     beatmaps,
@@ -19,6 +19,7 @@ from app.common.database.repositories import (
     users
 )
 
+from app.common.cache import status
 from app.common.constants import (
     SubmissionStatus,
     LegacyStatus,
@@ -32,6 +33,61 @@ import utils
 import app
 
 router = APIRouter()
+
+def resolve_beatmapset(
+    beatmap_file: str,
+    beatmap_hash: str,
+    session: Session
+) -> DBBeatmapset | None:
+    if beatmap := beatmaps.fetch_by_file(beatmap_file, session):
+        return beatmap
+
+    if beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session):
+        return beatmap
+
+def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
+    return '|'.join([
+        str(score.id),
+        str(score.user.name),
+        str(score.total_score),
+        str(score.max_combo),
+        str(score.n50),
+        str(score.n100),
+        str(score.n300),
+        str(score.nMiss),
+        str(score.nKatu),
+        str(score.nGeki),
+        str(score.perfect),
+        str(score.mods),
+        str(score.user_id),
+        str(index),
+        # This was changed to a unix timestamp in request version 2
+        (
+            str(score.submitted_at) if request_version <= 1 else
+            str(round(score.submitted_at.timestamp()))
+        ),
+        # "Has Replay", added in request version 4
+        str(1)
+    ])
+
+def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
+    return seperator.join([
+        str(score.id),
+        str(score.user.name),
+        str(score.total_score),
+        str(score.max_combo),
+        str(score.n50),
+        str(score.n100),
+        str(score.n300),
+        str(score.nMiss),
+        str(score.nKatu),
+        str(score.nGeki),
+        str(score.perfect),
+        str(score.mods),
+        str(score.user_id),
+        str(score.user_id), # Avatar Filename
+        str(score.submitted_at)
+    ])
 
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
@@ -75,10 +131,8 @@ def get_scores(
     # Update latest activity
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1|false') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1|false') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1|false') # Update Available
@@ -87,7 +141,6 @@ def get_scores(
         ranking_type = RankingType.Top
 
     response = []
-
     submission_status = SubmissionStatus.from_database(beatmap.status)
 
     # Fetch score count
@@ -130,16 +183,17 @@ def get_scores(
             if ranking_type == RankingType.Friends:
                 score_count += 1
 
-    if (request_version > 2):
-        # NOTE: In request version 3, the submission status is changed
-        #       Qualified: 4
-        #       Ranked: 2
+    if request_version > 2:
+        # In request version 3, the submission status
+        # swapped the Qualified and Ranked status
+        submission_status = {
+            SubmissionStatus.Ranked: SubmissionStatus.Qualified,
+            SubmissionStatus.Qualified: SubmissionStatus.Ranked
+        }.get(submission_status, submission_status)
 
-        if submission_status == SubmissionStatus.Ranked:
-            submission_status = SubmissionStatus.EditableCutoff
-
-        elif submission_status == SubmissionStatus.EditableCutoff:
-            submission_status = SubmissionStatus.Ranked
+    if submission_status == SubmissionStatus.Loved and request_version < 4:
+        # Handle unsupported loved maps before version 4
+        submission_status = SubmissionStatus.Approved
 
     # Beatmap Info
     response.append(
@@ -180,7 +234,7 @@ def get_scores(
         )
 
         response.append(
-            utils.score_string(personal_best, index, request_version)
+            score_string(personal_best, index, request_version)
         )
     else:
         response.append('')
@@ -227,7 +281,7 @@ def get_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index, request_version)
+            score_string(score, index, request_version)
         )
 
     return Response('\n'.join(response))
@@ -253,10 +307,8 @@ def legacy_scores(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -265,13 +317,9 @@ def legacy_scores(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
-    submission_status = SubmissionStatus.from_database(beatmap.status)
-
-    # Status
     response.append(str(submission_status.value))
-
-    # Global offset
     response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
@@ -283,10 +331,6 @@ def legacy_scores(
     response.append(str(
         beatmap.diff
     ))
-
-    # response.append(str(
-    #     ratings.fetch_average(beatmap.md5)
-    # ))
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
@@ -307,7 +351,7 @@ def legacy_scores(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            score_string(personal_best, index)
         )
     else:
         response.append('')
@@ -321,7 +365,7 @@ def legacy_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index)
+            score_string(score, index)
         )
 
     return Response('\n'.join(response))
@@ -347,10 +391,8 @@ def legacy_scores_no_ratings(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -369,13 +411,9 @@ def legacy_scores_no_ratings(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
-    submission_status = SubmissionStatus.from_database(beatmap.status)
-
-    # Status
     response.append(str(submission_status.value))
-
-    # Global offset
     response.append(f'{beatmap.beatmapset.offset}')
 
     # Title
@@ -401,7 +439,7 @@ def legacy_scores_no_ratings(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            score_string(personal_best, index)
         )
     else:
         response.append('')
@@ -415,7 +453,7 @@ def legacy_scores_no_ratings(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index)
+            score_string(score, index)
         )
 
     return Response('\n'.join(response))
@@ -437,10 +475,8 @@ def legacy_scores_no_beatmap_data(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -459,8 +495,7 @@ def legacy_scores_no_beatmap_data(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
-
-    submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     # Status
     response.append(str(submission_status.value))
@@ -484,7 +519,7 @@ def legacy_scores_no_beatmap_data(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            score_string(personal_best, index)
         )
     else:
         response.append('')
@@ -498,7 +533,7 @@ def legacy_scores_no_beatmap_data(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index)
+            score_string(score, index)
         )
 
     return Response('\n'.join(response))
@@ -513,17 +548,14 @@ def legacy_scores_no_personal_best(
     skip_scores = skip_scores == '1'
     mode = GameMode.Osu
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
     response = []
-
-    submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     # Status
     response.append(str(submission_status.value))
@@ -540,7 +572,7 @@ def legacy_scores_no_personal_best(
 
     for score in top_scores:
         response.append(
-            utils.score_string_legacy(score)
+            score_string_legacy(score)
         )
 
     return Response('\n'.join(response))
@@ -558,16 +590,13 @@ def legacy_scores_status_change(
     skip_scores = skip_scores == '1'
     mode = GameMode.Osu
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
     response = []
-
     submission_status = LegacyStatus.from_database(beatmap.status)
 
     # Status
@@ -586,7 +615,7 @@ def legacy_scores_status_change(
 
     for score in top_scores:
         response.append(
-            utils.score_string_legacy(score)
+            score_string_legacy(score)
         )
 
     return Response('\n'.join(response))
@@ -607,6 +636,6 @@ def legacy_scores_no_status(
     )
 
     return Response('\n'.join([
-        utils.score_string_legacy(score, seperator=':')
+        score_string_legacy(score, seperator=':')
         for score in top_scores
     ]))

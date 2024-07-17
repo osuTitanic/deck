@@ -9,11 +9,11 @@ from zipfile import ZipFile
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.webhooks import Embed, Image, Author
-from app.common.constants import DatabaseStatus
 from app.common.helpers import performance
 from app.common.streams import StreamIn
 from app.common.cache import status
 from app.common import officer
+
 from app.common.database import (
     nominations,
     beatmapsets,
@@ -716,9 +716,6 @@ def validate_upload_request(
     # Either we don't have the osz2 file or the client has no osz2 file
     # If full-submit is true, the client will submit a patch file
     full_submit = is_full_submit(set_id, osz2_hash)
-
-    # NOTE: In theory we could always set this to true, so we don't have
-    #       to store the osz2 files, but i've decided against this
 
     return Response('\n'.join([
         '0',

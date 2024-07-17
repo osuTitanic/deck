@@ -224,15 +224,16 @@ def quickdraw(score: DBScore) -> bool:
 @register(name='Obsessed', category='Hush-Hush', filename='obsessed.png')
 def obsessed(score: DBScore) -> bool:
     """Play the same map over 100 times in a day, retries included"""
-    last_scores = app.session.database.session.query(DBScore) \
-        .filter(DBScore.beatmap_id == score.beatmap_id) \
-        .filter(DBScore.user_id == score.user_id) \
-        .filter(DBScore.mode == score.mode) \
-        .filter(DBScore.submitted_at > datetime.now() - timedelta(days=1)) \
-        .limit(100) \
-        .all()
+    with app.session.database.managed_session() as session:
+        score_count = session.query(DBScore) \
+            .filter(DBScore.beatmap_id == score.beatmap_id) \
+            .filter(DBScore.user_id == score.user_id) \
+            .filter(DBScore.mode == score.mode) \
+            .filter(DBScore.submitted_at > datetime.now() - timedelta(days=1)) \
+            .limit(100) \
+            .count()
 
-    if len(last_scores) < 100:
+    if score_count < 100:
         return False
 
     return True
