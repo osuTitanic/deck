@@ -46,7 +46,12 @@ import app
 
 router = APIRouter()
 
-def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> str | None:
+def decrypt_string(
+    b64: str | None,
+    iv: bytes,
+    key: str = config.SCORE_SUBMISSION_KEY
+) -> str | None:
+    """Decrypt a rinjdael encrypted string"""
     if not b64:
         return
 
@@ -80,13 +85,11 @@ async def parse_score_data(request: Request) -> Score:
             form
         )
 
-    # NOTE: The form data can contain two "score" sections, where
-    #       one of them is the score data, and the other is the replay
+    # NOTE: The form data can contain two "score" sections, where one
+    #       of them is the score data, and the other is the replay
 
     if not (score_form := form.getlist('score')):
-        officer.call(
-            'Got score submission without score data!'
-        )
+        officer.call('Got score submission without score data!')
         raise HTTPException(400)
 
     score_data = score_form[0]
@@ -97,7 +100,7 @@ async def parse_score_data(request: Request) -> Score:
     exited = form.get('x')
     replay = None
 
-    # TODO: Add more arguments from modern score submission endpoint
+    # TODO: Implement more arguments from modern score submission endpoint
 
     if len(score_form) > 1:
         # Replay data was provided
@@ -387,38 +390,47 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             return Response('error: ban')
 
 def upload_replay(score: Score, score_id: int) -> None:
-    if (score.passed and score.status > ScoreStatus.Exited):
+    if score.passed and score.status > ScoreStatus.Exited:
         app.session.logger.debug('Uploading replay...')
 
         # Check replay size (10mb max)
-        if len(score.replay) < 1e+7:
-            score_rank = scores.fetch_score_index_by_id(
-                mods=score.enabled_mods.value,
-                beatmap_id=score.beatmap.id,
-                mode=score.play_mode.value,
-                score_id=score_id
-            )
+        if len(score.replay) > 1e+7:
+            return
 
-            # Replay will be cached temporarily and deleted after
-            app.session.storage.cache_replay(
-                score_id,
-                score.replay
-            )
-
-            if score.beatmap.is_ranked and score.status > ScoreStatus.Submitted:
-                # Check if score is inside the leaderboards
-                if score_rank <= config.SCORE_RESPONSE_LIMIT:
-                    app.session.storage.upload_replay(
-                        score_id,
-                        score.replay
-                    )
-    else:
-        # Cache replay for 30 minutes
-        app.session.storage.cache_replay(
-            id=score_id,
-            content=score.replay,
-            time=timedelta(minutes=30)
+        score_rank = scores.fetch_score_index_by_id(
+            mods=score.enabled_mods.value,
+            beatmap_id=score.beatmap.id,
+            mode=score.play_mode.value,
+            score_id=score_id
         )
+
+        # Replay will be cached temporarily and deleted after
+        app.session.storage.cache_replay(
+            score_id,
+            score.replay
+        )
+
+        if not score.beatmap.is_ranked:
+            return
+
+        if score.status < ScoreStatus.Submitted:
+            return
+
+        if score_rank > config.SCORE_RESPONSE_LIMIT * 10:
+            return
+
+        app.session.storage.upload_replay(
+            score_id,
+            score.replay
+        )
+        return
+
+    # Cache replay for 30 minutes
+    app.session.storage.cache_replay(
+        id=score_id,
+        content=score.replay,
+        time=timedelta(minutes=30)
+    )
 
 def calculate_weighted_pp(scores: List[DBScore]) -> float:
     """Calculate the weighted pp for a list of scores"""
