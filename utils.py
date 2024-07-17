@@ -12,7 +12,6 @@ from fastapi import Request
 from PIL import Image
 
 import config
-import base64
 import app
 import io
 import os
