@@ -11,8 +11,7 @@ from fastapi import (
     Query
 )
 
-from app.common.cache import status
-from app.common.database import DBBeatmapset
+from app.common.database import DBBeatmapset, DBScore
 from app.common.database.repositories import (
     relationships,
     beatmaps,
@@ -20,6 +19,7 @@ from app.common.database.repositories import (
     users
 )
 
+from app.common.cache import status
 from app.common.constants import (
     SubmissionStatus,
     LegacyStatus,
@@ -44,6 +44,50 @@ def resolve_beatmapset(
 
     if beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session):
         return beatmap
+
+def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
+    return '|'.join([
+        str(score.id),
+        str(score.user.name),
+        str(score.total_score),
+        str(score.max_combo),
+        str(score.n50),
+        str(score.n100),
+        str(score.n300),
+        str(score.nMiss),
+        str(score.nKatu),
+        str(score.nGeki),
+        str(score.perfect),
+        str(score.mods),
+        str(score.user_id),
+        str(index),
+        # This was changed to a unix timestamp in request version 2
+        (
+            str(score.submitted_at) if request_version <= 1 else
+            str(round(score.submitted_at.timestamp()))
+        ),
+        # "Has Replay", added in request version 4
+        str(1)
+    ])
+
+def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
+    return seperator.join([
+        str(score.id),
+        str(score.user.name),
+        str(score.total_score),
+        str(score.max_combo),
+        str(score.n50),
+        str(score.n100),
+        str(score.n300),
+        str(score.nMiss),
+        str(score.nKatu),
+        str(score.nGeki),
+        str(score.perfect),
+        str(score.mods),
+        str(score.user_id),
+        str(score.user_id), # Avatar Filename
+        str(score.submitted_at)
+    ])
 
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
@@ -190,7 +234,7 @@ def get_scores(
         )
 
         response.append(
-            utils.score_string(personal_best, index, request_version)
+            score_string(personal_best, index, request_version)
         )
     else:
         response.append('')
@@ -237,7 +281,7 @@ def get_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index, request_version)
+            score_string(score, index, request_version)
         )
 
     return Response('\n'.join(response))
@@ -307,7 +351,7 @@ def legacy_scores(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            score_string(personal_best, index)
         )
     else:
         response.append('')
@@ -321,7 +365,7 @@ def legacy_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index)
+            score_string(score, index)
         )
 
     return Response('\n'.join(response))
@@ -395,7 +439,7 @@ def legacy_scores_no_ratings(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            score_string(personal_best, index)
         )
     else:
         response.append('')
@@ -409,7 +453,7 @@ def legacy_scores_no_ratings(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index)
+            score_string(score, index)
         )
 
     return Response('\n'.join(response))
@@ -475,7 +519,7 @@ def legacy_scores_no_beatmap_data(
         )
 
         response.append(
-            utils.score_string(personal_best, index)
+            score_string(personal_best, index)
         )
     else:
         response.append('')
@@ -489,7 +533,7 @@ def legacy_scores_no_beatmap_data(
 
     for index, score in enumerate(top_scores):
         response.append(
-            utils.score_string(score, index)
+            score_string(score, index)
         )
 
     return Response('\n'.join(response))
@@ -528,7 +572,7 @@ def legacy_scores_no_personal_best(
 
     for score in top_scores:
         response.append(
-            utils.score_string_legacy(score)
+            score_string_legacy(score)
         )
 
     return Response('\n'.join(response))
@@ -571,7 +615,7 @@ def legacy_scores_status_change(
 
     for score in top_scores:
         response.append(
-            utils.score_string_legacy(score)
+            score_string_legacy(score)
         )
 
     return Response('\n'.join(response))
@@ -592,6 +636,6 @@ def legacy_scores_no_status(
     )
 
     return Response('\n'.join([
-        utils.score_string_legacy(score, seperator=':')
+        score_string_legacy(score, seperator=':')
         for score in top_scores
     ]))

@@ -9,6 +9,7 @@ from fastapi import (
     Form
 )
 
+from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
@@ -45,6 +46,19 @@ import app
 
 router = APIRouter()
 
+def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> str | None:
+    if not b64:
+        return
+
+    rjn = RijndaelCbc(
+        key=key,
+        iv=iv,
+        padding=Pkcs7Padding(32),
+        block_size=32
+    )
+
+    return rjn.decrypt(base64.b64decode(b64)).decode()
+
 async def parse_score_data(request: Request) -> Score:
     """Parse the score submission request and return a score object"""
     user_agent = request.headers.get('user-agent', 'osu!')
@@ -60,11 +74,6 @@ async def parse_score_data(request: Request) -> Score:
 
     if score_data := query.get('score'):
         # Legacy score was submitted
-        return await parse_legacy_score_data(
-            score_data,
-            query,
-            form
-        )
         return await parse_legacy_score_data(
             score_data,
             query,
@@ -110,10 +119,10 @@ async def parse_score_data(request: Request) -> Score:
         # Score data is encrypted
         try:
             iv = base64.b64decode(iv)
-            client_hash = utils.decrypt_string(client_hash, iv, decryption_key)
-            fun_spoiler = utils.decrypt_string(fun_spoiler, iv, decryption_key)
-            score_data = utils.decrypt_string(score_data, iv, decryption_key)
-            processes = utils.decrypt_string(processes, iv, decryption_key)
+            client_hash = decrypt_string(client_hash, iv, decryption_key)
+            fun_spoiler = decrypt_string(fun_spoiler, iv, decryption_key)
+            score_data = decrypt_string(score_data, iv, decryption_key)
+            processes = decrypt_string(processes, iv, decryption_key)
         except (UnicodeDecodeError, TypeError) as e:
             # Most likely an invalid score encryption key
             officer.call(

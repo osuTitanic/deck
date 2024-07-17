@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 from app.common.database.repositories import beatmapsets
-from app.common.database import DBUser, DBScore
 from app.common.helpers import analytics, ip
+from app.common.database import DBUser
 from app.common.cache import status
 
-from py3rijndael import RijndaelCbc, Pkcs7Padding
 from concurrent.futures import Future
 from pydub import AudioSegment
 from fastapi import Request
@@ -97,63 +96,6 @@ def setup():
 
         download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
         download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
-
-def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
-    return '|'.join([
-        str(score.id),
-        str(score.user.name),
-        str(score.total_score),
-        str(score.max_combo),
-        str(score.n50),
-        str(score.n100),
-        str(score.n300),
-        str(score.nMiss),
-        str(score.nKatu),
-        str(score.nGeki),
-        str(score.perfect),
-        str(score.mods),
-        str(score.user_id),
-        str(index),
-        # This was changed to a unix timestamp in request version 2
-        (
-            str(score.submitted_at) if request_version <= 1 else
-            str(round(score.submitted_at.timestamp()))
-        ),
-        # "Has Replay", added in request version 4
-        str(1)
-    ])
-
-def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
-    return seperator.join([
-        str(score.id),
-        str(score.user.name),
-        str(score.total_score),
-        str(score.max_combo),
-        str(score.n50),
-        str(score.n100),
-        str(score.n300),
-        str(score.nMiss),
-        str(score.nKatu),
-        str(score.nGeki),
-        str(score.perfect),
-        str(score.mods),
-        str(score.user_id),
-        str(score.user_id), # Avatar Filename
-        str(score.submitted_at)
-    ])
-
-def decrypt_string(b64: str | None, iv: bytes, key: str = config.SCORE_SUBMISSION_KEY) -> str | None:
-    if not b64:
-        return
-
-    rjn = RijndaelCbc(
-        key=key,
-        iv=iv,
-        padding=Pkcs7Padding(32),
-        block_size=32
-    )
-
-    return rjn.decrypt(base64.b64decode(b64)).decode()
 
 def has_jpeg_headers(data_view: memoryview) -> bool:
     return (
