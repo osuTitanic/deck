@@ -139,18 +139,17 @@ def get_scores(
             if ranking_type == RankingType.Friends:
                 score_count += 1
 
-    if (request_version > 2):
-        # NOTE: In request version 3, the submission status is changed
-        #       Qualified: 4
-        #       Ranked: 2
-
+    if request_version > 2:
+        # In request version 3, the submission status
+        # swapped the Qualified and Ranked status
         submission_status = {
             SubmissionStatus.Ranked: SubmissionStatus.Qualified,
             SubmissionStatus.Qualified: SubmissionStatus.Ranked
-        }.get(
-            submission_status,
-            submission_status
-        )
+        }.get(submission_status, submission_status)
+
+    if submission_status == SubmissionStatus.Loved and request_version < 4:
+        # Handle unsupported loved maps before version 4
+        submission_status = SubmissionStatus.Approved
 
     # Beatmap Info
     response.append(
