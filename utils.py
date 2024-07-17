@@ -307,15 +307,6 @@ def extract_audio_snippet(
     snippet.export(snippet_buffer, format='mp3', bitrate=bitrate)
     return snippet_buffer.getvalue()
 
-def parse_osu_config(config: str) -> Dict[str, str]:
-    return {
-        k.strip():v.strip()
-        for (k, v) in [
-            line.split('=', 1) for line in config.splitlines()
-            if '=' in line and not line.startswith('#')
-        ]
-    }
-
 def thread_callback(future: Future):
     if (e := future.exception()):
         app.session.database.logger.error(
