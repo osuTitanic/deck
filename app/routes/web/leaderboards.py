@@ -267,7 +267,7 @@ def legacy_scores(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
-    submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     response.append(str(submission_status.value))
     response.append(f'{beatmap.beatmapset.offset}')
@@ -363,7 +363,7 @@ def legacy_scores_no_ratings(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
-    submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     response.append(str(submission_status.value))
     response.append(f'{beatmap.beatmapset.offset}')
@@ -449,7 +449,7 @@ def legacy_scores_no_beatmap_data(
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     response = []
-    submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     # Status
     response.append(str(submission_status.value))
@@ -511,7 +511,7 @@ def legacy_scores_no_personal_best(
         return Response('1') # Update Available
 
     response = []
-    submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     # Status
     response.append(str(submission_status.value))
