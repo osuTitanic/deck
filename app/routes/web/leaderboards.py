@@ -12,6 +12,7 @@ from fastapi import (
 )
 
 from app.common.cache import status
+from app.common.database import DBBeatmapset
 from app.common.database.repositories import (
     relationships,
     beatmaps,
@@ -32,6 +33,17 @@ import utils
 import app
 
 router = APIRouter()
+
+def resolve_beatmapset(
+    beatmap_file: str,
+    beatmap_hash: str,
+    session: Session
+) -> DBBeatmapset | None:
+    if beatmap := beatmaps.fetch_by_file(beatmap_file, session):
+        return beatmap
+
+    if beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session):
+        return beatmap
 
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
@@ -75,10 +87,8 @@ def get_scores(
     # Update latest activity
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1|false') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1|false') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1|false') # Update Available
@@ -87,7 +97,6 @@ def get_scores(
         ranking_type = RankingType.Top
 
     response = []
-
     submission_status = SubmissionStatus.from_database(beatmap.status)
 
     # Fetch score count
@@ -255,10 +264,8 @@ def legacy_scores(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -341,10 +348,8 @@ def legacy_scores_no_ratings(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -427,10 +432,8 @@ def legacy_scores_no_beatmap_data(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -502,10 +505,8 @@ def legacy_scores_no_personal_best(
     skip_scores = skip_scores == '1'
     mode = GameMode.Osu
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
@@ -546,10 +547,8 @@ def legacy_scores_status_change(
     skip_scores = skip_scores == '1'
     mode = GameMode.Osu
 
-    if not (beatmap := beatmaps.fetch_by_file(beatmap_file, session)):
-        # Search for beatmap hash as backup
-        if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
-            return Response('-1') # Not Submitted
+    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
