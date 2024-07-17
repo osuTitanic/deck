@@ -30,16 +30,18 @@ REQUIRED_BUCKETS = [
     'osz2'
 ]
 
-def download(path: str, url: str):
-    if not os.path.isfile(path):
-        response = app.session.requests.get(url)
+def download_to_file(path: str, url: str):
+    if os.path.isfile(path):
+        return
 
-        if not response.ok:
-            app.session.logger.error(f'Failed to download file: {url}')
-            return
+    response = app.session.requests.get(url)
 
-        with open(path, 'wb') as f:
-            f.write(response.content)
+    if not response.ok:
+        app.session.logger.error(f'Failed to download file: {url}')
+        return
+
+    with open(path, 'wb') as f:
+        f.write(response.content)
 
 def download_to_s3(bucket: str, key: str, url: str):
     response = app.session.requests.get(url)
@@ -48,7 +50,11 @@ def download_to_s3(bucket: str, key: str, url: str):
         app.session.logger.error(f'Failed to download file to s3: {url}')
         return
 
-    return app.session.storage.save_to_s3(response.content, key, bucket)
+    return app.session.storage.save_to_s3(
+        response.content,
+        key,
+        bucket
+    )
 
 def setup():
     os.makedirs(f'{config.DATA_PATH}/logs', exist_ok=True)
@@ -56,33 +62,41 @@ def setup():
     if not config.S3_ENABLED:
         # Create required folders if not they not already exist
         for bucket in REQUIRED_BUCKETS:
-            os.makedirs(f'{config.DATA_PATH}/{bucket}', exist_ok=True)
+            os.makedirs(
+                f'{config.DATA_PATH}/{bucket}',
+                exist_ok=True
+            )
 
-        if not os.listdir(f'{config.DATA_PATH}/avatars'):
-            app.session.logger.info('Downloading avatars...')
+        if os.listdir(f'{config.DATA_PATH}/avatars'):
+            return
 
-            download(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
-            download(f'{config.DATA_PATH}/avatars/1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
-    else:
-        s3 = app.session.storage.s3
+        app.session.logger.info('Downloading default avatars...')
 
-        # Create required buckets if needed
-        buckets = [
-            bucket['Name'] for bucket in s3.list_buckets()['Buckets']
-        ]
+        download_to_file(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
+        download_to_file(f'{config.DATA_PATH}/avatars/1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
+        return
 
-        for bucket in REQUIRED_BUCKETS:
-            if bucket in buckets:
-                continue
+    s3 = app.session.storage.s3
 
-            app.session.logger.info(f'Creating bucket: "{bucket}"')
-            s3.create_bucket(Bucket=bucket)
+    # Create required buckets if needed
+    buckets = [
+        bucket['Name'] for bucket in s3.list_buckets()['Buckets']
+    ]
 
-            if bucket == 'avatars':
-                app.session.logger.info('Downloading avatars...')
+    for bucket in REQUIRED_BUCKETS:
+        if bucket in buckets:
+            continue
 
-                download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
-                download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
+        app.session.logger.info(f'Creating bucket: "{bucket}"')
+        s3.create_bucket(Bucket=bucket)
+
+        if bucket != 'avatars':
+            continue
+
+        app.session.logger.info('Downloading default avatars...')
+
+        download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
+        download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
 
 def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
     return '|'.join([
