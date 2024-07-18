@@ -182,13 +182,8 @@ def pickup_info(
         if not player.is_supporter:
             raise HTTPException(401)
 
-    if topic_id:
-        # TODO
-        raise HTTPException(404)
-
-    if post_id:
-        # TODO
-        raise HTTPException(404)
+    if set_id:
+        beatmapset = beatmapsets.fetch_one(set_id, session)
 
     if beatmap_id:
         beatmap = beatmaps.fetch_by_id(beatmap_id, session)
@@ -198,8 +193,11 @@ def pickup_info(
         beatmap = beatmaps.fetch_by_checksum(checksum, session)
         beatmapset = beatmap.beatmapset if beatmap else None
 
-    if set_id:
-        beatmapset = beatmapsets.fetch_one(set_id, session)
+    if post_id:
+        topic_id = posts.fetch_topic_id(post_id, session)
+
+    if topic_id:
+        beatmapset = beatmapsets.fetch_by_topic(topic_id, session)
 
     if not beatmapset:
         app.session.logger.warning("osu!direct pickup request failed: Not found")
