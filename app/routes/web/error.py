@@ -52,13 +52,13 @@ def osu_error(
     config = parse_osu_config(config)
 
     if not (user := users.fetch_by_id(user_id, session=session)):
-        raise HTTPException(401)
+        return Response(status_code=200)
 
     if not bcrypt.checkpw(config.get('Password', '').encode(), user.bcrypt.encode()):
-        raise HTTPException(401)
+        return Response(status_code=200)
 
     if user.restricted or not user.activated:
-        raise HTTPException(401)
+        return Response(status_code=200)
 
     flagged_skins = [
         'taikomania',
