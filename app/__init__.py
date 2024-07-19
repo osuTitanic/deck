@@ -33,6 +33,9 @@ if logging.getLogger('uvicorn.access').handlers:
     logging.getLogger('uvicorn.access').addHandler(File)
     logging.getLogger('uvicorn.error').addHandler(File)
 
+# Disable multipart warnings (https://github.com/osuAkatsuki/bancho.py/pull/674)
+logging.getLogger('multipart.multipart').setLevel(logging.ERROR)
+
 api = FastAPI(
     title='Deck',
     description='API for osu! clients',
