@@ -48,6 +48,14 @@ def osu_error(
     version: str = Form(...),
     config: str = Form(...)
 ):
+    ignored_feedback = [
+        'update error',
+        # TODO Add more
+    ]
+
+    if feedback in ignored_feedback:
+        return Response(status_code=200)
+
     # Parse config to get password
     config = parse_osu_config(config)
 
