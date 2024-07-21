@@ -156,49 +156,55 @@ def is_full_submit(set_id: int, osz2_hash: str) -> bool:
 
 def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
     """Delete any beatmaps with the '-3' status, that got never updated"""
-    inactive_sets = beatmapsets.fetch_inactive(
-        user.id,
-        session=session
-    )
-
-    app.session.logger.debug(
-        f'Found {len(inactive_sets)} inactive beatmapsets'
-    )
-
-    # Remove assets from storage
-    for set in inactive_sets:
-        app.session.storage.remove_osz2(set.id)
-        app.session.storage.remove_osz(set.id)
-        app.session.storage.remove_background(set.id)
-        app.session.storage.remove_mp3(set.id)
-
-        for beatmap in set.beatmaps:
-            app.session.storage.remove_beatmap_file(beatmap.id)
-
-    for set in inactive_sets:
-        # Delete all related data
-        beatmaps.delete_by_set_id(set.id, session=session)
-        ratings.delete_by_set_id(set.id, session=session)
-        plays.delete_by_set_id(set.id, session=session)
-        nominations.delete_all(set.id, session=session)
-        favourites.delete_all(set.id, session=session)
-
-    # Delete beatmapsets
-    beatmapsets.delete_inactive(
-        user.id,
-        session=session
-    )
-
-    # Hide beatmap topic
-    for set in inactive_sets:
-        topics.update(
-            set.topic_id,
-            {
-                'status_text': 'Deleted',
-                'hidden': True,
-                'locked_at': datetime.now()
-            },
+    try:
+        inactive_sets = beatmapsets.fetch_inactive(
+            user.id,
             session=session
+        )
+
+        app.session.logger.debug(
+            f'Found {len(inactive_sets)} inactive beatmapsets'
+        )
+
+        # Remove assets from storage
+        for set in inactive_sets:
+            app.session.storage.remove_osz2(set.id)
+            app.session.storage.remove_osz(set.id)
+            app.session.storage.remove_background(set.id)
+            app.session.storage.remove_mp3(set.id)
+
+            for beatmap in set.beatmaps:
+                app.session.storage.remove_beatmap_file(beatmap.id)
+
+        for set in inactive_sets:
+            # Delete all related data
+            beatmaps.delete_by_set_id(set.id, session=session)
+            ratings.delete_by_set_id(set.id, session=session)
+            plays.delete_by_set_id(set.id, session=session)
+            nominations.delete_all(set.id, session=session)
+            favourites.delete_all(set.id, session=session)
+
+        # Delete beatmapsets
+        beatmapsets.delete_inactive(
+            user.id,
+            session=session
+        )
+
+        # Hide beatmap topic
+        for set in inactive_sets:
+            topics.update(
+                set.topic_id,
+                {
+                    'status_text': 'Deleted',
+                    'hidden': True,
+                    'locked_at': datetime.now()
+                },
+                session=session
+            )
+    except Exception as e:
+        app.session.logger.error(
+            f'Failed to delete inactive beatmaps: "{e}"',
+            exc_info=True
         )
 
 def remaining_beatmap_uploads(user: DBUser, session: Session) -> int:
