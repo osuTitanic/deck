@@ -1,5 +1,6 @@
 
 from __future__ import annotations
+from typing import Callable
 
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -7,11 +8,12 @@ from fastapi import (
     HTTPException,
     APIRouter,
     Response,
+    Request,
     Depends,
     Query
 )
 
-from app.common.database import DBBeatmapset, DBScore
+from app.common.database import DBBeatmapset, DBScore, DBUser
 from app.common.database.repositories import (
     relationships,
     beatmaps,
@@ -29,7 +31,6 @@ from app.common.constants import (
 
 import config
 import bcrypt
-import utils
 import app
 
 router = APIRouter()
@@ -44,6 +45,45 @@ def resolve_beatmapset(
 
     if beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session):
         return beatmap
+
+def resolve_player(
+    username: str | None,
+    user_id: int | None,
+    password: str | None,
+    session: Session
+) -> DBUser | None:
+    if user_id:
+        user = users.fetch_by_id(
+            user_id,
+            session
+        )
+
+        if not user:
+            raise HTTPException(401)
+
+        return user
+
+    if not username or not password:
+        raise HTTPException(401)
+
+    user = users.fetch_by_name(
+        username,
+        session
+    )
+
+    if not user:
+        raise HTTPException(401)
+
+    if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
+        raise HTTPException(401)
+
+    return user
+
+def integer_boolean(parameter: str) -> Callable:
+    async def wrapper(request: Request) -> bool:
+        query = request.query_params.get(parameter, '0')
+        return query == '1'
+    return wrapper
 
 def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
     return '|'.join([
@@ -92,44 +132,34 @@ def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
 @router.get('/osu-osz2-getscores.php')
 def get_scores(
     session: Session = Depends(app.session.database.yield_session),
+    skip_scores: bool = Depends(integer_boolean('s')),
+    ranking_type: RankingType | None = Query(1, alias='v'),
     request_version: int | None = Query(1, alias='vv'),
     username: str | None = Query(None, alias='us'),
     password: str | None = Query(None, alias='ha'),
-    ranking_type: int | None = Query(1, alias='v'),
     user_id: int | None = Query(None, alias='u'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    skip_scores: str = Query(..., alias='s'),
+    mode: GameMode = Query(..., alias='m'),
     osz_hash: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='i'),
-    mode: int = Query(..., alias='m'),
     mods: int | None = Query(0),
 ):
-    try:
-        ranking_type = RankingType(ranking_type)
-        skip_scores = skip_scores == '1'
-        mode = GameMode(mode)
-    except ValueError:
-        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
-
-    if username:
-        if not (player := users.fetch_by_name(username, session)):
-            raise HTTPException(401)
-
-        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
-            raise HTTPException(401)
-    else:
-        if not user_id:
-            raise HTTPException(401)
-
-        if not (player := users.fetch_by_id(user_id, session=session)):
-            raise HTTPException(401)
+    player = resolve_player(
+        username,
+        user_id,
+        password,
+        session=session
+    )
 
     if not status.exists(player.id):
         raise HTTPException(401)
 
-    # Update latest activity
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()},
+        session=session
+    )
 
     if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1|false') # Not Submitted
@@ -218,9 +248,7 @@ def get_scores(
 
     # NOTE: This was actually used for user ratings, but
     #       we are using the new star ratings instead.
-    response.append(str(
-        beatmap.diff
-    ))
+    response.append(f'{beatmap.diff}')
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
@@ -279,9 +307,6 @@ def get_scores(
             session=session
         )
 
-    else:
-        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
-
     for index, score in enumerate(top_scores):
         response.append(
             score_string(score, index, request_version)
@@ -292,18 +317,12 @@ def get_scores(
 @router.get('/osu-getscores6.php')
 def legacy_scores(
     session: Session = Depends(app.session.database.yield_session),
+    skip_scores: bool = Depends(integer_boolean('s')),
+    mode: GameMode = Query(GameMode.Osu, alias='m'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    skip_scores: str = Query(..., alias='s'),
-    player_id: int = Query(..., alias='u'),
-    mode: int = Query(0, alias='m')
+    player_id: int = Query(..., alias='u')
 ):
-    try:
-        skip_scores = skip_scores == '1'
-        mode = GameMode(mode)
-    except ValueError:
-        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
-
     if not status.exists(player_id):
         raise HTTPException(401)
 
@@ -316,13 +335,16 @@ def legacy_scores(
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
-    # Update latest activity
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()},
+        session=session
+    )
 
     response = []
     submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
-    response.append(str(submission_status.value))
+    response.append(f'{submission_status.value}')
     response.append(f'{beatmap.beatmapset.offset}')
 
     # Title (Example: https://i.imgur.com/BofeZ2z.png)
@@ -330,9 +352,7 @@ def legacy_scores(
 
     # NOTE: This was actually used for user ratings, but
     #       we are using the new star ratings instead
-    response.append(str(
-        beatmap.diff
-    ))
+    response.append(f'{beatmap.diff}')
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
@@ -375,18 +395,12 @@ def legacy_scores(
 @router.get('/osu-getscores5.php')
 def legacy_scores_no_ratings(
     session: Session = Depends(app.session.database.yield_session),
+    skip_scores: bool = Depends(integer_boolean('s')),
+    mode: GameMode = Query(GameMode.Osu, alias='m'),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    skip_scores: str = Query(..., alias='s'),
-    player_id: int = Query(..., alias='u'),
-    mode: int = Query(0, alias='m')
+    player_id: int = Query(..., alias='u')
 ):
-    try:
-        skip_scores = skip_scores == '1'
-        mode = GameMode(mode)
-    except ValueError:
-        raise HTTPException(400, 'https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
-
     if not status.exists(player_id):
         raise HTTPException(401)
 
@@ -409,13 +423,16 @@ def legacy_scores_no_ratings(
             mode=mode.value
         )
 
-    # Update latest activity
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()},
+        session=session
+    )
 
     response = []
     submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
-    response.append(str(submission_status.value))
+    response.append(f'{submission_status.value}')
     response.append(f'{beatmap.beatmapset.offset}')
 
     # Title (Example: https://i.imgur.com/BofeZ2z.png)
@@ -462,14 +479,11 @@ def legacy_scores_no_ratings(
 @router.get('/osu-getscores4.php')
 def legacy_scores_no_beatmap_data(
     session: Session = Depends(app.session.database.yield_session),
+    skip_scores: bool = Depends(integer_boolean('s')),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
-    skip_scores: str = Query(..., alias='s'),
     player_id: int = Query(..., alias='u')
 ):
-    skip_scores = skip_scores == '1'
-    mode = GameMode.Osu
-
     if not status.exists(player_id):
         raise HTTPException(401)
 
@@ -483,6 +497,7 @@ def legacy_scores_no_beatmap_data(
         return Response('1') # Update Available
 
     user_status = status.get(player.id)
+    mode = GameMode.Osu
 
     if user_status.mode != mode:
         # Assign new mode to player
@@ -492,14 +507,17 @@ def legacy_scores_no_beatmap_data(
             mode=mode.value
         )
 
-    # Update latest activity
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()},
+        session=session
+    )
 
     response = []
     submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     # Status
-    response.append(str(submission_status.value))
+    response.append(f'{submission_status.value}')
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
@@ -542,13 +560,10 @@ def legacy_scores_no_beatmap_data(
 @router.get('/osu-getscores3.php')
 def legacy_scores_no_personal_best(
     session: Session = Depends(app.session.database.yield_session),
+    skip_scores: bool = Depends(integer_boolean('s')),
     beatmap_hash: str = Query(..., alias='c'),
-    beatmap_file: str = Query(..., alias='f'),
-    skip_scores: str = Query(..., alias='s')
+    beatmap_file: str = Query(..., alias='f')
 ):
-    skip_scores = skip_scores == '1'
-    mode = GameMode.Osu
-
     if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1') # Not Submitted
 
@@ -559,14 +574,14 @@ def legacy_scores_no_personal_best(
     submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
     # Status
-    response.append(str(submission_status.value))
+    response.append(f'{submission_status.value}')
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
     top_scores = scores.fetch_range_scores(
         beatmap.id,
-        mode=mode.value,
+        mode=GameMode.Osu.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
     )
@@ -581,15 +596,12 @@ def legacy_scores_no_personal_best(
 @router.get('/osu-getscores2.php')
 def legacy_scores_status_change(
     session: Session = Depends(app.session.database.yield_session),
+    skip_scores: bool = Depends(integer_boolean('s')),
     beatmap_hash: str = Query(..., alias='c'),
-    beatmap_file: str = Query(..., alias='f'),
-    skip_scores: str | None = Query(None, alias='s')
+    beatmap_file: str = Query(..., alias='f')
 ):
     # TODO: /osu-getscores2.php response format is different in some versions
     #       One method would be to check the client version over the cache
-
-    skip_scores = skip_scores == '1'
-    mode = GameMode.Osu
 
     if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1') # Not Submitted
@@ -602,14 +614,14 @@ def legacy_scores_status_change(
 
     # Status
     if submission_status <= SubmissionStatus.Unknown:
-        response.append(str(submission_status.value))
+        response.append(f'{submission_status.value}')
 
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
     top_scores = scores.fetch_range_scores(
         beatmap.id,
-        mode=mode.value,
+        mode=GameMode.Osu.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
     )
