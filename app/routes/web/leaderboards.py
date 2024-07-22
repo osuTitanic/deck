@@ -140,20 +140,26 @@ def get_scores(
     if not ranking_type:
         ranking_type = RankingType.Top
 
-    response = []
-    submission_status = SubmissionStatus.from_database(beatmap.status)
+    submission_status = SubmissionStatus.from_database(
+        beatmap.status,
+        request_version
+    )
+
+    # TODO: has_osz is used to check if the osz file is still up to date
+    #       However, we would have to implement a few more endpoints to
+    #       make this work properly.
+    has_osz = False
 
     # Fetch score count
     personal_best = None
     score_count = 0
     friends = None
 
-    # TODO: has_osz is used to check if the osz file is still up to date
-    # But I think this is unused though...
-    has_osz = False
-
     if ranking_type == RankingType.Friends:
-        friends = relationships.fetch_target_ids(player.id, session)
+        friends = relationships.fetch_target_ids(
+            player.id,
+            session=session
+        )
 
     if beatmap.is_ranked:
         personal_best = scores.fetch_personal_best(
@@ -183,17 +189,15 @@ def get_scores(
             if ranking_type == RankingType.Friends:
                 score_count += 1
 
+    # NOTE: In request version 3, the submission status
+    #       swapped the Qualified and Ranked status
     if request_version > 2:
-        # In request version 3, the submission status
-        # swapped the Qualified and Ranked status
         submission_status = {
             SubmissionStatus.Ranked: SubmissionStatus.Qualified,
             SubmissionStatus.Qualified: SubmissionStatus.Ranked
         }.get(submission_status, submission_status)
 
-    if submission_status == SubmissionStatus.Loved and request_version < 4:
-        # Handle unsupported loved maps before version 4
-        submission_status = SubmissionStatus.Approved
+    response = []
 
     # Beatmap Info
     response.append(
@@ -209,12 +213,11 @@ def get_scores(
     # Global offset
     response.append(f'{beatmap.beatmapset.offset}')
 
-    # Title
-    # Example: https://i.imgur.com/BofeZ2z.png
+    # Title (Example: https://i.imgur.com/BofeZ2z.png)
     response.append(beatmap.beatmapset.display_title)
 
     # NOTE: This was actually used for user ratings, but
-    #       we are using the new star ratings instead
+    #       we are using the new star ratings instead.
     response.append(str(
         beatmap.diff
     ))
@@ -322,8 +325,7 @@ def legacy_scores(
     response.append(str(submission_status.value))
     response.append(f'{beatmap.beatmapset.offset}')
 
-    # Title
-    # Example: https://i.imgur.com/BofeZ2z.png
+    # Title (Example: https://i.imgur.com/BofeZ2z.png)
     response.append(beatmap.beatmapset.display_title)
 
     # NOTE: This was actually used for user ratings, but
@@ -416,8 +418,7 @@ def legacy_scores_no_ratings(
     response.append(str(submission_status.value))
     response.append(f'{beatmap.beatmapset.offset}')
 
-    # Title
-    # Example: https://i.imgur.com/BofeZ2z.png
+    # Title (Example: https://i.imgur.com/BofeZ2z.png)
     response.append(beatmap.beatmapset.display_title)
 
     if skip_scores or not beatmap.is_ranked:
