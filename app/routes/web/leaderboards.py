@@ -55,7 +55,7 @@ def resolve_player(
     if user_id:
         user = users.fetch_by_id(
             user_id,
-            session
+            session=session
         )
 
         if not user:
@@ -68,7 +68,7 @@ def resolve_player(
 
     user = users.fetch_by_name(
         username,
-        session
+        session=session
     )
 
     if not user:
