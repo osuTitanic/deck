@@ -364,7 +364,32 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
         session=session
     )
 
-def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dict, beatmap_data: dict, session: Session) -> None:
+def resolve_beatmap_id(
+    beatmap_ids: List[int],
+    beatmap_data: dict,
+    filename: str,
+    session: Session
+) -> int:
+    beatmap = beatmap_data[filename]
+
+    # Newer .osu version have the beatmap id in the metadata
+    if (beatmap_id := beatmap.get('onlineID')):
+        return beatmap_id
+
+    # Try to get the beatmap id from the filename
+    if beatmap := beatmaps.fetch_by_file(filename, session):
+        beatmap_ids.remove(beatmap.id)
+        return beatmap.id
+
+    return beatmap_ids.pop(0)
+
+def update_beatmap_metadata(
+    beatmapset: DBBeatmapset,
+    files: dict,
+    metadata: dict,
+    beatmap_data: dict,
+    session: Session
+) -> None:
     app.session.logger.debug(f'Updating beatmap metadata...')
 
     file_extensions = [
@@ -404,10 +429,15 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
         session=session
     )
 
-    beatmap_ids = [
+    beatmap_ids = sorted([
         beatmap.id
         for beatmap in beatmapset.beatmaps
-    ]
+    ])
+
+    assert (
+        len(beatmap_ids) == len(beatmap_data),
+        f'Amount of beatmaps do not match: {len(beatmap_ids)} != {len(beatmap_data)}'
+    )
 
     for filename, beatmap in beatmap_data.items():
         difficulty_attributes = performance.calculate_difficulty(
@@ -415,11 +445,18 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
             beatmap['ruleset']['onlineID']
         )
 
+        beatmap_id = resolve_beatmap_id(
+            beatmap_ids,
+            beatmap_data,
+            filename,
+            session=session
+        )
+
         assert difficulty_attributes is not None
-        assert beatmap['onlineID'] in beatmap_ids
+        assert beatmap_id is not None
 
         beatmaps.update(
-            beatmap['onlineID'],
+            beatmap_id,
             {
                 'status': status,
                 'filename': filename,
