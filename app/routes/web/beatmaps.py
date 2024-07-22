@@ -179,16 +179,11 @@ def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
     for set in inactive_sets:
         # Delete all related data
         beatmaps.delete_by_set_id(set.id, session=session)
+        modding.delete_by_set_id(set.id, session=session)
         ratings.delete_by_set_id(set.id, session=session)
         plays.delete_by_set_id(set.id, session=session)
         nominations.delete_all(set.id, session=session)
         favourites.delete_all(set.id, session=session)
-
-        if set.topic_id:
-            modding.delete_by_topic_id(
-                set.topic_id,
-                session=session
-            )
 
     # Delete beatmapsets
     beatmapsets.delete_inactive(
