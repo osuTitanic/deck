@@ -373,7 +373,8 @@ def resolve_beatmap_id(
     beatmap = beatmap_data[filename]
 
     # Newer .osu version have the beatmap id in the metadata
-    if (beatmap_id := beatmap.get('onlineID')):
+    if beatmap_id := beatmap.get('onlineID'):
+        assert beatmap_id in beatmap_ids
         return beatmap_id
 
     # Try to get the beatmap id from the filename
