@@ -30,7 +30,7 @@ from app.common.constants import (
 )
 
 import config
-import bcrypt
+import utils
 import app
 
 router = APIRouter()
@@ -74,7 +74,7 @@ def resolve_player(
     if not user:
         raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
+    if not utils.check_password(password, user.bcrypt):
         raise HTTPException(401)
 
     return user

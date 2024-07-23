@@ -8,10 +8,12 @@ from app.common.cache import status
 
 from concurrent.futures import Future
 from pydub import AudioSegment
+from functools import cache
 from fastapi import Request
 from PIL import Image
 
 import config
+import bcrypt
 import app
 import io
 import os
@@ -262,4 +264,11 @@ def track(
             'name': user.name,
             'country': user.country
         }
+    )
+
+@cache
+def check_password(password: str, bcrypt_hash: str) -> bool:
+    return bcrypt.checkpw(
+        password.encode(),
+        bcrypt_hash.encode()
     )

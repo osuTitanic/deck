@@ -12,7 +12,6 @@ from fastapi import (
     Request
 )
 
-import bcrypt
 import app
 
 router = APIRouter()

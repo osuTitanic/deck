@@ -41,7 +41,6 @@ from fastapi import (
 
 import hashlib
 import base64
-import bcrypt
 import config
 import utils
 import app
@@ -82,7 +81,7 @@ def authenticate_user(
         app.session.logger.warning(f'Failed to authenticate user: User not found')
         return error_response(5, 'Authentication failed. Please check your login credentials.'), None
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to authenticate user: Invalid password')
         return error_response(5, 'Authentication failed. Please check your login credentials.'), None
 

@@ -39,7 +39,6 @@ from app.common.database.repositories import (
 import hashlib
 import base64
 import config
-import bcrypt
 import utils
 import lzma
 import app
@@ -831,7 +830,7 @@ def score_submission(
         app.session.logger.warning(f'Failed to submit score: Invalid User')
         return Response('error: nouser')
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to submit score: Invalid Password')
         return Response('error: pass')
 
@@ -1029,7 +1028,7 @@ def legacy_score_submission(
         app.session.logger.warning(f'Failed to submit score: Invalid User')
         raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to submit score: Invalid Password')
         raise HTTPException(401)
 

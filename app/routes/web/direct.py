@@ -20,7 +20,6 @@ from app.common.database.repositories import (
     posts
 )
 
-import bcrypt
 import utils
 import app
 
@@ -89,7 +88,7 @@ def search(
         if not (player := users.fetch_by_name(username, session=session)):
             return '-1\nFailed to authenticate user'
 
-        if not bcrypt.checkpw((password or legacy_password).encode(), player.bcrypt.encode()):
+        if not utils.check_password(password or legacy_password, player.bcrypt):
             return '-1\nFailed to authenticate user'
 
         if not status.exists(player.id):
@@ -176,7 +175,7 @@ def pickup_info(
         if not (player := users.fetch_by_name(username, session=session)):
             raise HTTPException(401)
 
-        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        if not utils.check_password(password, player.bcrypt):
             raise HTTPException(401)
 
         if not player.is_supporter:

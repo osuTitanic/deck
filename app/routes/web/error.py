@@ -16,7 +16,7 @@ from fastapi import (
 
 router = APIRouter()
 
-import bcrypt
+import utils
 import json
 import app
 
@@ -62,7 +62,7 @@ def osu_error(
     if not (user := users.fetch_by_id(user_id, session=session)):
         return Response(status_code=200)
 
-    if not bcrypt.checkpw(config.get('Password', '').encode(), user.bcrypt.encode()):
+    if not utils.check_password(config.get('Password', ''), user.bcrypt):
         return Response(status_code=200)
 
     if user.restricted or not user.activated:

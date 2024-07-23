@@ -1,12 +1,12 @@
 
-from fastapi import HTTPException, APIRouter, Request, Query
 from app.common.database.repositories import users
 from app.common.helpers import location, ip
 from app.common.constants import regexes
+from fastapi import APIRouter, Request, Query
 from datetime import datetime
 
-import bcrypt
 import config
+import utils
 import app
 
 router = APIRouter()
@@ -32,7 +32,7 @@ def connect(
     if not (player := users.fetch_by_name(username)):
         return ""
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         return ""
 
     users.update(

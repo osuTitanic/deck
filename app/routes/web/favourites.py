@@ -17,7 +17,6 @@ from fastapi import (
     Query
 )
 
-import bcrypt
 import utils
 import app
 
@@ -34,7 +33,7 @@ def add_favourite(
     if not (player := users.fetch_by_name(username, session)):
         raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         raise HTTPException(401)
 
     if not status.exists(player.id):
@@ -83,7 +82,7 @@ def get_favourites(
     if not (player := users.fetch_by_name(username, session)):
         raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         raise HTTPException(401)
 
     users.update(player.id, {'latest_activity': datetime.now()}, session)
