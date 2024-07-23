@@ -373,7 +373,7 @@ def resolve_beatmap_id(
     beatmap = beatmap_data[filename]
 
     # Newer .osu version have the beatmap id in the metadata
-    if beatmap_id := beatmap.get('onlineID'):
+    if (beatmap_id := beatmap.get('onlineID', -1)) != -1:
         assert beatmap_id in beatmap_ids
         return beatmap_id
 
@@ -435,10 +435,7 @@ def update_beatmap_metadata(
         for beatmap in beatmapset.beatmaps
     ])
 
-    assert (
-        len(beatmap_ids) == len(beatmap_data),
-        f'Amount of beatmaps do not match: {len(beatmap_ids)} != {len(beatmap_data)}'
-    )
+    assert len(beatmap_ids) == len(beatmap_data)
 
     for filename, beatmap in beatmap_data.items():
         difficulty_attributes = performance.calculate_difficulty(
