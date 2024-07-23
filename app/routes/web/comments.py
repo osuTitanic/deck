@@ -24,7 +24,6 @@ from app.common.cache import status
 
 router = APIRouter()
 
-import bcrypt
 import utils
 import app
 
@@ -48,7 +47,7 @@ def get_comments(
         app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
 
-    if not bcrypt.checkpw(password.encode(), user.bcrypt.encode()):
+    if not utils.check_password(password, user.bcrypt):
         app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
 

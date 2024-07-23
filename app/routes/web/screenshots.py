@@ -16,7 +16,6 @@ from fastapi import (
     Query
 )
 
-import bcrypt
 import utils
 import app
 
@@ -52,7 +51,7 @@ def screenshot(
     if not (player := users.fetch_by_name(username, session)):
         raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         raise HTTPException(401)
 
     if not status.exists(player.id):

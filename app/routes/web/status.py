@@ -42,7 +42,7 @@ def get_beatmaps(
             str(status),
             str(beatmap.id),
             str(beatmap.set_id),
-            "" # beatmap.topic_id
+            str(beatmap.beatmapset.topic_id or "")
         ]))
 
     return Response('\n'.join(response))

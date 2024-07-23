@@ -16,24 +16,27 @@ from app.common.constants import DisplayMode
 from app.common.database.repositories import (
     beatmapsets,
     beatmaps,
-    users
+    users,
+    posts
 )
 
-import bcrypt
 import utils
 import app
 
 router = APIRouter()
 
-def online_beatmap(set: DBBeatmapset) -> str:
-    ratings = [r.rating for r in set.ratings]
-    avg_rating = (
-        sum(ratings) / len(ratings)
-        if ratings else 0
-    )
-
+def online_beatmap(set: DBBeatmapset, post_id: int) -> str:
     versions = ",".join(
         [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
+    )
+
+    ratings = [
+        r.rating for r in set.ratings
+    ]
+
+    average_rating = (
+        sum(ratings) / len(ratings)
+        if ratings else 0
     )
 
     status = {
@@ -52,16 +55,16 @@ def online_beatmap(set: DBBeatmapset) -> str:
         set.title   if set.title else "",
         set.creator if set.creator else "",
         status,
-        str(avg_rating),
+        str(average_rating),
         str(set.last_update),
         str(set.id),
-        str(set.id), # TODO: threadId
+        str(set.topic_id or 0),
         str(int(set.has_video)),
         str(int(set.has_storyboard)),
         str(set.osz_filesize),
         str(set.osz_filesize_novideo),
         versions,
-        str(set.id), # TODO: postId
+        str(post_id or 0),
     ])
 
 @router.get('/osu-search.php')
@@ -85,7 +88,7 @@ def search(
         if not (player := users.fetch_by_name(username, session=session)):
             return '-1\nFailed to authenticate user'
 
-        if not bcrypt.checkpw((password or legacy_password).encode(), player.bcrypt.encode()):
+        if not utils.check_password(password or legacy_password, player.bcrypt):
             return '-1\nFailed to authenticate user'
 
         if not status.exists(player.id):
@@ -131,7 +134,8 @@ def search(
             ))
 
         for set in results:
-            response.append(online_beatmap(set))
+            post_id = posts.fetch_initial_post_id(set.topic_id, session)
+            response.append(online_beatmap(set, post_id))
     except Exception as e:
         app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
         return "-1\nServer error. Please try again!"
@@ -171,19 +175,14 @@ def pickup_info(
         if not (player := users.fetch_by_name(username, session=session)):
             raise HTTPException(401)
 
-        if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+        if not utils.check_password(password, player.bcrypt):
             raise HTTPException(401)
 
         if not player.is_supporter:
             raise HTTPException(401)
 
-    if topic_id:
-        # TODO
-        raise HTTPException(404)
-
-    if post_id:
-        # TODO
-        raise HTTPException(404)
+    if set_id:
+        beatmapset = beatmapsets.fetch_one(set_id, session)
 
     if beatmap_id:
         beatmap = beatmaps.fetch_by_id(beatmap_id, session)
@@ -193,8 +192,11 @@ def pickup_info(
         beatmap = beatmaps.fetch_by_checksum(checksum, session)
         beatmapset = beatmap.beatmapset if beatmap else None
 
-    if set_id:
-        beatmapset = beatmapsets.fetch_one(set_id, session)
+    if post_id:
+        topic_id = posts.fetch_topic_id(post_id, session)
+
+    if topic_id:
+        beatmapset = beatmapsets.fetch_by_topic(topic_id, session)
 
     if not beatmapset:
         app.session.logger.warning("osu!direct pickup request failed: Not found")
@@ -221,4 +223,7 @@ def pickup_info(
         }
     )
 
-    return online_beatmap(beatmapset)
+    return online_beatmap(
+        beatmapset,
+        posts.fetch_initial_post_id(beatmapset.topic_id, session)
+    )

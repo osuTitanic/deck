@@ -19,6 +19,7 @@ from app.common.database import (
     beatmapsets,
     favourites,
     beatmaps,
+    modding,
     ratings,
     topics,
     groups,
@@ -40,7 +41,6 @@ from fastapi import (
 
 import hashlib
 import base64
-import bcrypt
 import config
 import utils
 import app
@@ -81,7 +81,7 @@ def authenticate_user(
         app.session.logger.warning(f'Failed to authenticate user: User not found')
         return error_response(5, 'Authentication failed. Please check your login credentials.'), None
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to authenticate user: Invalid password')
         return error_response(5, 'Authentication failed. Please check your login credentials.'), None
 
@@ -177,11 +177,12 @@ def delete_inactive_beatmaps(user: DBUser, session: Session = ...) -> None:
 
     for set in inactive_sets:
         # Delete all related data
-        beatmaps.delete_by_set_id(set.id, session=session)
+        modding.delete_by_set_id(set.id, session=session)
         ratings.delete_by_set_id(set.id, session=session)
         plays.delete_by_set_id(set.id, session=session)
         nominations.delete_all(set.id, session=session)
         favourites.delete_all(set.id, session=session)
+        beatmaps.delete_by_set_id(set.id, session=session)
 
     # Delete beatmapsets
     beatmapsets.delete_inactive(
@@ -362,7 +363,33 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
         session=session
     )
 
-def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dict, beatmap_data: dict, session: Session) -> None:
+def resolve_beatmap_id(
+    beatmap_ids: List[int],
+    beatmap_data: dict,
+    filename: str,
+    session: Session
+) -> int:
+    beatmap = beatmap_data[filename]
+
+    # Newer .osu version have the beatmap id in the metadata
+    if (beatmap_id := beatmap.get('onlineID', -1)) != -1:
+        assert beatmap_id in beatmap_ids
+        return beatmap_id
+
+    # Try to get the beatmap id from the filename
+    if beatmap := beatmaps.fetch_by_file(filename, session):
+        beatmap_ids.remove(beatmap.id)
+        return beatmap.id
+
+    return beatmap_ids.pop(0)
+
+def update_beatmap_metadata(
+    beatmapset: DBBeatmapset,
+    files: dict,
+    metadata: dict,
+    beatmap_data: dict,
+    session: Session
+) -> None:
     app.session.logger.debug(f'Updating beatmap metadata...')
 
     file_extensions = [
@@ -402,10 +429,12 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
         session=session
     )
 
-    beatmap_ids = [
+    beatmap_ids = sorted([
         beatmap.id
         for beatmap in beatmapset.beatmaps
-    ]
+    ])
+
+    assert len(beatmap_ids) == len(beatmap_data)
 
     for filename, beatmap in beatmap_data.items():
         difficulty_attributes = performance.calculate_difficulty(
@@ -413,11 +442,18 @@ def update_beatmap_metadata(beatmapset: DBBeatmapset, files: dict, metadata: dic
             beatmap['ruleset']['onlineID']
         )
 
+        beatmap_id = resolve_beatmap_id(
+            beatmap_ids,
+            beatmap_data,
+            filename,
+            session=session
+        )
+
         assert difficulty_attributes is not None
-        assert beatmap['onlineID'] in beatmap_ids
+        assert beatmap_id is not None
 
         beatmaps.update(
-            beatmap['onlineID'],
+            beatmap_id,
             {
                 'status': status,
                 'filename': filename,

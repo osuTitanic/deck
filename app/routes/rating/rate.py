@@ -19,7 +19,6 @@ from app.common.database.repositories import (
     users
 )
 
-import bcrypt
 import utils
 import app
 
@@ -38,7 +37,7 @@ def ingame_rate(
     if not (player := users.fetch_by_name(username, session)):
         return Response('auth fail')
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         return Response('auth fail')
 
     if not status.exists(player.id):

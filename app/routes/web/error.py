@@ -16,7 +16,7 @@ from fastapi import (
 
 router = APIRouter()
 
-import bcrypt
+import utils
 import json
 import app
 
@@ -48,17 +48,25 @@ def osu_error(
     version: str = Form(...),
     config: str = Form(...)
 ):
+    ignored_feedback = [
+        'update error',
+        # TODO Add more
+    ]
+
+    if feedback in ignored_feedback:
+        return Response(status_code=200)
+
     # Parse config to get password
     config = parse_osu_config(config)
 
     if not (user := users.fetch_by_id(user_id, session=session)):
-        raise HTTPException(401)
+        return Response(status_code=200)
 
-    if not bcrypt.checkpw(config.get('Password', '').encode(), user.bcrypt.encode()):
-        raise HTTPException(401)
+    if not utils.check_password(config.get('Password', ''), user.bcrypt):
+        return Response(status_code=200)
 
     if user.restricted or not user.activated:
-        raise HTTPException(401)
+        return Response(status_code=200)
 
     flagged_skins = [
         'taikomania',

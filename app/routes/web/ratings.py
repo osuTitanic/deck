@@ -20,7 +20,6 @@ from app.common.database.repositories import (
 
 router = APIRouter()
 
-import bcrypt
 import utils
 import app
 
@@ -36,7 +35,7 @@ def rate(
     if not (player := users.fetch_by_name(username, session)):
         return Response('auth fail')
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         return Response('auth fail')
 
     if not status.exists(player.id):

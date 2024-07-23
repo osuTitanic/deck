@@ -17,7 +17,7 @@ from app.common.database.repositories import (
 
 router = APIRouter()
 
-import bcrypt
+import utils
 import app
 
 def calculate_grade(smoothness: float) -> str:
@@ -42,7 +42,7 @@ def benchmark(
         app.session.logger.warning(f'Failed to submit score: Invalid User')
         raise HTTPException(401)
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to submit score: Invalid Password')
         raise HTTPException(401)
 

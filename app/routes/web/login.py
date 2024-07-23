@@ -9,7 +9,7 @@ from fastapi import (
     Query
 )
 
-import bcrypt
+import utils
 import app
 
 router = APIRouter()
@@ -23,7 +23,7 @@ def legacy_login(
     if not (player := users.fetch_by_name(username)):
         return "0"
 
-    if not bcrypt.checkpw(password.encode(), player.bcrypt.encode()):
+    if not utils.check_password(password, player.bcrypt):
         return "0"
 
     if player.restricted or not player.activated:
