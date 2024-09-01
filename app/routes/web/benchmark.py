@@ -37,6 +37,7 @@ def benchmark(
     framerate: int = Form(..., alias='f', le=1_000_000),
     raw_score: int = Form(..., alias='r', le=1_000_000_000),
     client: str = Form(..., alias='c')
+    hardware: str = Form(..., alias='h')
 ):
     if not (player := users.fetch_by_name(username, session)):
         app.session.logger.warning(f'Failed to submit score: Invalid User')
@@ -67,6 +68,7 @@ def benchmark(
         score=raw_score,
         grade=calculate_grade(smoothness),
         client=client
+        hardware=hardware
     )
 
     return Response(str(benchmark.id))
