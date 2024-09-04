@@ -252,9 +252,9 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         and not client_hash.startswith(score.client_hash)
     ):
         officer.call(
-            f'"{score.username}" submitted score with client hash mismatch. ({score.client_hash} -> {client_hash})'
+            f'"{score.username}" submitted score with client hash mismatch. '
+            f'({score.client_hash} -> {client_hash})'
         )
-        # TODO: Restrict user?
         return Response('error: no')
 
     if score.passed:
@@ -278,7 +278,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         if duplicate_score:
             if duplicate_score.user_id != player.id:
                 officer.call(
-                    f'"{score.username}" submitted duplicate replay in score submission ({duplicate_score.replay_md5}).'
+                    f'"{score.username}" submitted duplicate replay in score submission '
+                    f'({duplicate_score.replay_md5}).'
                 )
                 app.session.events.submit(
                     'restrict',
@@ -289,7 +290,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 return Response('error: ban')
 
             app.session.logger.warning(
-                f'"{score.username}" submitted duplicate replay from themselves ({duplicate_score.replay_md5}).'
+                f'"{score.username}" submitted duplicate replay from themselves '
+                f'({duplicate_score.replay_md5}).'
             )
 
             return Response('error: no')
@@ -301,13 +303,14 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     )
 
     group_names = [group.name for group in user_groups]
+    is_verified = 'Verified' in group_names
 
     if score.has_invalid_mods:
         officer.call(
             f'"{score.username}" submitted score with invalid mods.'
         )
 
-        if 'Verified' not in group_names:
+        if not is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -329,17 +332,9 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     if any(flag in score.flags for flag in flags):
         officer.call(
-            f'"{score.username}" submitted score with bad flags: {score.flags.name}'
+            f'"{score.username}" submitted score with bad flags: {score.flags.name}.'
+            f'Please review this case as soon as possible. ({replay_hash})'
         )
-
-        if 'Verified' not in group_names:
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                autoban=True,
-                reason=f'Hacking/Cheating ({score.flags.value})'
-            )
-            return Response('error: ban')
 
     if score.replay and not validate_replay(score.replay):
         officer.call(
@@ -363,7 +358,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" exceeded the pp limit ({score.pp}).'
         )
 
-        if 'Verified' not in group_names:
+        if not is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -379,7 +374,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" submitted a score while multiaccounting.'
         )
 
-        if 'Verified' not in group_names:
+        if not is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
