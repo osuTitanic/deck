@@ -28,6 +28,34 @@ def calculate_grade(smoothness: float) -> str:
     elif smoothness > 70: return 'C'
     else: return 'D'
 
+def validate_hardware_data(hardware: dict):
+    if 'renderer' not in hardware:
+        raise HTTPException(status_code=400, detail="Renderer is required")
+
+    if hardware['renderer'] not in ['OpenGL', 'DirectX']:
+        raise HTTPException(status_code=400, detail="Renderer must be 'OpenGL' or 'DirectX'")
+
+    if len(hardware) == 1:
+        return
+
+    required_keys = ['cpu', 'cores', 'threads', 'gpu', 'ram', 'os', 'motherboard_manufacturer', 'motherboard']
+    
+    if not all(key in hardware for key in required_keys):
+        raise HTTPException(status_code=400, detail="Missing required hardware information")
+
+    try:
+        hardware['cores'] = int(hardware['cores'])
+        hardware['threads'] = int(hardware['threads'])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Cores and threads must be integers")
+
+    try:
+        hardware['ram'] = int(hardware['ram'])
+        if hardware['ram'] <= 0:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(status_code=400, detail="RAM must be a positive integer (in GB)")
+
 @router.post('/osu-benchmark.php')
 def benchmark(
     session: Session = Depends(app.session.database.yield_session),
@@ -64,9 +92,7 @@ def benchmark(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid hardware format")
 
-    required_keys = ['renderer', 'cpu', 'cores', 'threads', 'gpu', 'ram', 'os', 'motherboard_manufacturer', 'motherboard']
-    if not all(key in hardware_dict for key in required_keys):
-        raise HTTPException(status_code=400, detail="Missing required hardware information")
+    validate_hardware_data(hardware_dict)
 
     benchmark = benchmarks.create(
         user_id=player.id,
