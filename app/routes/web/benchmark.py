@@ -1,4 +1,4 @@
-
+import json
 from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import (
@@ -50,7 +50,7 @@ def benchmark(
     if not status.exists(player.id):
         app.session.logger.warning(f'Failed to submit benchmark: Not connected to bancho')
         raise HTTPException(401)
-    
+
     if not player.activated:
         app.session.logger.warning(f'Failed to submit benchmark: Not activated')
         raise HTTPException(401)
@@ -59,7 +59,14 @@ def benchmark(
         app.session.logger.warning(f'Failed to submit benchmark: Restricted')
         raise HTTPException(401)
 
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    try:
+        hardware_dict = json.loads(hardware)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid hardware format")
+
+    required_keys = ['renderer', 'cpu', 'cores', 'threads', 'gpu', 'ram', 'os', 'motherboard_manufacturer', 'motherboard']
+    if not all(key in hardware_dict for key in required_keys):
+        raise HTTPException(status_code=400, detail="Missing required hardware information")
 
     benchmark = benchmarks.create(
         user_id=player.id,
@@ -68,7 +75,9 @@ def benchmark(
         score=raw_score,
         grade=calculate_grade(smoothness),
         client=client,
-        hardware=hardware
+        hardware=hardware_dict
     )
+
+    users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     return Response(str(benchmark.id))
