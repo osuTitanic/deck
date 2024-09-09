@@ -28,33 +28,41 @@ def calculate_grade(smoothness: float) -> str:
     elif smoothness > 70: return 'C'
     else: return 'D'
 
-def validate_hardware_data(hardware: dict):
-    if 'renderer' not in hardware:
+def validate_hardware_data(hardware: str) -> dict:
+    try:
+        hardware_dict = json.loads(hardware)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid hardware format")
+
+    if 'renderer' not in hardware_dict:
         raise HTTPException(status_code=400, detail="Renderer is required")
 
-    if hardware['renderer'] not in ['OpenGL', 'DirectX']:
+    if hardware_dict['renderer'] not in ['OpenGL', 'DirectX']:
         raise HTTPException(status_code=400, detail="Renderer must be 'OpenGL' or 'DirectX'")
 
-    if len(hardware) == 1:
-        return
+    # If only 'renderer' is provided, return it
+    if len(hardware_dict) == 1:
+        return hardware_dict
 
     required_keys = ['cpu', 'cores', 'threads', 'gpu', 'ram', 'os', 'motherboard_manufacturer', 'motherboard']
     
-    if not all(key in hardware for key in required_keys):
+    if not all(key in hardware_dict for key in required_keys):
         raise HTTPException(status_code=400, detail="Missing required hardware information")
 
     try:
-        hardware['cores'] = int(hardware['cores'])
-        hardware['threads'] = int(hardware['threads'])
+        hardware_dict['cores'] = int(hardware_dict['cores'])
+        hardware_dict['threads'] = int(hardware_dict['threads'])
     except ValueError:
         raise HTTPException(status_code=400, detail="Cores and threads must be integers")
 
     try:
-        hardware['ram'] = int(hardware['ram'])
-        if hardware['ram'] <= 0:
+        hardware_dict['ram'] = int(hardware_dict['ram'])
+        if hardware_dict['ram'] <= 0:
             raise ValueError
     except ValueError:
         raise HTTPException(status_code=400, detail="RAM must be a positive integer (in GB)")
+
+    return hardware_dict
 
 @router.post('/osu-benchmark.php')
 def benchmark(
@@ -87,12 +95,7 @@ def benchmark(
         app.session.logger.warning(f'Failed to submit benchmark: Restricted')
         raise HTTPException(401)
 
-    try:
-        hardware_dict = json.loads(hardware)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid hardware format")
-
-    validate_hardware_data(hardware_dict)
+    hardware_dict = validate_hardware_data(hardware)
 
     benchmark = benchmarks.create(
         user_id=player.id,
