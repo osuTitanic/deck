@@ -32,35 +32,34 @@ def validate_hardware_data(hardware: str) -> dict:
     try:
         hardware_dict = json.loads(hardware)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid hardware format")
+        raise HTTPException(400, "Invalid hardware format")
 
-    if 'renderer' not in hardware_dict:
-        raise HTTPException(status_code=400, detail="Renderer is required")
+    required_keys = [
+        'cpu', 'cores', 'threads',
+        'gpu', 'ram', 'os',
+        'motherboard_manufacturer',
+        'motherboard', 'renderer'
+    ]
+
+    if not all(key in hardware_dict for key in required_keys):
+        raise HTTPException(400, "Missing required hardware information")
 
     if hardware_dict['renderer'] not in ['OpenGL', 'DirectX']:
-        raise HTTPException(status_code=400, detail="Renderer must be 'OpenGL' or 'DirectX'")
-
-    # If only 'renderer' is provided, return it
-    if len(hardware_dict) == 1:
-        return hardware_dict
-
-    required_keys = ['cpu', 'cores', 'threads', 'gpu', 'ram', 'os', 'motherboard_manufacturer', 'motherboard']
-    
-    if not all(key in hardware_dict for key in required_keys):
-        raise HTTPException(status_code=400, detail="Missing required hardware information")
+        raise HTTPException(400, "Renderer must be 'OpenGL' or 'DirectX'")
 
     try:
         hardware_dict['cores'] = int(hardware_dict['cores'])
         hardware_dict['threads'] = int(hardware_dict['threads'])
     except ValueError:
-        raise HTTPException(status_code=400, detail="Cores and threads must be integers")
+        raise HTTPException(400, "Cores and threads must be integers")
 
     try:
         hardware_dict['ram'] = int(hardware_dict['ram'])
+
         if hardware_dict['ram'] <= 0:
             raise ValueError
     except ValueError:
-        raise HTTPException(status_code=400, detail="RAM must be a positive integer (in GB)")
+        raise HTTPException(400, "RAM must be a positive integer (in GB)")
 
     return hardware_dict
 
@@ -107,6 +106,10 @@ def benchmark(
         hardware=hardware_dict
     )
 
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()},
+        session=session
+    )
 
     return Response(str(benchmark.id))
