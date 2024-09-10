@@ -1,4 +1,7 @@
-import json
+# NOTE: This is a custom endpoint that is not actually used by the osu! client.
+#       It was added as an easter egg on modded clients, that "revives" the
+#       old benchmark feature.
+
 from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import (
@@ -15,10 +18,11 @@ from app.common.database.repositories import (
     users
 )
 
-router = APIRouter()
-
 import utils
+import json
 import app
+
+router = APIRouter()
 
 def calculate_grade(smoothness: float) -> str:
     if smoothness == 100: return 'SS'
