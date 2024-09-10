@@ -332,7 +332,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
     if any(flag in score.flags for flag in flags):
         officer.call(
-            f'"{score.username}" submitted score with bad flags: {score.flags.name}.'
+            f'"{score.username}" submitted score with bad flags: {score.flags.name}. '
             f'Please review this case as soon as possible. ({replay_hash})'
         )
 
