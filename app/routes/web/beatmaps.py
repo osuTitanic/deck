@@ -29,6 +29,7 @@ from app.common.database import (
 )
 
 from fastapi import (
+    HTTPException,
     UploadFile,
     APIRouter,
     Response,
@@ -50,8 +51,11 @@ router = APIRouter()
 
 def comma_list(parameter: str, cast=str) -> Callable:
     async def wrapper(request: Request) -> List[Any]:
-        query = request.query_params.get(parameter, '')
-        return [cast(value) for value in query.split(',')]
+        try:
+            query = request.query_params.get(parameter, '')
+            return [cast(value) for value in query.split(',')]
+        except ValueError:
+            raise HTTPException(400, 'Invalid query parameter')
     return wrapper
 
 def integer_boolean(parameter: str) -> Callable:
