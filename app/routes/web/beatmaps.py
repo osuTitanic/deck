@@ -722,6 +722,10 @@ def validate_upload_request(
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is ranked or loved')
             return error_response(3)
 
+        if beatmapset.status == -2:
+            app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is graveyarded')
+            return error_response(4)
+
         # Create/Remove new beatmaps if necessary
         beatmap_ids = update_beatmaps(
             beatmap_ids,
