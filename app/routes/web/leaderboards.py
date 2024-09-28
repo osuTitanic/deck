@@ -26,7 +26,8 @@ from app.common.constants import (
     SubmissionStatus,
     LegacyStatus,
     RankingType,
-    GameMode
+    GameMode,
+    Mods
 )
 
 import config
@@ -79,6 +80,15 @@ def resolve_player(
 
     return user
 
+def resolve_mods(score: DBScore) -> int:
+    mods = Mods(score.mods)
+
+    if Mods.Nightcore in mods and Mods.DoubleTime not in mods:
+        # NC requires DT to be present
+        mods |= Mods.DoubleTime
+
+    return mods.value
+
 def integer_boolean(parameter: str) -> Callable:
     async def wrapper(request: Request) -> bool:
         query = request.query_params.get(parameter, '0')
@@ -98,7 +108,7 @@ def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
         str(score.nKatu),
         str(score.nGeki),
         str(score.perfect),
-        str(score.mods),
+        str(resolve_mods(score)),
         str(score.user_id),
         str(index),
         # This was changed to a unix timestamp in request version 2
@@ -123,7 +133,7 @@ def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
         str(score.nKatu),
         str(score.nGeki),
         str(score.perfect),
-        str(score.mods),
+        str(resolve_mods(score)),
         str(score.user_id),
         str(score.user_id), # Avatar Filename
         str(score.submitted_at)
