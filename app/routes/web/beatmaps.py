@@ -561,6 +561,24 @@ def update_beatmap_files(files: dict, beatmaps: dict) -> None:
             content
         )
 
+def duplicate_beatmap_files(files: dict, creator_id: int, session: Session) -> bool:
+    """Check for duplicate beatmap filenames & checksums"""
+    for filename, content in files.items():
+        if not filename.endswith('.osu'):
+            continue
+
+        if beatmap := beatmaps.fetch_by_file(filename, session):
+            if beatmap.beatmapset.creator_id != creator_id:
+                return True
+
+        beatmap_hash = hashlib.md5(content).hexdigest()
+
+        if beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session):
+            if beatmap.beatmapset.creator_id != creator_id:
+                return True
+
+    return False
+
 def default_topic_message(set_id: int, session: Session) -> str:
     beatmapset = beatmapsets.fetch_one(
         set_id,
@@ -855,6 +873,11 @@ def upload_beatmap(
             filename: base64.b64decode(content)
             for filename, content in data['files'].items()
         }
+
+        # Check if the user is trying to upload someone else's beatmap
+        if duplicate_beatmap_files(files, user.id, session):
+            app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
+            return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
 
         previous_status = beatmapset.status
 
