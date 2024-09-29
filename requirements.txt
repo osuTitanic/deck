@@ -1,7 +1,7 @@
 bcrypt==4.2.0
 boto3==1.35.25
 boto3-type-annotations-with-docs==0.3.1
-fastapi==0.114.2
+fastapi==0.115.0
 geoip2==4.8.0
 pillow==10.4.0
 psycopg2-binary==2.9.9
