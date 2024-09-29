@@ -561,6 +561,24 @@ def update_beatmap_files(files: dict, beatmaps: dict) -> None:
             content
         )
 
+def duplicate_beatmap_files(files: dict, creator_id: int, session: Session) -> bool:
+    """Check for duplicate beatmap filenames & checksums"""
+    for filename, content in files.items():
+        if not filename.endswith('.osu'):
+            continue
+
+        if beatmap := beatmaps.fetch_by_file(filename, session):
+            if beatmap.beatmapset.creator_id != creator_id:
+                return True
+
+        beatmap_hash = hashlib.md5(content).hexdigest()
+
+        if beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session):
+            if beatmap.beatmapset.creator_id != creator_id:
+                return True
+
+    return False
+
 def default_topic_message(set_id: int, session: Session) -> str:
     beatmapset = beatmapsets.fetch_one(
         set_id,
@@ -664,7 +682,7 @@ def create_beatmap_topic(
     app.session.logger.info(f'Created beatmap topic for beatmapset ({topic.id})')
     return topic.id
 
-def post_new_beatmap(beatmapset: DBBeatmapset) -> None:
+def post_to_webhook(beatmapset: DBBeatmapset) -> None:
     embed = Embed(title=f'{beatmapset.artist} - {beatmapset.title}')
     embed.thumbnail = Image(url=f'http://osu.{config.DOMAIN_NAME}/mt/{beatmapset.id}')
     embed.author = Author(
@@ -721,6 +739,10 @@ def validate_upload_request(
         if beatmapset.status > 1:
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is ranked or loved')
             return error_response(3)
+
+        if beatmapset.status == -2:
+            app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is graveyarded')
+            return error_response(4)
 
         # Create/Remove new beatmaps if necessary
         beatmap_ids = update_beatmaps(
@@ -808,6 +830,10 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is ranked or loved')
         return error_response(3)
 
+    if beatmapset.status == -2:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is graveyarded')
+        return error_response(4)
+
     osz2_file = submission_file.file.read()
 
     if len(osz2_file) > 80_000_000:
@@ -848,6 +874,11 @@ def upload_beatmap(
             for filename, content in data['files'].items()
         }
 
+        # Check if the user is trying to upload someone else's beatmap
+        if duplicate_beatmap_files(files, user.id, session):
+            app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
+            return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
+
         previous_status = beatmapset.status
 
         # Update metadata for beatmapset and beatmaps
@@ -884,7 +915,7 @@ def upload_beatmap(
 
     if previous_status == -3:
         # Post to discord webhook
-        post_new_beatmap(beatmapset)
+        post_to_webhook(beatmapset)
 
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
