@@ -812,6 +812,10 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is ranked or loved')
         return error_response(3)
 
+    if beatmapset.status == -2:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is graveyarded')
+        return error_response(4)
+
     osz2_file = submission_file.file.read()
 
     if len(osz2_file) > 80_000_000:
