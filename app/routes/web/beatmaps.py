@@ -664,7 +664,7 @@ def create_beatmap_topic(
     app.session.logger.info(f'Created beatmap topic for beatmapset ({topic.id})')
     return topic.id
 
-def post_new_beatmap(beatmapset: DBBeatmapset) -> None:
+def post_to_webhook(beatmapset: DBBeatmapset) -> None:
     embed = Embed(title=f'{beatmapset.artist} - {beatmapset.title}')
     embed.thumbnail = Image(url=f'http://osu.{config.DOMAIN_NAME}/mt/{beatmapset.id}')
     embed.author = Author(
@@ -892,7 +892,7 @@ def upload_beatmap(
 
     if previous_status == -3:
         # Post to discord webhook
-        post_new_beatmap(beatmapset)
+        post_to_webhook(beatmapset)
 
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
