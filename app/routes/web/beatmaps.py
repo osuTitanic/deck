@@ -367,6 +367,46 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
         session=session
     )
 
+def resolve_beatmapset(
+    set_id: int,
+    beatmap_ids: List[int],
+    session: Session
+) -> DBBeatmapset | None:
+    if set_id >= 0:
+        # Best-case scenario: The client already knows the setId
+        return beatmapsets.fetch_one(set_id, session)
+
+    # There are 2 possible scenarios now:
+    # 1. The user wants to upload a new beatmapset
+    # 2. The user wants to update an existing beatmapset, but doesn't know the setId
+
+    # Query existing beatmap_ids that are valid
+    valid_beatmaps = [
+        beatmaps.fetch_by_id(beatmap_id, session)
+        for beatmap_id in beatmap_ids
+        if beatmap_id >= 0
+    ]
+
+    # Remove "None" values
+    valid_beatmaps = [
+        beatmap for beatmap in valid_beatmaps
+        if beatmap is not None
+    ]
+
+    if not valid_beatmaps:
+        return None
+
+    # Check if all beatmaps are part of the same set
+    set_ids = {
+        beatmap.set_id
+        for beatmap in valid_beatmaps
+    }
+
+    if len(set_ids) != 1:
+        return None
+
+    return valid_beatmaps[0].beatmapset
+
 def resolve_beatmap_id(
     beatmap_ids: List[int],
     beatmap_data: dict,
@@ -726,8 +766,10 @@ def validate_upload_request(
     remaining_beatmaps = remaining_beatmap_uploads(user, session)
     bubbled = False
 
-    if (set_id > 0) and (beatmapset := beatmapsets.fetch_one(set_id, session)):
+    if beatmapset := resolve_beatmapset(set_id, beatmap_ids, session):
         # User wants to update an existing beatmapset
+        set_id = beatmapset.id
+
         if beatmapset.creator_id != user.id:
             app.session.logger.warning(f'Failed to update beatmapset: User does not own the beatmapset')
             return error_response(1)
@@ -774,6 +816,8 @@ def validate_upload_request(
 
         if set_id is None:
             return error_response(5, "An error occurred while creating the beatmapset.")
+        
+        app.session.logger.info(f'{user.name} wants to create a new beatmapset ({set_id})')
 
     # Either we don't have the osz2 file or the client has no osz2 file
     # If full-submit is true, the client will submit a patch file
