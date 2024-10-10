@@ -1,5 +1,5 @@
 bcrypt==4.2.0
-boto3==1.35.29
+boto3==1.35.35
 boto3-type-annotations-with-docs==0.3.1
 fastapi==0.115.0
 geoip2==4.8.0
@@ -8,7 +8,7 @@ psycopg2-binary==2.9.9
 py3rijndael==0.3.3
 python-dotenv==1.0.1
 python-multipart==0.0.12
-redis==5.1.0
+redis==5.1.1
 requests==2.32.3
 sendgrid==6.11.0
 sqlalchemy==2.0.35
