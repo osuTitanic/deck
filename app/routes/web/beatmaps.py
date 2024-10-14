@@ -440,7 +440,7 @@ def validate_beatmap_owner(
         return False
 
     for beatmap in beatmap_data.values():
-        if beatmap['metadata']['creator'] != user.name:
+        if beatmap['metadata']['author']['username'] != user.name:
             return False
 
     return True
