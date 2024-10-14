@@ -427,6 +427,24 @@ def resolve_beatmap_id(
 
     return beatmap_ids.pop(0)
 
+def validate_beatmap_owner(
+    beatmap_data: dict,
+    metadata: dict,
+    user: DBUser,
+) -> bool:
+    if user.is_bat:
+        # Allow BAT members to upload any beatmap
+        return True
+
+    if metadata.get('Creator') != user.name:
+        return False
+
+    for beatmap in beatmap_data.values():
+        if beatmap['metadata']['creator'] != user.name:
+            return False
+
+    return True
+
 def update_beatmap_metadata(
     beatmapset: DBBeatmapset,
     files: dict,
@@ -922,6 +940,10 @@ def upload_beatmap(
         if duplicate_beatmap_files(files, user.id, session):
             app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
             return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
+
+        if not validate_beatmap_owner(data['beatmaps'], data['metadata'], user):
+            app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
+            return error_response(1)
 
         previous_status = beatmapset.status
 
