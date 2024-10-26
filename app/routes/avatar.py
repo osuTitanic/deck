@@ -50,13 +50,13 @@ def avatar(
     if not (image := app.session.storage.get_avatar(user_id)):
         return default_avatar(height, width)
 
-    if height is None:
-        # Default height for avatars
-        height = 128
-    else:
-        # If height/width is <= 0 it should return the default avatar size
-        height = None if height is not None and height <= 0 else height
-        width = None if width is not None and width <= 0 else width
+    # If height/width is <= 0 it should return the default avatar size
+    height = (None if height is not None and height <= 0 else height) or 128
+    width = (None if width is not None and width <= 0 else width)
+
+    # Cap the width/height to 500
+    height = min(height, 500) if height else height
+    width = min(width, 500) if width else width
 
     if height or width:
         image = utils.resize_image(

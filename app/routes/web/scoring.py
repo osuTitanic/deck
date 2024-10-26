@@ -801,7 +801,7 @@ def response_charts(
         beatmap_ranking.entry('accuracy', None, round(new_score.acc, 4) * 100)
         beatmap_ranking.entry('pp', None, round(new_score.pp))
 
-    return [beatmap_info, overall_chart, beatmap_ranking]
+    return [beatmap_info, beatmap_ranking, overall_chart]
 
 @router.post("/osu-submit-modular-selector.php")
 @router.post('/osu-submit-modular.php')

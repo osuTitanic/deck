@@ -161,7 +161,7 @@ def pickup_info(
     session: Session = Depends(app.session.database.yield_session),
     beatmap_id: int | None = Query(None, alias='b'),
     topic_id: int | None = Query(None, alias='t'),
-    checksum: int | None = Query(None, alias='c'),
+    checksum: str | None = Query(None, alias='c'),
     post_id: int | None = Query(None, alias='p'),
     set_id: int | None = Query(None, alias='s'),
     username: str | None = Query(None, alias='u'),
