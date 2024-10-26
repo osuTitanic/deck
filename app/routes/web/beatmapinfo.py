@@ -1,6 +1,7 @@
 
-from fastapi import APIRouter, HTTPException, Query, Depends, Form
+from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session, selectinload
+from pydantic import BaseModel
 from typing import List, Tuple
 
 from app.common.database import DBBeatmap, DBScore
@@ -13,13 +14,16 @@ import app
 
 router = APIRouter()
 
+class BeatmapInfoRequestForm(BaseModel):
+    Filenames: list[str]
+    Ids: list[int]
+
 @router.post("/osu-getbeatmapinfo.php")
 def get_beatmap_info(
+    info: BeatmapInfoRequestForm,
     session: Session = Depends(app.session.database.yield_session),
-    filenames: List[str] = Form(..., alias="Filenames"),
-    ids: List[int] = Form(..., alias="Ids"),
     username: str = Query(..., alias="u"),
-    password: str = Query(..., alias="h")
+    password: str = Query(..., alias="h"),
 ) -> bytes:
     if not (player := users.fetch_by_name(username, session=session)):
         raise HTTPException(401)
@@ -31,7 +35,7 @@ def get_beatmap_info(
         raise HTTPException(401)
 
     maps: List[Tuple[int, DBBeatmap]] = []
-    total_maps = len(filenames) + len(ids)
+    total_maps = len(info.Filenames) + len(info.Ids)
 
     if total_maps <= 0 or total_maps > 200:
         return b""
@@ -40,7 +44,7 @@ def get_beatmap_info(
 
     filename_beatmaps = session.query(DBBeatmap) \
         .options(selectinload(DBBeatmap.beatmapset)) \
-        .filter(DBBeatmap.filename.in_(filenames)) \
+        .filter(DBBeatmap.filename.in_(info.Filenames)) \
         .all()
 
     found_beatmaps = {
@@ -48,7 +52,7 @@ def get_beatmap_info(
         for beatmap in filename_beatmaps
     }
 
-    for index, filename in enumerate(filenames):
+    for index, filename in enumerate(info.Filenames):
         if filename not in found_beatmaps:
             continue
 
@@ -61,7 +65,7 @@ def get_beatmap_info(
 
     id_beatmaps = session.query(DBBeatmap) \
         .options(selectinload(DBBeatmap.beatmapset)) \
-        .filter(DBBeatmap.id.in_(ids)) \
+        .filter(DBBeatmap.id.in_(info.Ids)) \
         .all()
 
     for beatmap in id_beatmaps:
