@@ -12,6 +12,7 @@ from . import updates
 from . import scoring
 from . import connect
 from . import replays
+from . import friends
 from . import ratings
 from . import status
 from . import direct
@@ -32,6 +33,7 @@ router.include_router(comments.router)
 router.include_router(updates.router)
 router.include_router(scoring.router)
 router.include_router(connect.router)
+router.include_router(friends.router)
 router.include_router(ratings.router)
 router.include_router(replays.router)
 router.include_router(status.router)
