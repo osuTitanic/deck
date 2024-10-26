@@ -37,7 +37,7 @@ def get_beatmap_info(
     maps: List[Tuple[int, DBBeatmap]] = []
     total_maps = len(info.Filenames) + len(info.Ids)
 
-    if total_maps <= 0 or total_maps > 200:
+    if total_maps <= 0 or total_maps > 100:
         return b""
 
     app.session.logger.info(f'Got {total_maps} beatmap requests from {player.name}')
