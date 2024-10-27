@@ -423,9 +423,9 @@ def legacy_scores_no_ratings(
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
-    user_status = status.get(player.id)
+    current_mode = status.get(player.id).status.mode
 
-    if user_status.mode != mode:
+    if current_mode != mode:
         # Assign new mode to player
         app.session.events.submit(
             'user_update',
@@ -506,10 +506,10 @@ def legacy_scores_no_beatmap_data(
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
-    user_status = status.get(player.id)
+    current_mode = status.get(player.id).status.mode
     mode = GameMode.Osu
 
-    if user_status.mode != mode:
+    if current_mode != mode:
         # Assign new mode to player
         app.session.events.submit(
             'user_update',
