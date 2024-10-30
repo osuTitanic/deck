@@ -38,19 +38,29 @@ def validate_hardware_data(hardware: str) -> dict:
     except json.JSONDecodeError:
         raise HTTPException(400, "Invalid hardware format")
 
+    # Always require 'renderer' and validate its value
+    if 'renderer' not in hardware_dict:
+        raise HTTPException(400, "Renderer is required")
+
+    if hardware_dict['renderer'] not in ['OpenGL', 'DirectX']:
+        raise HTTPException(400, "Renderer must be 'OpenGL' or 'DirectX'")
+
+    # If only 'renderer' is present, return early without further validation
+    if len(hardware_dict) == 1:
+        return hardware_dict
+
+    # Otherwise, validate additional hardware keys
     required_keys = [
         'cpu', 'cores', 'threads',
         'gpu', 'ram', 'os',
         'motherboard_manufacturer',
-        'motherboard', 'renderer'
+        'motherboard'
     ]
 
     if not all(key in hardware_dict for key in required_keys):
         raise HTTPException(400, "Missing required hardware information")
 
-    if hardware_dict['renderer'] not in ['OpenGL', 'DirectX']:
-        raise HTTPException(400, "Renderer must be 'OpenGL' or 'DirectX'")
-
+    # Convert numeric fields and ensure they are valid
     try:
         hardware_dict['cores'] = int(hardware_dict['cores'])
         hardware_dict['threads'] = int(hardware_dict['threads'])
@@ -59,7 +69,6 @@ def validate_hardware_data(hardware: str) -> dict:
 
     try:
         hardware_dict['ram'] = int(hardware_dict['ram'])
-
         if hardware_dict['ram'] <= 0:
             raise ValueError
     except ValueError:
