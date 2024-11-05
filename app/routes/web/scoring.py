@@ -296,21 +296,12 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
             return Response('error: no')
 
-    user_groups = groups.fetch_user_groups(
-        player.id,
-        include_hidden=True,
-        session=score.session
-    )
-
-    group_names = [group.name for group in user_groups]
-    is_verified = 'Verified' in group_names
-
     if score.has_invalid_mods:
         officer.call(
             f'"{score.username}" submitted score with invalid mods.'
         )
 
-        if not is_verified:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -341,7 +332,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" submitted score with invalid replay.'
         )
 
-        if 'Verified' not in group_names:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -358,7 +349,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" exceeded the pp limit ({score.pp}).'
         )
 
-        if not is_verified:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -374,7 +365,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" submitted a score while multiaccounting.'
         )
 
-        if not is_verified:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
