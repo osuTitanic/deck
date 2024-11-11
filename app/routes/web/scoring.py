@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
-from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType
+from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
 from app.common.database import DBStats, DBScore, DBUser
 from app.common.helpers.score import calculate_rx_score
 from app import achievements as AchievementManager
@@ -242,6 +242,18 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
     if score.beatmap.mode > 0 and score.play_mode == GameMode.Osu:
         # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
         # This can happen in old clients, where these modes were not implemented
+        return Response('error: no')
+    
+    unranked_mods = (
+        Mods.Autoplay,
+        Mods.Cinema,
+        Mods.Target
+    )
+
+    if any(mod in score.enabled_mods for mod in unranked_mods):
+        officer.call(
+            f'"{score.username}" submitted score with unranked mods: {score.enabled_mods.name}.'
+        )
         return Response('error: no')
 
     client_hash = status.client_hash(player.id)
