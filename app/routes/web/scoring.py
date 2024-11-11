@@ -1083,6 +1083,10 @@ def legacy_score_submission(
         # Try to get it from bancho instead
         score.version = status.version(player.id) or 0
 
+    if score.version < 452 and Mods.Nightcore in score.enabled_mods:
+        # Prevent "Taiko" mod plays from being submitted
+        raise HTTPException(400)
+
     if score.beatmap.is_ranked:
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
