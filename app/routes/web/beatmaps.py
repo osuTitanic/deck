@@ -1266,7 +1266,7 @@ def handle_upload_finish(
     ... # TODO
 
 @router.post('/osu-bmsubmit-getid5.php')
-def get_id_before_osz2(
+def update_beatmap_files(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
     set_id: int = Query(..., alias='s'),
@@ -1345,7 +1345,7 @@ def get_id_before_osz2(
     return response_data
 
 @router.post('/osu-bmsubmit-upload.php')
-def upload_before_osz2(
+def upload_osz(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
     set_id: int = Query(..., alias='s'),
@@ -1359,7 +1359,7 @@ def upload_before_osz2(
     return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!', legacy=True)
 
 @router.post('/osu-bmsubmit-post3.php')
-def forum_post_before_osz2(
+def legacy_forum_post(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
     set_id: int = Query(..., alias='b'),
