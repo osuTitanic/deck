@@ -1176,3 +1176,17 @@ def upload_before_osz2(
 ):
     # Not implemented
     return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!', legacy=True)
+
+@router.post('/osu-bmsubmit-post3.php')
+def forum_post_before_osz2(
+    username: str = Query(..., alias='u'),
+    password: str = Query(..., alias='p'),
+    set_id: int = Query(..., alias='b'),
+    subject: str = Query(...),
+    message: str = Query(...),
+    complete: bool = Depends(integer_boolean('complete')),
+    bumprequest: bool = Depends(integer_boolean('bumprequest')),
+    session: Session = Depends(app.session.database.yield_session)
+):
+    # Not implemented
+    return "-1"
