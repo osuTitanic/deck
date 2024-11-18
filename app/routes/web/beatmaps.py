@@ -9,6 +9,7 @@ from zipfile import ZipFile
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.webhooks import Embed, Image, Author
+from app.common.constants import SendAction
 from app.common.helpers import performance
 from app.common.streams import StreamIn
 from app.common.cache import status
@@ -1147,3 +1148,17 @@ def topic_contents(
         f'{topic.title}',
         f'{first_post.content if first_post else ""}',
     ]))
+
+@router.post('/osu-bmsubmit-getid5.php')
+def get_id_before_osz2(
+    username: str = Query(..., alias='u'),
+    password: str = Query(..., alias='p'),
+    set_id: int = Query(..., alias='s'),
+    action: SendAction = Query(..., alias='r'),
+    has_video: bool = Depends(integer_boolean('v')),
+    has_storyboard: bool = Depends(integer_boolean('sb')),
+    beatmap_file: UploadFile = File(..., alias='osu'),
+    session: Session = Depends(app.session.database.yield_session)
+):
+    # Not implemented
+    return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!', legacy=True)
