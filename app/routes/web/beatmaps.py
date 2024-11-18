@@ -1162,3 +1162,17 @@ def get_id_before_osz2(
 ):
     # Not implemented
     return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!', legacy=True)
+
+@router.post('/osu-bmsubmit-upload.php')
+def upload_before_osz2(
+    username: str = Query(..., alias='u'),
+    password: str = Query(..., alias='p'),
+    set_id: int = Query(..., alias='s'),
+    ticket: str = Query(..., alias='c'),
+    osz_filename: str = Query(..., alias='of'),
+    osz_ticket: str = Query(..., alias='oc'),
+    is_first: bool = Depends(integer_boolean('r')),
+    session: Session = Depends(app.session.database.yield_session)
+):
+    # Not implemented
+    return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!', legacy=True)
