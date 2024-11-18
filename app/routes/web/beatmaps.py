@@ -1306,7 +1306,8 @@ def get_id_before_osz2(
             beatmap_filename,
             parsed_beatmap,
             has_video,
-            has_storyboard
+            has_storyboard,
+            session=session
         )
 
         if error:
