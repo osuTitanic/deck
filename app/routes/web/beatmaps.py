@@ -45,6 +45,7 @@ import hashlib
 import base64
 import config
 import utils
+import time
 import app
 import io
 
@@ -1149,6 +1150,121 @@ def topic_contents(
         f'{first_post.content if first_post else ""}',
     ]))
 
+def create_ticket_hash(
+    filename: str,
+    user_id: int,
+    is_osz: bool = False
+) -> str:
+    prefix = 'osz' if is_osz else 'osu'
+    string = f'{prefix}:{time.time()}:{user_id}:{filename}'
+    return hashlib.sha256(string.encode()).hexdigest()
+
+def handle_initial_upload(
+    user: DBUser,
+    set_id: int,
+    beatmap_filename: str,
+    parsed_beatmap: dict,
+    has_video: bool,
+    has_storyboard: bool,
+    session: Session
+) -> str | None:
+    # Delete any inactive beatmaps
+    delete_inactive_beatmaps(user, session=session)
+
+    # Ensure that the user has no pending uploads
+    beatmap_helper.remove_upload_request(user.id)
+
+    osz_ticket = create_ticket_hash(
+        beatmap_filename,
+        user.id,
+        is_osz=True
+    )
+
+    request = beatmap_helper.UploadRequest(
+        set_id,
+        osz_ticket,
+        has_video,
+        has_storyboard,
+        parsed_beatmap['metadata']
+    )
+
+    beatmap_helper.register_upload_request(user.id, request)
+
+def handle_common_upload(
+    upload_request: beatmap_helper.UploadRequest | None,
+    beatmap_file: bytes,
+    beatmap_filename: str,
+    parsed_beatmap: dict,
+    user: DBUser,
+    session: Session
+) -> str | None:
+    beatmap_ticket = create_ticket_hash(
+        beatmap_filename,
+        user.id
+    )
+
+    upload_ticket = beatmap_helper.UploadTicket(
+        beatmap_filename,
+        beatmap_ticket,
+        beatmap_file,
+        parsed_beatmap,
+    )
+
+    upload_request.tickets.append(upload_ticket)
+
+    beatmapset = resolve_beatmapset(upload_request.set_id, [], session)
+    response = ["old"]
+
+    if not beatmapset:
+        # User wants to upload a new beatmapset
+        response = ["new"]
+
+        # Create a new empty beatmapset inside the database
+        upload_request.set_id, _ = create_beatmapset(
+            user, [],
+            session=session
+        )
+
+        if upload_request.set_id is None:
+            return "An error occurred while creating the beatmapset."
+
+    # Update upload request
+    beatmap_helper.register_upload_request(user.id, upload_request)
+
+    if beatmapset and beatmapset.status == -3:
+        response = ["new"]
+
+    # Format response
+    response.append(f'{upload_request.set_id}')
+    response.append(f'{upload_request.osz_ticket}')
+    response.append(f'{upload_ticket.ticket}')
+    response.append(f'{upload_request.osz_filename}')
+
+    if response[0] != "new":
+        is_approved = beatmapset.status > 0
+        response.append(f'{beatmapset.topic_id or -1}')
+        response.append(f'{int(is_approved)}')
+
+        post = posts.fetch_initial_post(
+            beatmapset.topic_id,
+            session=session
+        )
+
+        if not post:
+            return
+
+        response.append(post.topic.title)
+        response.append(post.content)
+
+    return '\n'.join(response)
+
+def handle_upload_finish(
+    upload_request: beatmap_helper.UploadRequest | None,
+    user: DBUser,
+    session: Session
+) -> str | None:
+    ... # TODO
+
 @router.post('/osu-bmsubmit-getid5.php')
 def get_id_before_osz2(
     username: str = Query(..., alias='u'),
@@ -1160,8 +1276,72 @@ def get_id_before_osz2(
     beatmap_file: UploadFile = File(..., alias='osu'),
     session: Session = Depends(app.session.database.yield_session)
 ):
-    # Not implemented
-    return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!', legacy=True)
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session,
+        legacy=True
+    )
+
+    if error:
+        # Failed to authenticate user
+        return error
+
+    beatmap_file_contents = beatmap_file.file.read()
+    beatmap_filename = beatmap_file.filename
+
+    if len(beatmap_file_contents) > 1_000_000:
+        return "Your beatmap is too big. Try to reduce its filesize and try again!"
+
+    # Parse beatmap file
+    parsed_beatmap = beatmap_helper.parse_beatmap(beatmap_file_contents)
+
+    if not parsed_beatmap:
+        return "Failed to parse beatmap file. Please try again!"
+
+    if action in (SendAction.FirstBeatmap, SendAction.SingleBeatmap):
+        # Handle upload ticket registration
+        error = handle_initial_upload(
+            user, set_id,
+            beatmap_filename,
+            parsed_beatmap,
+            has_video,
+            has_storyboard
+        )
+
+        if error:
+            return error
+
+    upload_request = beatmap_helper.get_upload_request(user.id)
+
+    if not upload_request:
+        app.session.logger.warning(f'Failed to process upload request: Upload request not found')
+        return "An error occurred while processing your beatmap. Please try again!"
+
+    # Create a ticket for the given beatmap
+    response_data = handle_common_upload(
+        upload_request,
+        beatmap_file_contents,
+        beatmap_filename,
+        parsed_beatmap,
+        user, session
+    )
+
+    if not response_data:
+        return "An error occurred while processing your beatmap. Please try again!"
+
+    if action in (SendAction.LastBeatmap, SendAction.SingleBeatmap):
+        # Validate all beatmaps, update metadata,
+        # upload new files, ...
+        error = handle_upload_finish(
+            upload_request, user,
+            session=session
+        )
+
+        if error:
+            return error
+
+    return response_data
 
 @router.post('/osu-bmsubmit-upload.php')
 def upload_before_osz2(
