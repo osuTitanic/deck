@@ -15,10 +15,8 @@ def legacy_menu_icon(
     redirect: Optional[bool] = Query(False, alias='l')
 ):
     if redirect:
-        if not config.MENUICON_URL:
-            return RedirectResponse(f'http://osu.{config.DOMAIN_NAME}')
-
-        return RedirectResponse(config.MENUICON_URL)
+        # Used when the user clicks on the title image
+        return RedirectResponse(config.MENUICON_URL or f'http://osu.{config.DOMAIN_NAME}')
 
     if not config.MENUICON_IMAGE:
         return Response(None)
@@ -26,9 +24,11 @@ def legacy_menu_icon(
     if (image := app.session.storage.get_from_cache('assets:title')):
         return Response(image)
 
-    response = app.session.requests.get(config.MENUICON_IMAGE)
-
-    if not response.ok:
+    try:
+        response = app.session.requests.get(config.MENUICON_IMAGE)
+        response.raise_for_status()
+    except Exception as e:
+        app.session.logger.error(f'Error fetching title image: {e}')
         return Response(None)
 
     app.session.storage.save_to_cache(
