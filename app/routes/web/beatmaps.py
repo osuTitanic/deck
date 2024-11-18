@@ -71,35 +71,56 @@ def integer_boolean_form(parameter: str) -> Callable:
         return query == '1'
     return wrapper
 
-def error_response(error_code: int, message: str = "") -> Response:
-    return Response(f'{error_code}\n{message}')
+def error_response(
+    error_code: int,
+    message: str = "",
+    legacy: bool = False
+) -> Response:
+    if not legacy:
+        return Response(f'{error_code}\n{message}')
+
+    message_dict = {
+        1: "The beatmap you're trying to submit isn't owned by you.",
+        2: "The beatmap you're trying to submit is no longer available.",
+        3: "The beatmap is already ranked. You cannot update ranked maps.",
+        4: "The beatmap is currently in the beatmap graveyard. You can ungraveyard your map by visiting the beatmaps section of your user profile.",
+        5: "An error occurred while processing your beatmap."
+    }
+
+    fallback_message = message_dict.get(
+        error_code,
+        'An unknown error occurred.'
+    )
+
+    return Response(message or fallback_message)
 
 def authenticate_user(
     username: str,
     password: str,
-    session: Session
+    session: Session,
+    legacy: bool = False
 ) -> Tuple[Response, DBUser]:
     player = users.fetch_by_name(username, session=session)
 
     if not player:
         app.session.logger.warning(f'Failed to authenticate user: User not found')
-        return error_response(5, 'Authentication failed. Please check your login credentials.'), None
+        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
     if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to authenticate user: Invalid password')
-        return error_response(5, 'Authentication failed. Please check your login credentials.'), None
+        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
     if player.silence_end and player.silence_end > datetime.now():
         app.session.logger.warning(f'Failed to authenticate user: User is silenced')
-        return error_response(5, 'You are not allowed to upload beatmaps while silenced.'), None
+        return error_response(5, 'You are not allowed to upload beatmaps while silenced.', legacy), None
 
     if player.restricted:
         app.session.logger.warning(f'Failed to authenticate user: User is restricted')
-        return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.'), None
+        return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.', legacy), None
 
     if not status.exists(player.id):
         app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho')
-        return error_response(5, 'You are not connected to bancho, please try again!'), None
+        return error_response(5, 'You are not connected to bancho, please try again!', legacy), None
 
     return None, player
 
