@@ -1316,7 +1316,7 @@ def update_beatmap_files(
     beatmap_file_contents = beatmap_file.file.read()
     beatmap_filename = beatmap_file.filename
 
-    if len(beatmap_file_contents) > 1_000_000:
+    if len(beatmap_file_contents) > 100_000_000:
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
     # Parse beatmap file
