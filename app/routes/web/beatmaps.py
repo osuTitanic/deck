@@ -1238,7 +1238,7 @@ def handle_common_upload(
 
     upload_request.tickets.append(upload_ticket)
 
-    beatmapset = resolve_beatmapset(upload_request.set_id, [], session)
+    beatmapset = beatmapsets.fetch_one(upload_request.set_id, session)
     response = ["old"]
 
     if not beatmapset:
