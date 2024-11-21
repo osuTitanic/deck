@@ -360,8 +360,12 @@ def update_osz2_hashes(set_id: int, osz2_file: bytes, session: Session) -> None:
         session=session
     )
 
-def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict, session: Session) -> None:
-    app.session.logger.debug(f'Uploading beatmap package...')
+def update_beatmap_package(
+    set_id: int,
+    files: Dict[str, bytes],
+    session: Session
+) -> None:
+    app.session.logger.debug(f'Updating beatmap package...')
 
     buffer = io.BytesIO()
     zip = ZipFile(buffer, 'w')
@@ -377,8 +381,24 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
         buffer.getvalue()
     )
 
+    # Get total length of all video files
+    video_file_extensions = [
+        ".wmv", ".flv", ".mp4", ".avi", ".m4v"
+    ]
+
+    video_files = [
+        filename
+        for filename in files.keys()
+        if any(ext in filename for ext in video_file_extensions)
+    ]
+
+    total_video_length = sum(
+        len(files[filename])
+        for filename in video_files
+    )
+
     osz_size = len(buffer.getvalue())
-    osz_size_novideo = osz_size - int(metadata.get('VideoDataLength', '0'))
+    osz_size_novideo = osz_size - total_video_length
 
     # Update osz file sizes for osu!direct
     beatmapsets.update(
@@ -983,8 +1003,7 @@ def upload_beatmap(
         update_beatmap_package(
             set_id,
             files,
-            data['metadata'],
-            session
+            session=session
         )
 
         # Update beatmap assets
