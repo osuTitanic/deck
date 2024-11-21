@@ -1289,7 +1289,116 @@ def handle_upload_finish(
     user: DBUser,
     session: Session
 ) -> str | None:
-    ... # TODO
+    remaining_beatmaps = remaining_beatmap_uploads(user, session)
+    beatmapset = beatmapsets.fetch_one(upload_request.set_id, session)
+    is_new = False
+
+    if not beatmapset:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset not found')
+        return "An error occurred while creating the beatmapset. Please try again!"
+    
+    if beatmapset.status == -3:
+        # User wants to upload a new beatmapset
+        if remaining_beatmaps <= 0:
+            app.session.logger.warning(f'Failed to create beatmapset: User has no remaining beatmap uploads')
+            return "You have reached your maximum amount of beatmaps you can upload."
+        
+        is_new = True
+        post_to_webhook(beatmapset)
+        
+    if beatmapset.creator_id != user.id:
+        app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
+        return error_response(1, legacy=True)
+    
+    if beatmapset.server != 1:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset is not on Titanic')
+        return error_response(1, legacy=True)
+    
+    if beatmapset.status > 0:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset is ranked or loved')
+        return error_response(3, legacy=True)
+    
+    if beatmapset.status == -2:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset is graveyarded')
+        return error_response(4, legacy=True)
+
+    request = beatmap_helper.get_upload_request(user.id)
+
+    if not request:
+        app.session.logger.warning(f'Failed to process upload request: Upload request not found')
+        return "An error occurred while processing your beatmap. Please try again!"
+    
+    existing_beatmaps = beatmapset.beatmaps
+    beatmap_ids = [beatmap.id for beatmap in existing_beatmaps]
+
+    for ticket in request.tickets:
+        version = ticket.data['difficultyName']
+
+        # Find the beatmap id for the given version
+        beatmap_id = next((
+            beatmap.id
+            for beatmap in existing_beatmaps
+            if beatmap.version == version
+        ), None)
+
+        if beatmap_id is None:
+            # User added a new beatmap
+            beatmap_ids.append(-1)
+
+    # Create/Remove new beatmaps if necessary
+    update_beatmaps(
+        beatmap_ids,
+        beatmapset,
+        session=session
+    )
+
+    if duplicate_beatmap_files(request.files, user.id, session):
+        app.session.logger.warning(f'Failed to process upload request: Duplicate beatmap files')
+        return "It seems like one of your beatmaps was already uploaded by someone else. Please try again!"
+    
+    if not validate_beatmap_owner(request.beatmaps, request.metadata, user):
+        app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
+        return error_response(1, legacy=True)
+
+    previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
+
+    # Read all files of previous osz
+    with ZipFile(io.BytesIO(previous_osz or b'')) as zip_file:
+        files = {
+            filename: zip_file.read(filename)
+            for filename in zip_file.namelist()
+        }
+
+    # Add updated maps to the files
+    for filename, content in request.files.items():
+        files[filename] = content
+    
+    # Update metadata for beatmapset and beatmaps
+    update_beatmap_metadata(
+        beatmapset,
+        files,
+        request.metadata,
+        request.beatmaps,
+        session
+    )
+
+    # Update .osz file
+    update_beatmap_package(
+        upload_request.set_id,
+        files,
+        session=session
+    )
+
+    # Update beatmap files
+    update_beatmap_files(
+        request.files,
+        session=session
+    )
+
+    app.session.logger.info(
+        f'{user.name} {"created" if is_new else "updated"} a beatmapset '
+        f'({upload_request.set_id})'
+    )
 
 @router.post('/osu-bmsubmit-getid5.php')
 def update_beatmap_files_endpoint(
