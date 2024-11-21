@@ -502,6 +502,10 @@ def update_beatmap_metadata(
         for filename in files.keys()
     ]
 
+    video_file_extensions = [
+        ".wmv", ".flv", ".mp4", ".avi", ".m4v"
+    ]
+
     # Map is in "wip", until the user posts it to the forums
     status = (-1 if beatmapset.status <= -1 else 0)
 
@@ -519,7 +523,7 @@ def update_beatmap_metadata(
             'source_unicode': metadata.get('SourceUnicode'),
             'genre_id': int(metadata.get('Genre', beatmapset.genre_id or 1)),
             'language_id': int(metadata.get('Language', beatmapset.language_id or 1)),
-            'has_video': bool(metadata.get('VideoHash', None)),
+            'has_video': any(ext in file_extensions for ext in video_file_extensions),
             'display_title': (
                 f'[bold:0,size:20]{metadata.get("Artist", "")}|'
                 f'[]{metadata.get("Title", "")}'
