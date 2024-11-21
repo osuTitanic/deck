@@ -819,7 +819,7 @@ def validate_upload_request(
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is not on Titanic')
             return error_response(1)
 
-        if beatmapset.status > 1:
+        if beatmapset.status > 0:
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is ranked or loved')
             return error_response(3)
 
