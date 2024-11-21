@@ -1292,7 +1292,7 @@ def handle_upload_finish(
     ... # TODO
 
 @router.post('/osu-bmsubmit-getid5.php')
-def update_beatmap_files(
+def update_beatmap_files_endpoint(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
     set_id: int = Query(..., alias='s'),
