@@ -654,15 +654,18 @@ def update_beatmap_audio(set_id: int, files: dict, beatmaps: dict) -> None:
         audio_snippet
     )
 
-def update_beatmap_files(files: dict, beatmaps: dict) -> None:
+def update_beatmap_files(files: dict, session: Session) -> None:
     app.session.logger.debug(f'Uploading beatmap files...')
 
     for filename, content in files.items():
         if not filename.endswith('.osu'):
             continue
 
+        beatmap_id = beatmaps.fetch_id_by_filename(filename, session)
+        assert beatmap_id is not None
+
         app.session.storage.upload_beatmap_file(
-            beatmaps[filename]['onlineID'],
+            beatmap_id,
             content
         )
 
@@ -1013,7 +1016,7 @@ def upload_beatmap(
         # Update beatmap assets
         update_beatmap_thumbnail(set_id, files, data['beatmaps'])
         update_beatmap_audio(set_id, files, data['beatmaps'])
-        update_beatmap_files(files, data['beatmaps'])
+        update_beatmap_files(files, session=session)
 
         # Upload the osz2 file to storage
         app.session.storage.upload_osz2(set_id, osz2_file)
