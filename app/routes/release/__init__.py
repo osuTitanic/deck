@@ -16,18 +16,6 @@ router.include_router(changelog.router)
 router.include_router(filter.router)
 router.include_router(update.router)
 
-@router.get('/update.php')
-def legacy_osume_update_endpoint(time: Optional[int] = Query(0)):
-    return ""
-
-@router.get('/update2.php')
-def legacy_update_endpoint():
-    return ""
-
-@router.get('/patches.php')
-def legacy_patches_endpoint():
-    return ""
-
 @router.get('/{filename}')
 def get_release_file(
     filename: str,

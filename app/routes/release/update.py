@@ -89,3 +89,7 @@ def patches():
         file for file in app.session.storage.list('release')
         if file.endswith('.patch')
     ])
+
+@router.get('/update2.php')
+def ingame_update_check():
+    return "" # TODO
