@@ -120,7 +120,7 @@ def authenticate_user(
         app.session.logger.warning(f'Failed to authenticate user: User is restricted')
         return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.', legacy), None
 
-    if not status.exists(player.id):
+    if not status.exists(player.id) and legacy is False:
         app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho')
         return error_response(5, 'You are not connected to bancho, please try again!', legacy), None
 
