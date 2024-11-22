@@ -326,18 +326,19 @@ def update_beatmaps(
     )
 
     # Create new beatmaps
-    new_beatmap_ids = [
+    beatmapset.beatmaps = [
         beatmaps.create(
             id=beatmap_helper.next_beatmap_id(session=session),
             set_id=beatmapset.id,
             session=session
-        ).id
+        )
         for _ in range(required_maps)
     ]
 
     app.session.logger.debug(f'Created {required_maps} new beatmaps')
 
     # Return new beatmap ids to the client
+    new_beatmap_ids = [beatmap.id for beatmap in beatmapset.beatmaps]
     return current_beatmap_ids + new_beatmap_ids
 
 def update_osz2_hashes(set_id: int, osz2_file: bytes, session: Session) -> None:
