@@ -1364,9 +1364,10 @@ def handle_upload_finish(
         return error_response(1, legacy=True)
 
     previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
+    previous_osz = previous_osz or utils.empty_zip_file()
 
     # Read all files of previous osz
-    with ZipFile(io.BytesIO(previous_osz or b'')) as zip_file:
+    with ZipFile(io.BytesIO(previous_osz)) as zip_file:
         files = {
             filename: zip_file.read(filename)
             for filename in zip_file.namelist()
@@ -1375,7 +1376,7 @@ def handle_upload_finish(
     # Add updated maps to the files
     for filename, content in request.files.items():
         files[filename] = content
-    
+
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
         beatmapset,

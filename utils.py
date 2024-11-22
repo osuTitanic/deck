@@ -236,6 +236,9 @@ def thread_callback(future: Future):
         exc_info=e
     )
 
+def empty_zip_file() -> bytes:
+    return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+
 def track(
     event: str,
     properties: dict,
