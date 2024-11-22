@@ -1575,14 +1575,108 @@ def upload_osz(
 
 @router.post('/osu-bmsubmit-post3.php')
 def legacy_forum_post(
-    username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='p'),
-    set_id: int = Query(..., alias='b'),
-    subject: str = Query(...),
-    message: str = Query(...),
-    complete: bool = Depends(integer_boolean('complete')),
-    bumprequest: bool = Depends(integer_boolean('bumprequest')),
+    username: str = Form(..., alias='u'),
+    password: str = Form(..., alias='p'),
+    set_id: int = Form(..., alias='b'),
+    subject: str = Form(...),
+    message: str = Form(...),
+    notify: bool = Depends(integer_boolean_form('notify')),
+    complete: bool = Depends(integer_boolean_form('complete')),
+    bumprequest: bool = Depends(integer_boolean_form('bumprequest')),
     session: Session = Depends(app.session.database.yield_session)
 ):
-    # Not implemented
-    return "-1"
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session,
+        legacy=True
+    )
+
+    if error:
+        return Response(status_code=403)
+
+    # Remove upload request
+    beatmap_helper.remove_upload_request(user.id)
+
+    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
+        app.session.logger.warning(f'Failed to post beatmapset topic: Beatmapset not found')
+        return Response(status_code=404)
+    
+    if beatmapset.creator_id != user.id:
+        app.session.logger.warning(f'Failed to post beatmapset topic: User does not own the beatmapset')
+        return Response(status_code=403)
+    
+    # Update status based on "comlete" flag
+    # and the beatmapset description
+    beatmapsets.update(
+        set_id,
+        {
+            'status': 0 if complete else -1,
+            'last_update': datetime.now(),
+            'description': (
+                message.split('---------------\n', 1)[-1]
+            )
+        },
+        session=session
+    )
+
+    if not beatmapset.topic_id:
+        topic_id = create_beatmap_topic(
+            set_id, user.id,
+            subject, message,
+            not complete, bumprequest,
+            session=session
+        )
+        return Response(f'{topic_id}')
+    
+    if not (topic := topics.fetch_one(beatmapset.topic_id, session)):
+        topic_id = create_beatmap_topic(
+            set_id, user.id,
+            subject, message,
+            not complete, bumprequest,
+            session=session
+        )
+        return Response(f'{topic_id}')
+    
+    topics.update(
+        topic.id,
+        {
+            'title': subject,
+            'forum_id': (9 if complete else 10),
+            'status_text': (
+                'Needs modding'
+                if not complete else
+                'Waiting for BAT approval'
+            )
+        },
+        session=session
+    )
+
+    if first_post := posts.fetch_initial_post(topic.id, session):
+        posts.update(
+            first_post.id,
+            {
+                'content': message,
+                'forum_id': (9 if complete else 10),
+                'deleted': False
+            },
+            session=session
+        )
+
+    # Update subscription/notification status
+    if notify:
+        topics.add_subscriber(
+            topic.id,
+            user.id,
+            session=session
+        )
+    
+    else:
+        topics.delete_subscriber(
+            topic.id,
+            user.id,
+            session=session
+        )
+
+    # TODO: Handle "bumprequest"
+    return Response(f'{topic.id}')
