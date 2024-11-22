@@ -326,19 +326,18 @@ def update_beatmaps(
     )
 
     # Create new beatmaps
-    beatmapset.beatmaps = [
+    new_beatmap_ids = [
         beatmaps.create(
             id=beatmap_helper.next_beatmap_id(session=session),
             set_id=beatmapset.id,
             session=session
-        )
+        ).id
         for _ in range(required_maps)
     ]
 
     app.session.logger.debug(f'Created {required_maps} new beatmaps')
 
     # Return new beatmap ids to the client
-    new_beatmap_ids = [beatmap.id for beatmap in beatmapset.beatmaps]
     return current_beatmap_ids + new_beatmap_ids
 
 def update_osz2_hashes(set_id: int, osz2_file: bytes, session: Session) -> None:
@@ -1218,6 +1217,15 @@ def handle_initial_upload(
         metadata
     )
 
+    # Resolve set id through filename to prevent potential errors
+    existing_beatmap = beatmaps.fetch_by_file(
+        beatmap_filename,
+        session=session
+    )
+
+    if existing_beatmap:
+        request.set_id = existing_beatmap.set_id
+
     beatmap_helper.register_upload_request(user.id, request)
 
 def handle_common_upload(
@@ -1289,19 +1297,21 @@ def handle_common_upload(
 
     return '\n'.join(response)
 
-def handle_upload_finish(
-    upload_request: beatmap_helper.UploadRequest | None,
-    user: DBUser,
-    session: Session
-) -> str | None:
+def handle_upload_finish(user: DBUser, session: Session) -> str | None:
+    request = beatmap_helper.get_upload_request(user.id)
+
+    if not request:
+        app.session.logger.warning(f'Failed to process upload request: Upload request not found')
+        return "An error occurred while processing your beatmap. Please try again!"
+
     remaining_beatmaps = remaining_beatmap_uploads(user, session)
-    beatmapset = beatmapsets.fetch_one(upload_request.set_id, session)
+    beatmapset = beatmapsets.fetch_one(request.set_id, session)
     is_new = False
 
     if not beatmapset:
         app.session.logger.warning(f'Failed to process upload request: Beatmapset not found')
         return "An error occurred while creating the beatmapset. Please try again!"
-    
+
     if beatmapset.status == -3:
         # User wants to upload a new beatmapset
         if remaining_beatmaps <= 0:
@@ -1327,14 +1337,17 @@ def handle_upload_finish(
         app.session.logger.warning(f'Failed to process upload request: Beatmapset is graveyarded')
         return error_response(4, legacy=True)
 
-    request = beatmap_helper.get_upload_request(user.id)
-
-    if not request:
-        app.session.logger.warning(f'Failed to process upload request: Upload request not found')
-        return "An error occurred while processing your beatmap. Please try again!"
+    if duplicate_beatmap_files(request.files, user.id, session):
+        app.session.logger.warning(f'Failed to process upload request: Duplicate beatmap files')
+        return "It seems like one of your beatmaps was already uploaded by someone else. Please try again!"
     
+    if not validate_beatmap_owner(request.beatmaps, request.metadata, user):
+        app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
+        return error_response(1, legacy=True)
+
     existing_beatmaps = beatmapset.beatmaps
     beatmap_ids = [beatmap.id for beatmap in existing_beatmaps]
+    print(existing_beatmaps)
 
     for ticket in request.tickets:
         version = ticket.data['difficultyName']
@@ -1356,14 +1369,6 @@ def handle_upload_finish(
         beatmapset,
         session=session
     )
-
-    if duplicate_beatmap_files(request.files, user.id, session):
-        app.session.logger.warning(f'Failed to process upload request: Duplicate beatmap files')
-        return "It seems like one of your beatmaps was already uploaded by someone else. Please try again!"
-    
-    if not validate_beatmap_owner(request.beatmaps, request.metadata, user):
-        app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
-        return error_response(1, legacy=True)
 
     previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
     previous_osz = previous_osz or utils.empty_zip_file()
@@ -1390,7 +1395,7 @@ def handle_upload_finish(
 
     # Update .osz file
     update_beatmap_package(
-        upload_request.set_id,
+        beatmapset.id,
         files,
         session=session
     )
@@ -1403,7 +1408,7 @@ def handle_upload_finish(
 
     app.session.logger.info(
         f'{user.name} {"created" if is_new else "updated"} a beatmapset '
-        f'({upload_request.set_id})'
+        f'({request.set_id})'
     )
 
 @router.post('/osu-bmsubmit-getid5.php')
@@ -1476,8 +1481,7 @@ def update_beatmap_files_endpoint(
         # Validate all beatmaps, update metadata,
         # upload new files, ...
         error = handle_upload_finish(
-            upload_request, user,
-            session=session
+            user, session=session
         )
 
         if error:
