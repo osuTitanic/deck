@@ -1256,6 +1256,7 @@ def handle_common_upload(
         )
 
         if upload_request.set_id is None:
+            app.session.logger.warning(f'Failed to create beatmapset: set_id is None')
             return "An error occurred while creating the beatmapset."
 
     # Update upload request
@@ -1281,7 +1282,7 @@ def handle_common_upload(
         )
 
         if not post:
-            return
+            return '\n'.join(response)
 
         response.append(post.topic.title)
         response.append(post.content)
