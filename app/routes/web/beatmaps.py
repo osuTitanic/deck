@@ -367,10 +367,19 @@ def update_beatmap_package(
 ) -> None:
     app.session.logger.debug(f'Updating beatmap package...')
 
+    allowed_file_extensions = [
+        ".osu", ".osz", ".osb", ".osk", ".png", ".mp3", ".jpeg",
+        ".wav", ".png", ".wav", ".ogg", ".jpg", ".wmv", ".flv",
+        ".mp3", ".flac", ".mp4", ".avi", ".ini", ".jpg", ".m4v"
+    ]
+
     buffer = io.BytesIO()
     zip = ZipFile(buffer, 'w')
 
     for filename, data in files.items():
+        if not any(filename.endswith(ext) for ext in allowed_file_extensions):
+            continue
+
         zip.writestr(filename, data)
 
     zip.close()
