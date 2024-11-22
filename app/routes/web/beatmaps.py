@@ -1268,9 +1268,17 @@ def handle_common_upload(
             return "An error occurred while creating the beatmapset."
 
     # Update upload request
-    beatmap_helper.register_upload_request(user.id, upload_request)
+    beatmap_helper.register_upload_request(
+        user.id,
+        upload_request
+    )
 
-    if beatmapset and beatmapset.status == -3:
+    post = posts.fetch_initial_post(
+        beatmapset.topic_id,
+        session=session
+    )
+
+    if not post:
         response = ["new"]
 
     # Format response
@@ -1283,15 +1291,6 @@ def handle_common_upload(
         is_approved = beatmapset.status > 0
         response.append(f'{beatmapset.topic_id or -1}')
         response.append(f'{int(is_approved)}')
-
-        post = posts.fetch_initial_post(
-            beatmapset.topic_id,
-            session=session
-        )
-
-        if not post:
-            return '\n'.join(response)
-
         response.append(post.topic.title)
         response.append(post.content)
 
