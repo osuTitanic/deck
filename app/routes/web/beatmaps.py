@@ -1206,12 +1206,15 @@ def handle_initial_upload(
         is_osz=True
     )
 
+    lazer_metadata = parsed_beatmap['metadata']
+    metadata = beatmap_helper.format_metadata(lazer_metadata)
+
     request = beatmap_helper.UploadRequest(
         set_id,
         osz_ticket,
         has_video,
         has_storyboard,
-        parsed_beatmap['metadata']
+        metadata
     )
 
     beatmap_helper.register_upload_request(user.id, request)
