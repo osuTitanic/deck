@@ -1490,11 +1490,88 @@ def upload_osz(
     ticket: str = Query(..., alias='c'),
     osz_filename: str = Query(..., alias='of'),
     osz_ticket: str = Query(..., alias='oc'),
+    file: UploadFile = File(..., alias='osu'),
     is_first: bool = Depends(integer_boolean('r')),
     session: Session = Depends(app.session.database.yield_session)
 ):
-    # Not implemented
-    return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!', legacy=True)
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session,
+        legacy=True
+    )
+
+    if error:
+        # Failed to authenticate user
+        return Response(error.body, 403)
+    
+    if not (upload_request := beatmap_helper.get_upload_request(user.id)):
+        app.session.logger.warning(f'Failed to upload osz file: Upload request not found')
+        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+    
+    if set_id != upload_request.set_id:
+        app.session.logger.warning(f'Failed to upload osz file: Invalid set id')
+        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+
+    if osz_ticket != upload_request.osz_ticket:
+        app.session.logger.warning(f'Failed to upload osz file: Invalid ticket')
+        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+
+    # Remove ticket, as it's no longer needed
+    beatmap_helper.remove_upload_request(user.id)
+
+    if ticket != upload_request.osz_ticket:
+        # We already updated all beatmap files
+        # so we can just return "ok" here.
+        return "ok"
+
+    osz_file = ZipFile(file.file)
+    files = {
+        filename: osz_file.read(filename)
+        for filename in osz_file.namelist()
+    }
+
+    osz_map_files = [
+        filename
+        for filename in files
+        if filename.endswith('.osu')
+    ]
+
+    # Ensure we got the same amount of beatmaps
+    if len(osz_map_files) != len(upload_request.tickets):
+        app.session.logger.warning(f'Failed to upload osz file: Invalid amount of beatmaps')
+        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+
+    # Check if osz beatmap files are present in upload ticket
+    # and compare them with the uploaded osz file
+    for filename, content in upload_request.files.items():
+        if filename not in files:
+            app.session.logger.warning(f'Failed to upload osz file: Missing beatmap file')
+            return Response("An error occurred while processing your beatmap. Please try again!", 400)
+        
+        ticket_hash = hashlib.md5(content).hexdigest()
+        file_hash = hashlib.md5(files[filename]).hexdigest()
+        
+        if ticket_hash != file_hash:
+            app.session.logger.warning(f'Failed to upload osz file: Beatmap hash mismatch')
+            return Response("An error occurred while processing your beatmap. Please try again!", 400)
+
+    # Create & upload .osz file
+    update_beatmap_package(
+        set_id,
+        files,
+        session=session
+    )
+
+    # Update beatmap assets
+    update_beatmap_thumbnail(set_id, files, upload_request.beatmaps)
+    update_beatmap_audio(set_id, files, upload_request.beatmaps)
+    update_beatmap_files(files, session=session)
+
+    app.session.logging.info(
+        f'{user.name} uploaded an osz file for beatmapset ({set_id})'
+    )
+    return "ok"
 
 @router.post('/osu-bmsubmit-post3.php')
 def legacy_forum_post(
