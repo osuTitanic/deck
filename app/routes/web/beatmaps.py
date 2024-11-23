@@ -436,10 +436,10 @@ def calculate_package_size(files: Dict[str, bytes]) -> int:
     )
 
 def calculate_size_limit(beatmap_length: int) -> int:
-    # The file size limit is 8MB plus an additional 10MB for
+    # The file size limit is 10MB plus an additional 10MB for
     # every minute of beatmap length, and it caps at 100MB.
     return min(
-        8_000_000 + (10_000_000 * (beatmap_length / 60)),
+        10_000_000 + (10_000_000 * (beatmap_length / 60)),
         100_000_000
     )
 
