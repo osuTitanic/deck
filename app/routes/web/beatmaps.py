@@ -957,7 +957,7 @@ def upload_beatmap(
 
     osz2_file = submission_file.file.read()
 
-    if len(osz2_file) > 80_000_000:
+    if len(osz2_file) > 100_000_000: # 100mb
         app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large')
         return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
@@ -1444,7 +1444,7 @@ def update_beatmap_files_endpoint(
     beatmap_file_contents = beatmap_file.file.read()
     beatmap_filename = beatmap_file.filename
 
-    if len(beatmap_file_contents) > 100_000_000:
+    if len(beatmap_file_contents) > 15_000_000: # 15mb
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
     # Parse beatmap file
