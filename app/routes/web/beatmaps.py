@@ -1659,6 +1659,13 @@ def upload_osz(
     )
     return "ok"
 
+@router.post('/osu-bmsubmit-novideo.php')
+def upload_osz_novideo(osz_filename: str = Form(..., alias='file')):
+    # This endpoint was used to generate a no-video osz file
+    # after the beatmap submission was done. In our case
+    # we don't need to do anything here.
+    return Response(status_code=200)
+
 @router.post('/osu-bmsubmit-post3.php')
 def legacy_forum_post(
     username: str = Form(..., alias='u'),
