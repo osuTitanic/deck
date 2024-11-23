@@ -1432,26 +1432,18 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
-    existing_beatmaps = beatmapset.beatmaps
-    beatmap_ids = [beatmap.id for beatmap in existing_beatmaps]
-    has_full_submit = not all(filename.endswith('.osu') for filename in files)
+    has_full_submit = not all(
+        filename.endswith('.osu')
+        for filename in files
+    )
 
-    for ticket in request.tickets:
-        version = ticket.data['difficultyName']
-
-        # Find the beatmap id for the given version
-        beatmap_id = next((
-            beatmap.id
-            for beatmap in existing_beatmaps
-            if beatmap.version == version
-        ), None)
-
-        if beatmap_id is None:
-            # User added a new beatmap
-            beatmap_ids.append(-1)
+    beatmap_ids = [
+        beatmaps.fetch_id_by_filename(ticket.filename, session) or -1
+        for ticket in request.tickets
+    ]
 
     # Create/Remove new beatmaps if necessary
-    update_beatmaps(
+    beatmap_ids = update_beatmaps(
         beatmap_ids,
         beatmapset,
         session=session
@@ -1478,7 +1470,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
 
     # Update beatmap files
     update_beatmap_files(
-        files,
+        request.files,
         session
     )
 
