@@ -9,6 +9,7 @@ from zipfile import ZipFile
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.webhooks import Embed, Image, Author
+from app.common.constants import SendAction
 from app.common.helpers import performance
 from app.common.streams import StreamIn
 from app.common.cache import status
@@ -40,10 +41,13 @@ from fastapi import (
     File
 )
 
+import zipfile
 import hashlib
 import base64
 import config
 import utils
+import zlib
+import time
 import app
 import io
 
@@ -71,37 +75,66 @@ def integer_boolean_form(parameter: str) -> Callable:
         return query == '1'
     return wrapper
 
-def error_response(error_code: int, message: str = "") -> Response:
-    return Response(f'{error_code}\n{message}')
+def error_response(
+    error_code: int,
+    message: str = "",
+    legacy: bool = False
+) -> Response:
+    if not legacy:
+        return Response(f'{error_code}\n{message}')
+
+    message_dict = {
+        1: "The beatmap you're trying to submit isn't owned by you.",
+        2: "The beatmap you're trying to submit is no longer available.",
+        3: "The beatmap is already ranked. You cannot update ranked maps.",
+        4: "The beatmap is currently in the beatmap graveyard. You can ungraveyard your map by visiting the beatmaps section of your user profile.",
+        5: "An error occurred while processing your beatmap."
+    }
+
+    fallback_message = message_dict.get(
+        error_code,
+        'An unknown error occurred.'
+    )
+
+    return Response(message or fallback_message)
 
 def authenticate_user(
     username: str,
     password: str,
-    session: Session
+    session: Session,
+    legacy: bool = False
 ) -> Tuple[Response, DBUser]:
     player = users.fetch_by_name(username, session=session)
 
     if not player:
         app.session.logger.warning(f'Failed to authenticate user: User not found')
-        return error_response(5, 'Authentication failed. Please check your login credentials.'), None
+        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
     if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to authenticate user: Invalid password')
-        return error_response(5, 'Authentication failed. Please check your login credentials.'), None
+        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
     if player.silence_end and player.silence_end > datetime.now():
         app.session.logger.warning(f'Failed to authenticate user: User is silenced')
-        return error_response(5, 'You are not allowed to upload beatmaps while silenced.'), None
+        return error_response(5, 'You are not allowed to upload beatmaps while silenced.', legacy), None
 
     if player.restricted:
         app.session.logger.warning(f'Failed to authenticate user: User is restricted')
-        return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.'), None
+        return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.', legacy), None
 
     if not status.exists(player.id):
         app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho')
-        return error_response(5, 'You are not connected to bancho, please try again!'), None
+        return error_response(5, 'You are not connected to bancho, please try again!', legacy), None
 
     return None, player
+
+def bancho_message(message: str, user: DBUser) -> Response:
+    app.session.events.submit(
+        'user_announcement',
+        user_id=user.id,
+        message=message,
+    )
+    return Response(message, 400)
 
 def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
     """Check if a beatmap has the 'bubble' icon on the forums"""
@@ -337,13 +370,26 @@ def update_osz2_hashes(set_id: int, osz2_file: bytes, session: Session) -> None:
         session=session
     )
 
-def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict, session: Session) -> None:
-    app.session.logger.debug(f'Uploading beatmap package...')
+def update_beatmap_package(
+    set_id: int,
+    files: Dict[str, bytes],
+    session: Session
+) -> None:
+    app.session.logger.debug(f'Updating beatmap package...')
+
+    allowed_file_extensions = [
+        ".osu", ".osz", ".osb", ".osk", ".png", ".mp3", ".jpeg",
+        ".wav", ".png", ".wav", ".ogg", ".jpg", ".wmv", ".flv",
+        ".mp3", ".flac", ".mp4", ".avi", ".ini", ".jpg", ".m4v"
+    ]
 
     buffer = io.BytesIO()
-    zip = ZipFile(buffer, 'w')
+    zip = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
 
     for filename, data in files.items():
+        if not any(filename.endswith(ext) for ext in allowed_file_extensions):
+            continue
+
         zip.writestr(filename, data)
 
     zip.close()
@@ -354,8 +400,24 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
         buffer.getvalue()
     )
 
+    # Get total length of all video files
+    video_file_extensions = [
+        ".wmv", ".flv", ".mp4", ".avi", ".m4v"
+    ]
+
+    video_files = [
+        filename
+        for filename in files.keys()
+        if any(ext in filename for ext in video_file_extensions)
+    ]
+
+    total_video_length = sum(
+        len(files[filename])
+        for filename in video_files
+    )
+
     osz_size = len(buffer.getvalue())
-    osz_size_novideo = osz_size - int(metadata.get('VideoDataLength', '0'))
+    osz_size_novideo = osz_size - total_video_length
 
     # Update osz file sizes for osu!direct
     beatmapsets.update(
@@ -365,6 +427,28 @@ def update_beatmap_package(set_id: int, files: Dict[str, bytes], metadata: dict,
             'osz_filesize_novideo': osz_size_novideo
         },
         session=session
+    )
+
+def calculate_package_size(files: Dict[str, bytes]) -> int:
+    buffer = io.BytesIO()
+    osz = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
+
+    for filename, data in files.items():
+        osz.writestr(filename, data)
+
+    osz.close()
+    size = len(buffer.getvalue())
+
+    del buffer
+    del osz
+    return size
+
+def calculate_size_limit(beatmap_length: int) -> int:
+    # The file size limit is 10MB plus an additional 10MB for
+    # every minute of beatmap length, and it caps at 100MB.
+    return min(
+        10_000_000 + (10_000_000 * (beatmap_length / 60)),
+        100_000_000
     )
 
 def resolve_beatmapset(
@@ -459,6 +543,10 @@ def update_beatmap_metadata(
         for filename in files.keys()
     ]
 
+    video_file_extensions = [
+        ".wmv", ".flv", ".mp4", ".avi", ".m4v"
+    ]
+
     # Map is in "wip", until the user posts it to the forums
     status = (-1 if beatmapset.status <= -1 else 0)
 
@@ -476,7 +564,7 @@ def update_beatmap_metadata(
             'source_unicode': metadata.get('SourceUnicode'),
             'genre_id': int(metadata.get('Genre', beatmapset.genre_id or 1)),
             'language_id': int(metadata.get('Language', beatmapset.language_id or 1)),
-            'has_video': bool(metadata.get('VideoHash', None)),
+            'has_video': any(ext in file_extensions for ext in video_file_extensions),
             'display_title': (
                 f'[bold:0,size:20]{metadata.get("Artist", "")}|'
                 f'[]{metadata.get("Title", "")}'
@@ -607,15 +695,18 @@ def update_beatmap_audio(set_id: int, files: dict, beatmaps: dict) -> None:
         audio_snippet
     )
 
-def update_beatmap_files(files: dict, beatmaps: dict) -> None:
+def update_beatmap_files(files: dict, session: Session) -> None:
     app.session.logger.debug(f'Uploading beatmap files...')
 
     for filename, content in files.items():
         if not filename.endswith('.osu'):
             continue
 
+        beatmap_id = beatmaps.fetch_id_by_filename(filename, session)
+        assert beatmap_id is not None
+
         app.session.storage.upload_beatmap_file(
-            beatmaps[filename]['onlineID'],
+            beatmap_id,
             content
         )
 
@@ -898,7 +989,7 @@ def upload_beatmap(
 
     osz2_file = submission_file.file.read()
 
-    if len(osz2_file) > 80_000_000:
+    if len(osz2_file) > 100_000_000: # 100mb
         app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large')
         return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
@@ -945,6 +1036,22 @@ def upload_beatmap(
             app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
             return error_response(1)
 
+        max_beatmap_length = max(
+            beatmap['length'] / 1000
+            for beatmap in data['beatmaps'].values()
+        )
+
+        if max_beatmap_length <= 1:
+            app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
+            return error_response(5, 'Your beatmap is too short. Please try to make it longer and try again!')
+
+        package_filesize = calculate_package_size(files)
+        size_limit = calculate_size_limit(max_beatmap_length)
+
+        if package_filesize > size_limit:
+            app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+            return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
+
         previous_status = beatmapset.status
 
         # Update metadata for beatmapset and beatmaps
@@ -960,14 +1067,13 @@ def upload_beatmap(
         update_beatmap_package(
             set_id,
             files,
-            data['metadata'],
-            session
+            session=session
         )
 
         # Update beatmap assets
         update_beatmap_thumbnail(set_id, files, data['beatmaps'])
         update_beatmap_audio(set_id, files, data['beatmaps'])
-        update_beatmap_files(files, data['beatmaps'])
+        update_beatmap_files(files, session=session)
 
         # Upload the osz2 file to storage
         app.session.storage.upload_osz2(set_id, osz2_file)
@@ -1126,3 +1232,575 @@ def topic_contents(
         f'{topic.title}',
         f'{first_post.content if first_post else ""}',
     ]))
+
+def create_ticket_hash(
+    filename: str,
+    user_id: int,
+    is_osz: bool = False
+) -> str:
+    prefix = 'osz' if is_osz else 'osu'
+    string = f'{prefix}:{time.time()}:{user_id}:{filename}'
+    return hashlib.sha256(string.encode()).hexdigest()
+
+def handle_initial_upload(
+    user: DBUser,
+    set_id: int,
+    beatmap_filename: str,
+    parsed_beatmap: dict,
+    has_video: bool,
+    has_storyboard: bool,
+    session: Session
+) -> str | None:
+    # Delete any inactive beatmaps
+    delete_inactive_beatmaps(user, session=session)
+
+    # Ensure that the user has no pending uploads
+    beatmap_helper.remove_upload_request(user.id)
+
+    osz_ticket = create_ticket_hash(
+        beatmap_filename,
+        user.id,
+        is_osz=True
+    )
+
+    lazer_metadata = parsed_beatmap['metadata']
+    metadata = beatmap_helper.format_metadata(lazer_metadata)
+
+    request = beatmap_helper.UploadRequest(
+        set_id,
+        osz_ticket,
+        has_video,
+        has_storyboard,
+        metadata
+    )
+
+    # Resolve set id through filename to prevent potential errors
+    existing_beatmap = beatmaps.fetch_by_file(
+        beatmap_filename,
+        session=session
+    )
+
+    if existing_beatmap:
+        request.set_id = existing_beatmap.set_id
+
+    beatmap_helper.register_upload_request(user.id, request)
+
+def handle_common_upload(
+    upload_request: beatmap_helper.UploadRequest | None,
+    beatmap_file: bytes,
+    beatmap_filename: str,
+    parsed_beatmap: dict,
+    user: DBUser,
+    session: Session
+) -> str | None:
+    beatmap_ticket = create_ticket_hash(
+        beatmap_filename,
+        user.id
+    )
+
+    upload_ticket = beatmap_helper.UploadTicket(
+        beatmap_filename,
+        beatmap_ticket,
+        beatmap_file,
+        parsed_beatmap,
+    )
+
+    upload_request.tickets.append(upload_ticket)
+
+    beatmapset = beatmapsets.fetch_one(upload_request.set_id, session)
+    response = ["old"]
+
+    if not beatmapset:
+        # User wants to upload a new beatmapset
+        response = ["new"]
+
+        # Create a new empty beatmapset inside the database
+        upload_request.set_id, _ = create_beatmapset(
+            user, [],
+            session=session
+        )
+
+        if upload_request.set_id is None:
+            app.session.logger.warning(f'Failed to create beatmapset: set_id is None')
+            return "An error occurred while creating the beatmapset."
+
+    # Update upload request
+    beatmap_helper.register_upload_request(
+        user.id,
+        upload_request
+    )
+
+    if beatmapset:
+        post = posts.fetch_initial_post(
+            beatmapset.topic_id,
+            session=session
+        )
+
+        if not post:
+            response = ["new"]
+
+    # Format response
+    response.append(f'{upload_request.set_id}')
+    response.append(f'{upload_request.osz_ticket}')
+    response.append(f'{upload_ticket.ticket}')
+    response.append(f'{upload_request.osz_filename}')
+
+    if response[0] != "new":
+        is_approved = beatmapset.status > 0
+        response.append(f'{beatmapset.topic_id or -1}')
+        response.append(f'{int(is_approved)}')
+        response.append(post.topic.title)
+        response.append(post.content)
+
+    return '\n'.join(response)
+
+def handle_upload_finish(user: DBUser, session: Session) -> str | None:
+    request = beatmap_helper.get_upload_request(user.id)
+
+    if not request:
+        app.session.logger.warning(f'Failed to process upload request: Upload request not found')
+        return "An error occurred while processing your beatmap. Please try again!"
+
+    remaining_beatmaps = remaining_beatmap_uploads(user, session)
+    beatmapset = beatmapsets.fetch_one(request.set_id, session)
+    is_new = False
+
+    if not beatmapset:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset not found')
+        return "An error occurred while creating the beatmapset. Please try again!"
+
+    if beatmapset.status == -3:
+        # User wants to upload a new beatmapset
+        if remaining_beatmaps <= 0:
+            app.session.logger.warning(f'Failed to create beatmapset: User has no remaining beatmap uploads')
+            return "You have reached your maximum amount of beatmaps you can upload."
+        
+        is_new = True
+        post_to_webhook(beatmapset)
+        
+    if beatmapset.creator_id != user.id:
+        app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
+        return error_response(1, legacy=True)
+    
+    if beatmapset.server != 1:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset is not on Titanic')
+        return error_response(1, legacy=True)
+    
+    if beatmapset.status > 0:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset is ranked or loved')
+        return error_response(3, legacy=True)
+    
+    if beatmapset.status == -2:
+        app.session.logger.warning(f'Failed to process upload request: Beatmapset is graveyarded')
+        return error_response(4, legacy=True)
+
+    if duplicate_beatmap_files(request.files, user.id, session):
+        app.session.logger.warning(f'Failed to process upload request: Duplicate beatmap files')
+        return "It seems like one of your beatmaps was already uploaded by someone else. Please try again!"
+    
+    if not validate_beatmap_owner(request.beatmaps, request.metadata, user):
+        app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
+        return error_response(1, legacy=True)
+
+    previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
+    previous_osz = previous_osz or utils.empty_zip_file()
+
+    # Read all files of previous osz
+    with ZipFile(io.BytesIO(previous_osz)) as zip_file:
+        files = {
+            filename: zip_file.read(filename)
+            for filename in zip_file.namelist()
+        }
+
+    # Add updated maps to the files
+    for filename, content in request.files.items():
+        files[filename] = content
+
+    max_beatmap_length = max(
+        beatmap['length'] / 1000
+        for beatmap in request.beatmaps.values()
+    )
+
+    if max_beatmap_length <= 1:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
+        return "Your beatmap is too short. Please try to make it longer and try again!"
+
+    package_filesize = calculate_package_size(files)
+    size_limit = calculate_size_limit(max_beatmap_length)
+
+    if package_filesize > size_limit:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+        return "Your beatmap is too big. Try to reduce its filesize and try again!"
+
+    has_full_submit = not all(
+        filename.endswith('.osu')
+        for filename in files
+    )
+
+    beatmap_ids = [
+        beatmaps.fetch_id_by_filename(ticket.filename, session) or -1
+        for ticket in request.tickets
+    ]
+
+    # Create/Remove new beatmaps if necessary
+    beatmap_ids = update_beatmaps(
+        beatmap_ids,
+        beatmapset,
+        session=session
+    )
+
+    # Update relationships
+    session.refresh(beatmapset)
+
+    # Update metadata for beatmapset and beatmaps
+    update_beatmap_metadata(
+        beatmapset,
+        files,
+        request.metadata,
+        request.beatmaps,
+        session
+    )
+
+    # Update .osz file
+    update_beatmap_package(
+        beatmapset.id,
+        files,
+        session
+    )
+
+    # Update beatmap files
+    update_beatmap_files(
+        request.files,
+        session
+    )
+
+    # Set the status to "inactive" if the map
+    # has not gotten a full submission before
+    if not has_full_submit:
+        beatmapsets.update(
+            beatmapset.id,
+            {'status': -3},
+            session=session
+        )
+        beatmaps.update_by_set_id(
+            beatmapset.id,
+            {'status': -3},
+            session=session
+        )
+
+    app.session.logger.info(
+        f'{user.name} {"created" if is_new else "updated"} a beatmapset '
+        f'({request.set_id})'
+    )
+
+@router.post('/osu-bmsubmit-getid5.php')
+def update_beatmap_files_endpoint(
+    username: str = Query(..., alias='u'),
+    password: str = Query(..., alias='p'),
+    set_id: int = Query(..., alias='s'),
+    action: SendAction = Query(..., alias='r'),
+    has_video: bool = Depends(integer_boolean('v')),
+    has_storyboard: bool = Depends(integer_boolean('sb')),
+    beatmap_file: UploadFile = File(..., alias='osu'),
+    session: Session = Depends(app.session.database.yield_session)
+):
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session,
+        legacy=True
+    )
+
+    if error:
+        # Failed to authenticate user
+        return error
+
+    beatmap_file_contents = beatmap_file.file.read()
+    beatmap_filename = beatmap_file.filename
+
+    if len(beatmap_file_contents) > 15_000_000: # 15mb
+        return "Your beatmap is too big. Try to reduce its filesize and try again!"
+
+    # Parse beatmap file
+    parsed_beatmap = beatmap_helper.parse_beatmap(beatmap_file_contents)
+
+    if not parsed_beatmap:
+        return "Failed to parse beatmap file. Please try again!"
+
+    if action in (SendAction.FirstBeatmap, SendAction.SingleBeatmap):
+        # Handle upload ticket registration
+        error = handle_initial_upload(
+            user, set_id,
+            beatmap_filename,
+            parsed_beatmap,
+            has_video,
+            has_storyboard,
+            session=session
+        )
+
+        if error:
+            return error
+
+    upload_request = beatmap_helper.get_upload_request(user.id)
+
+    if not upload_request:
+        app.session.logger.warning(f'Failed to process upload request: Upload request not found')
+        return "An error occurred while processing your beatmap. Please try again!"
+
+    # Create a ticket for the given beatmap
+    response_data = handle_common_upload(
+        upload_request,
+        beatmap_file_contents,
+        beatmap_filename,
+        parsed_beatmap,
+        user, session
+    )
+
+    if not response_data:
+        return "An error occurred while processing your beatmap. Please try again!"
+
+    if action in (SendAction.LastBeatmap, SendAction.SingleBeatmap):
+        # Validate all beatmaps, update metadata,
+        # upload new files, ...
+        error = handle_upload_finish(
+            user,
+            session
+        )
+
+        if error:
+            return error
+
+    return response_data
+
+@router.post('/osu-bmsubmit-upload.php')
+def upload_osz(
+    username: str = Query(..., alias='u'),
+    password: str = Query(..., alias='p'),
+    set_id: int = Query(..., alias='s'),
+    ticket: str = Query(..., alias='c'),
+    osz_filename: str = Query(..., alias='of'),
+    osz_ticket: str = Query(..., alias='oc'),
+    file: UploadFile = File(..., alias='osu'),
+    is_first: bool = Depends(integer_boolean('r')),
+    session: Session = Depends(app.session.database.yield_session)
+):
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session,
+        legacy=True
+    )
+
+    if error:
+        # Failed to authenticate user
+        return Response(error.body, 403)
+    
+    if not (upload_request := beatmap_helper.get_upload_request(user.id)):
+        app.session.logger.warning(f'Failed to upload osz file: Upload request not found')
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
+    
+    if set_id != upload_request.set_id:
+        app.session.logger.warning(f'Failed to upload osz file: Invalid set id')
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
+
+    if osz_ticket != upload_request.osz_ticket:
+        app.session.logger.warning(f'Failed to upload osz file: Invalid ticket')
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
+
+    if ticket != upload_request.osz_ticket:
+        # We already updated all beatmap files
+        # so we can just return here.
+        return "ok"
+
+    # Remove ticket, as it's no longer needed
+    beatmap_helper.remove_upload_request(user.id)
+
+    osz_file = ZipFile(file.file)
+    files = {
+        filename: osz_file.read(filename)
+        for filename in osz_file.namelist()
+    }
+
+    osz_map_files = [
+        filename
+        for filename in files
+        if filename.endswith('.osu')
+    ]
+
+    # Ensure we got the same amount of beatmaps
+    if len(osz_map_files) != len(upload_request.tickets):
+        app.session.logger.warning(f'Failed to upload osz file: Invalid amount of beatmaps')
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
+
+    # Check if osz beatmap files are present in upload ticket
+    # and compare them with the uploaded osz file
+    for filename, content in upload_request.files.items():
+        if filename not in files:
+            app.session.logger.warning(f'Failed to upload osz file: Missing beatmap file')
+            return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
+        
+        ticket_hash = hashlib.md5(content).hexdigest()
+        file_hash = hashlib.md5(files[filename]).hexdigest()
+        
+        if ticket_hash != file_hash:
+            app.session.logger.warning(f'Failed to upload osz file: Beatmap hash mismatch')
+            return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
+
+    max_beatmap_length = max(
+        beatmap['length'] / 1000
+        for beatmap in upload_request.beatmaps.values()
+    )
+
+    if max_beatmap_length <= 1:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
+        return bancho_message("Your beatmap is too short. Please try to make it longer and try again!", user)
+
+    package_filesize = calculate_package_size(files)
+    size_limit = calculate_size_limit(max_beatmap_length)
+
+    if package_filesize > size_limit:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+        return bancho_message("Your beatmap is too big. Try to reduce its filesize and try again!", user)
+
+    beatmapset = beatmapsets.fetch_one(set_id, session)
+
+    # Update metadata for beatmapset and beatmaps
+    update_beatmap_metadata(
+        beatmapset,
+        files,
+        upload_request.metadata,
+        upload_request.beatmaps,
+        session=session
+    )
+
+    # Create & upload .osz file
+    update_beatmap_package(
+        set_id,
+        files,
+        session=session
+    )
+
+    # Update beatmap assets
+    update_beatmap_thumbnail(set_id, files, upload_request.beatmaps)
+    update_beatmap_audio(set_id, files, upload_request.beatmaps)
+    update_beatmap_files(files, session=session)
+
+    app.session.logging.info(
+        f'{user.name} uploaded an osz file for beatmapset ({set_id})'
+    )
+    return "ok"
+
+@router.get('/osu-bmsubmit-novideo.php')
+def upload_osz_novideo(osz_filename: str = Query(..., alias='file')):
+    # This endpoint was used to generate a no-video osz file
+    # after the beatmap submission was done. In our case
+    # we don't need to do anything here.
+    return Response(status_code=200)
+
+@router.post('/osu-bmsubmit-post3.php')
+def legacy_forum_post(
+    username: str = Form(..., alias='u'),
+    password: str = Form(..., alias='p'),
+    set_id: int = Form(..., alias='b'),
+    subject: str = Form(...),
+    message: str = Form(...),
+    notify: bool = Depends(integer_boolean_form('notify')),
+    complete: bool = Depends(integer_boolean_form('complete')),
+    bumprequest: bool = Depends(integer_boolean_form('bumprequest')),
+    session: Session = Depends(app.session.database.yield_session)
+):
+    error, user = authenticate_user(
+        username,
+        password,
+        session=session,
+        legacy=True
+    )
+
+    if error:
+        return Response(status_code=403)
+
+    # Remove upload request
+    beatmap_helper.remove_upload_request(user.id)
+
+    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
+        app.session.logger.warning(f'Failed to post beatmapset topic: Beatmapset not found')
+        return Response(status_code=404)
+
+    if beatmapset.creator_id != user.id:
+        app.session.logger.warning(f'Failed to post beatmapset topic: User does not own the beatmapset')
+        return Response(status_code=403)
+
+    # Update status based on "comlete" flag
+    # and the beatmapset description
+    beatmapsets.update(
+        set_id,
+        {
+            'status': 0 if complete else -1,
+            'last_update': datetime.now(),
+            'description': (
+                message.split('---------------\n', 1)[-1]
+            )
+        },
+        session=session
+    )
+
+    if not beatmapset.topic_id:
+        topic_id = create_beatmap_topic(
+            set_id, user.id,
+            subject, message,
+            not complete, bumprequest,
+            session=session
+        )
+        return Response(f'{topic_id}')
+
+    if not (topic := topics.fetch_one(beatmapset.topic_id, session)):
+        topic_id = create_beatmap_topic(
+            set_id, user.id,
+            subject, message,
+            not complete, bumprequest,
+            session=session
+        )
+        return Response(f'{topic_id}')
+
+    topics.update(
+        topic.id,
+        {
+            'title': subject,
+            'forum_id': (9 if complete else 10),
+            'status_text': (
+                'Needs modding'
+                if not complete else
+                'Waiting for BAT approval'
+            )
+        },
+        session=session
+    )
+
+    if first_post := posts.fetch_initial_post(topic.id, session):
+        posts.update(
+            first_post.id,
+            {
+                'content': message,
+                'forum_id': (9 if complete else 10),
+                'deleted': False
+            },
+            session=session
+        )
+
+    # Update subscription/notification status
+    if notify:
+        topics.add_subscriber(
+            topic.id,
+            user.id,
+            session=session
+        )
+
+    else:
+        topics.delete_subscriber(
+            topic.id,
+            user.id,
+            session=session
+        )
+
+    # TODO: Handle "bumprequest"
+    return Response(f'{topic.id}')
