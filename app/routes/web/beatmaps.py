@@ -430,10 +430,18 @@ def update_beatmap_package(
     )
 
 def calculate_package_size(files: Dict[str, bytes]) -> int:
-    return sum(
-        len(zlib.compress(data))
-        for data in files.values()
-    )
+    buffer = io.BytesIO()
+    osz = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
+
+    for filename, data in files.items():
+        osz.writestr(filename, data)
+
+    osz.close()
+    size = len(buffer.getvalue())
+
+    del buffer
+    del osz
+    return size
 
 def calculate_size_limit(beatmap_length: int) -> int:
     # The file size limit is 10MB plus an additional 10MB for
