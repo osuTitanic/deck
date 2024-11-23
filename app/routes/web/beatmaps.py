@@ -1455,6 +1455,9 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         session=session
     )
 
+    # Update relationships
+    session.refresh(beatmapset)
+
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
         beatmapset,
