@@ -128,6 +128,14 @@ def authenticate_user(
 
     return None, player
 
+def bancho_message(message: str, user: DBUser) -> Response:
+    app.session.events.submit(
+        'user_announcement',
+        user_id=user.id,
+        message=message,
+    )
+    return Response(message, 400)
+
 def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
     """Check if a beatmap has the 'bubble' icon on the forums"""
     topic = topics.fetch_one(
@@ -1569,15 +1577,15 @@ def upload_osz(
     
     if not (upload_request := beatmap_helper.get_upload_request(user.id)):
         app.session.logger.warning(f'Failed to upload osz file: Upload request not found')
-        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
     
     if set_id != upload_request.set_id:
         app.session.logger.warning(f'Failed to upload osz file: Invalid set id')
-        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
 
     if osz_ticket != upload_request.osz_ticket:
         app.session.logger.warning(f'Failed to upload osz file: Invalid ticket')
-        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
 
     # Remove ticket, as it's no longer needed
     beatmap_helper.remove_upload_request(user.id)
@@ -1602,21 +1610,21 @@ def upload_osz(
     # Ensure we got the same amount of beatmaps
     if len(osz_map_files) != len(upload_request.tickets):
         app.session.logger.warning(f'Failed to upload osz file: Invalid amount of beatmaps')
-        return Response("An error occurred while processing your beatmap. Please try again!", 400)
+        return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
 
     # Check if osz beatmap files are present in upload ticket
     # and compare them with the uploaded osz file
     for filename, content in upload_request.files.items():
         if filename not in files:
             app.session.logger.warning(f'Failed to upload osz file: Missing beatmap file')
-            return Response("An error occurred while processing your beatmap. Please try again!", 400)
+            return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
         
         ticket_hash = hashlib.md5(content).hexdigest()
         file_hash = hashlib.md5(files[filename]).hexdigest()
         
         if ticket_hash != file_hash:
             app.session.logger.warning(f'Failed to upload osz file: Beatmap hash mismatch')
-            return Response("An error occurred while processing your beatmap. Please try again!", 400)
+            return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
 
     max_beatmap_length = max(
         beatmap['length'] / 1000
@@ -1625,14 +1633,14 @@ def upload_osz(
 
     if max_beatmap_length <= 0:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
-        return Response("Your beatmap is too short. Please try to make it longer and try again!", 400)
+        return bancho_message("Your beatmap is too short. Please try to make it longer and try again!", user)
 
     package_filesize = calculate_package_size(files)
     size_limit = calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
-        return Response("Your beatmap is too big. Try to reduce its filesize and try again!", 400)
+        return bancho_message("Your beatmap is too big. Try to reduce its filesize and try again!", user)
 
     # Create & upload .osz file
     update_beatmap_package(
@@ -1679,11 +1687,11 @@ def legacy_forum_post(
     if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
         app.session.logger.warning(f'Failed to post beatmapset topic: Beatmapset not found')
         return Response(status_code=404)
-    
+
     if beatmapset.creator_id != user.id:
         app.session.logger.warning(f'Failed to post beatmapset topic: User does not own the beatmapset')
         return Response(status_code=403)
-    
+
     # Update status based on "comlete" flag
     # and the beatmapset description
     beatmapsets.update(
@@ -1706,7 +1714,7 @@ def legacy_forum_post(
             session=session
         )
         return Response(f'{topic_id}')
-    
+
     if not (topic := topics.fetch_one(beatmapset.topic_id, session)):
         topic_id = create_beatmap_topic(
             set_id, user.id,
@@ -1715,7 +1723,7 @@ def legacy_forum_post(
             session=session
         )
         return Response(f'{topic_id}')
-    
+
     topics.update(
         topic.id,
         {
@@ -1748,7 +1756,7 @@ def legacy_forum_post(
             user.id,
             session=session
         )
-    
+
     else:
         topics.delete_subscriber(
             topic.id,
