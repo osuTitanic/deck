@@ -41,10 +41,12 @@ from fastapi import (
     File
 )
 
+import zipfile
 import hashlib
 import base64
 import config
 import utils
+import zlib
 import time
 import app
 import io
@@ -374,7 +376,7 @@ def update_beatmap_package(
     ]
 
     buffer = io.BytesIO()
-    zip = ZipFile(buffer, 'w')
+    zip = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
 
     for filename, data in files.items():
         if not any(filename.endswith(ext) for ext in allowed_file_extensions):
@@ -421,7 +423,7 @@ def update_beatmap_package(
 
 def calculate_package_size(files: Dict[str, bytes]) -> int:
     return sum(
-        len(data)
+        len(zlib.compress(data))
         for data in files.values()
     )
 
