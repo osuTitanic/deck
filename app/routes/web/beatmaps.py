@@ -1033,7 +1033,7 @@ def upload_beatmap(
             for beatmap in data['beatmaps'].values()
         )
 
-        if max_beatmap_length <= 0:
+        if max_beatmap_length <= 1:
             app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
             return error_response(5, 'Your beatmap is too short. Please try to make it longer and try again!')
 
@@ -1412,7 +1412,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         for beatmap in request.beatmaps.values()
     )
 
-    if max_beatmap_length <= 0:
+    if max_beatmap_length <= 1:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
         return "Your beatmap is too short. Please try to make it longer and try again!"
 
@@ -1631,7 +1631,7 @@ def upload_osz(
         for beatmap in upload_request.beatmaps.values()
     )
 
-    if max_beatmap_length <= 0:
+    if max_beatmap_length <= 1:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
         return bancho_message("Your beatmap is too short. Please try to make it longer and try again!", user)
 
