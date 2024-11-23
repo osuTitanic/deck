@@ -1434,6 +1434,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
 
     existing_beatmaps = beatmapset.beatmaps
     beatmap_ids = [beatmap.id for beatmap in existing_beatmaps]
+    has_full_submit = not all(filename.endswith('.osu') for filename in files)
 
     for ticket in request.tickets:
         version = ticket.data['difficultyName']
@@ -1472,14 +1473,28 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     update_beatmap_package(
         beatmapset.id,
         files,
-        session=session
+        session
     )
 
     # Update beatmap files
     update_beatmap_files(
         files,
-        session=session
+        session
     )
+
+    # Set the status to "inactive" if the map
+    # has not gotten a full submission before
+    if not has_full_submit:
+        beatmapsets.update(
+            beatmapset.id,
+            {'status': -3},
+            session=session
+        )
+        beatmaps.update_by_set_id(
+            beatmapset.id,
+            {'status': -3},
+            session=session
+        )
 
     app.session.logger.info(
         f'{user.name} {"created" if is_new else "updated"} a beatmapset '
@@ -1654,6 +1669,17 @@ def upload_osz(
     if package_filesize > size_limit:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
         return bancho_message("Your beatmap is too big. Try to reduce its filesize and try again!", user)
+
+    beatmapset = beatmapsets.fetch_one(set_id, session)
+
+    # Update metadata for beatmapset and beatmaps
+    update_beatmap_metadata(
+        beatmapset,
+        files,
+        upload_request.metadata,
+        upload_request.beatmaps,
+        session=session
+    )
 
     # Create & upload .osz file
     update_beatmap_package(
