@@ -1544,7 +1544,8 @@ def update_beatmap_files_endpoint(
         # Validate all beatmaps, update metadata,
         # upload new files, ...
         error = handle_upload_finish(
-            user, session=session
+            user,
+            session
         )
 
         if error:
@@ -1592,7 +1593,7 @@ def upload_osz(
 
     if ticket != upload_request.osz_ticket:
         # We already updated all beatmap files
-        # so we can just return "ok" here.
+        # so we can just return here.
         return "ok"
 
     osz_file = ZipFile(file.file)
