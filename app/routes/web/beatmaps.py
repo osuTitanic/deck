@@ -1607,13 +1607,13 @@ def upload_osz(
         app.session.logger.warning(f'Failed to upload osz file: Invalid ticket')
         return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
 
-    # Remove ticket, as it's no longer needed
-    beatmap_helper.remove_upload_request(user.id)
-
     if ticket != upload_request.osz_ticket:
         # We already updated all beatmap files
         # so we can just return here.
         return "ok"
+
+    # Remove ticket, as it's no longer needed
+    beatmap_helper.remove_upload_request(user.id)
 
     osz_file = ZipFile(file.file)
     files = {
