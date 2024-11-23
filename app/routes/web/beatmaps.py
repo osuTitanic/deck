@@ -1477,7 +1477,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
 
     # Update beatmap files
     update_beatmap_files(
-        request.files,
+        files,
         session=session
     )
 
