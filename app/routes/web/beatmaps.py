@@ -1330,13 +1330,14 @@ def handle_common_upload(
         upload_request
     )
 
-    post = posts.fetch_initial_post(
-        beatmapset.topic_id,
-        session=session
-    )
+    if beatmapset:
+        post = posts.fetch_initial_post(
+            beatmapset.topic_id,
+            session=session
+        )
 
-    if not post:
-        response = ["new"]
+        if not post:
+            response = ["new"]
 
     # Format response
     response.append(f'{upload_request.set_id}')
