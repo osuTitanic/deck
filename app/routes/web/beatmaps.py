@@ -1623,14 +1623,14 @@ def upload_osz(
 
     if max_beatmap_length <= 0:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
-        return "Your beatmap is too short. Please try to make it longer and try again!"
+        return Response("Your beatmap is too short. Please try to make it longer and try again!", 400)
 
     package_filesize = calculate_package_size(files)
     size_limit = calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
-        return "Your beatmap is too big. Try to reduce its filesize and try again!"
+        return Response("Your beatmap is too big. Try to reduce its filesize and try again!", 400)
 
     # Create & upload .osz file
     update_beatmap_package(
