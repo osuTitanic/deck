@@ -419,6 +419,20 @@ def update_beatmap_package(
         session=session
     )
 
+def calculate_package_size(files: Dict[str, bytes]) -> int:
+    return sum(
+        len(data)
+        for data in files.values()
+    )
+
+def calculate_size_limit(beatmap_length: int) -> int:
+    # The file size limit is 5MB plus an additional 10MB for
+    # every minute of beatmap length, and it caps at 100MB.
+    return min(
+        5_000_000 + (10_000_000 * (beatmap_length // 60)),
+        100_000_000
+    )
+
 def resolve_beatmapset(
     set_id: int,
     beatmap_ids: List[int],
@@ -1004,6 +1018,22 @@ def upload_beatmap(
             app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
             return error_response(1)
 
+        max_beatmap_length = max(
+            beatmap['length'] / 1000
+            for beatmap in data['beatmaps'].values()
+        )
+
+        if max_beatmap_length <= 0:
+            app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
+            return error_response(5, 'Your beatmap is too short. Please try to make it longer and try again!')
+
+        package_filesize = calculate_package_size(files)
+        size_limit = calculate_size_limit(max_beatmap_length)
+
+        if package_filesize > size_limit:
+            app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+            return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
+
         previous_status = beatmapset.status
 
         # Update metadata for beatmapset and beatmaps
@@ -1353,9 +1383,38 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
         return error_response(1, legacy=True)
 
+    previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
+    previous_osz = previous_osz or utils.empty_zip_file()
+
+    # Read all files of previous osz
+    with ZipFile(io.BytesIO(previous_osz)) as zip_file:
+        files = {
+            filename: zip_file.read(filename)
+            for filename in zip_file.namelist()
+        }
+
+    # Add updated maps to the files
+    for filename, content in request.files.items():
+        files[filename] = content
+
+    max_beatmap_length = max(
+        beatmap['length'] / 1000
+        for beatmap in request.beatmaps.values()
+    )
+
+    if max_beatmap_length <= 0:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
+        return "Your beatmap is too short. Please try to make it longer and try again!"
+
+    package_filesize = calculate_package_size(files)
+    size_limit = calculate_size_limit(max_beatmap_length)
+
+    if package_filesize > size_limit:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+        return "Your beatmap is too big. Try to reduce its filesize and try again!"
+
     existing_beatmaps = beatmapset.beatmaps
     beatmap_ids = [beatmap.id for beatmap in existing_beatmaps]
-    print(existing_beatmaps)
 
     for ticket in request.tickets:
         version = ticket.data['difficultyName']
@@ -1377,20 +1436,6 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         beatmapset,
         session=session
     )
-
-    previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
-    previous_osz = previous_osz or utils.empty_zip_file()
-
-    # Read all files of previous osz
-    with ZipFile(io.BytesIO(previous_osz)) as zip_file:
-        files = {
-            filename: zip_file.read(filename)
-            for filename in zip_file.namelist()
-        }
-
-    # Add updated maps to the files
-    for filename, content in request.files.items():
-        files[filename] = content
 
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
@@ -1570,6 +1615,22 @@ def upload_osz(
         if ticket_hash != file_hash:
             app.session.logger.warning(f'Failed to upload osz file: Beatmap hash mismatch')
             return Response("An error occurred while processing your beatmap. Please try again!", 400)
+
+    max_beatmap_length = max(
+        beatmap['length'] / 1000
+        for beatmap in upload_request.beatmaps.values()
+    )
+
+    if max_beatmap_length <= 0:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
+        return "Your beatmap is too short. Please try to make it longer and try again!"
+
+    package_filesize = calculate_package_size(files)
+    size_limit = calculate_size_limit(max_beatmap_length)
+
+    if package_filesize > size_limit:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+        return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
     # Create & upload .osz file
     update_beatmap_package(
