@@ -105,6 +105,10 @@ async def parse_score_data(request: Request) -> Score:
         # Replay data was provided
         replay = score_form[-1]
 
+        if not replay:
+            officer.call('Got score submission with empty replay data!')
+            raise HTTPException(400)
+
         if replay.filename not in ('replay', 'score'):
             officer.call(f'Got invalid replay name: "{replay.filename}"')
             raise HTTPException(400)
