@@ -1363,20 +1363,14 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
 
     remaining_beatmaps = remaining_beatmap_uploads(user, session)
     beatmapset = beatmapsets.fetch_one(request.set_id, session)
-    is_new = False
 
     if not beatmapset:
         app.session.logger.warning(f'Failed to process upload request: Beatmapset not found')
         return "An error occurred while creating the beatmapset. Please try again!"
 
-    if beatmapset.status == -3:
-        # User wants to upload a new beatmapset
-        if remaining_beatmaps <= 0:
-            app.session.logger.warning(f'Failed to create beatmapset: User has no remaining beatmap uploads')
-            return "You have reached your maximum amount of beatmaps you can upload."
-        
-        is_new = True
-        post_to_webhook(beatmapset)
+    if beatmapset.status == -3 and remaining_beatmaps <= 0:
+        app.session.logger.warning(f'Failed to create beatmapset: User has no remaining beatmap uploads')
+        return "You have reached your maximum amount of beatmaps you can upload."
         
     if beatmapset.creator_id != user.id:
         app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
@@ -1487,9 +1481,10 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
             {'status': -3},
             session=session
         )
+        session.refresh(beatmapset)
 
     app.session.logger.info(
-        f'{user.name} {"created" if is_new else "updated"} a beatmapset '
+        f'{user.name} {"created" if beatmapset.status == -3 else "updated"} a beatmapset '
         f'({request.set_id})'
     )
 
@@ -1663,6 +1658,7 @@ def upload_osz(
         return bancho_message("Your beatmap is too big. Try to reduce its filesize and try again!", user)
 
     beatmapset = beatmapsets.fetch_one(set_id, session)
+    previous_status = beatmapset.status
 
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
@@ -1688,6 +1684,11 @@ def upload_osz(
     app.session.logging.info(
         f'{user.name} uploaded an osz file for beatmapset ({set_id})'
     )
+
+    if previous_status == -3:
+        # Post to discord webhook
+        post_to_webhook(beatmapset)
+
     return "ok"
 
 @router.get('/osu-bmsubmit-novideo.php')
