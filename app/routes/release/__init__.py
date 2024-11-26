@@ -1,6 +1,11 @@
 
-from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
+from fastapi import (
+    HTTPException,
+    APIRouter,
+    Response,
+    Query
+)
 
 from . import localisation
 from . import changelog
@@ -20,11 +25,11 @@ router.include_router(update.router)
 def get_release_file(
     filename: str,
     checksum: Optional[str] = Query(None, alias='v')
-):
-    if (release_file := app.session.storage.get_release_file(filename)):
-        if checksum != hashlib.md5(release_file).hexdigest():
-            raise HTTPException(404)
+) -> bytes:
+    if not (release_file := app.session.storage.get_release_file(filename)):
+        raise HTTPException(404)
 
-        return release_file
+    if checksum != hashlib.md5(release_file).hexdigest():
+        raise HTTPException(404)
 
-    raise HTTPException(404)
+    return Response(release_file)

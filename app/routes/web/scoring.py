@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from copy import copy
 
-from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType
+from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
 from app.common.database import DBStats, DBScore, DBUser
 from app.common.helpers.score import calculate_rx_score
 from app import achievements as AchievementManager
@@ -104,6 +104,10 @@ async def parse_score_data(request: Request) -> Score:
     if len(score_form) > 1:
         # Replay data was provided
         replay = score_form[-1]
+
+        if not replay:
+            officer.call('Got score submission with empty replay data!')
+            raise HTTPException(400)
 
         if replay.filename not in ('replay', 'score'):
             officer.call(f'Got invalid replay name: "{replay.filename}"')
@@ -243,6 +247,18 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
         # This can happen in old clients, where these modes were not implemented
         return Response('error: no')
+    
+    unranked_mods = (
+        Mods.Autoplay,
+        Mods.Cinema,
+        Mods.Target
+    )
+
+    if any(mod in score.enabled_mods for mod in unranked_mods):
+        officer.call(
+            f'"{score.username}" submitted score with unranked mods: {score.enabled_mods.name}.'
+        )
+        return Response('error: no')
 
     client_hash = status.client_hash(player.id)
 
@@ -296,21 +312,12 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
             return Response('error: no')
 
-    user_groups = groups.fetch_user_groups(
-        player.id,
-        include_hidden=True,
-        session=score.session
-    )
-
-    group_names = [group.name for group in user_groups]
-    is_verified = 'Verified' in group_names
-
     if score.has_invalid_mods:
         officer.call(
             f'"{score.username}" submitted score with invalid mods.'
         )
 
-        if not is_verified:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -341,7 +348,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" submitted score with invalid replay.'
         )
 
-        if 'Verified' not in group_names:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -358,7 +365,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" exceeded the pp limit ({score.pp}).'
         )
 
-        if not is_verified:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -374,7 +381,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" submitted a score while multiaccounting.'
         )
 
-        if not is_verified:
+        if not player.is_verified:
             app.session.events.submit(
                 'restrict',
                 user_id=player.id,
@@ -1079,6 +1086,10 @@ def legacy_score_submission(
         # Client didn't provide a version
         # Try to get it from bancho instead
         score.version = status.version(player.id) or 0
+
+    if score.version < 452 and Mods.Nightcore in score.enabled_mods:
+        # Prevent "Taiko" mod plays from being submitted
+        raise HTTPException(400)
 
     if score.beatmap.is_ranked:
         score.personal_best = scores.fetch_personal_best(
