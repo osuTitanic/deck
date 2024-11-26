@@ -1,6 +1,11 @@
 
-from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
+from fastapi import (
+    HTTPException,
+    APIRouter,
+    Response,
+    Query
+)
 
 from . import localisation
 from . import changelog
@@ -27,4 +32,4 @@ def get_release_file(
     if checksum != hashlib.md5(release_file).hexdigest():
         raise HTTPException(404)
 
-    return release_file
+    return Response(release_file)
