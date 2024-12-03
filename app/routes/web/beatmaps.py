@@ -331,6 +331,7 @@ def update_beatmaps(
         ]
 
         for beatmap_id in deleted_maps:
+            plays.delete_by_beatmap_id(beatmap_id, session=session)
             beatmaps.delete_by_id(beatmap_id, session=session)
 
         app.session.logger.debug(f'Deleted {len(deleted_maps)} beatmaps')
