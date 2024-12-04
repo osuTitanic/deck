@@ -145,32 +145,12 @@ def update_osz_filesize(set_id: int, has_video: bool = False):
 
 def resize_image(
     image: bytes,
-    target_width: int | None = None,
-    target_height: int | None = None,
-    max_width: int | None = None,
-    max_height: int | None = None
+    target_size: int | None = None,
 ) -> bytes:
     img = Image.open(io.BytesIO(image))
-    image_width, image_height = img.size
-
-    if (target_width is None) or (target_height is None):
-        if target_height:
-            target_width = round((image_width / image_height) * min(target_height, 2000))
-
-        if target_width:
-            target_height = round((image_height / image_width) * min(target_width, 2000))
-
-        else:
-            raise ValueError('At least one value must be given.')
-
+    img = img.resize((target_size, target_size))
     image_buffer = io.BytesIO()
-
-    target_width = min(max_height, target_height) if max_height else target_height
-    target_width = min(max_width, target_width) if max_width else target_width
-
-    img = img.resize((target_width, target_height))
     img.save(image_buffer, format='PNG')
-
     return image_buffer.getvalue()
 
 def resize_and_crop_image(
