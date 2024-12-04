@@ -29,6 +29,6 @@ def get_map(filename: str):
         content=file,
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename="{quote(beatmap.file_name)}"'
+            'Content-Disposition': f'attachment; filename="{quote(filename)}"'
         }
     )
