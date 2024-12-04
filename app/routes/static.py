@@ -70,4 +70,4 @@ def legacy_avatar(request: Request):
     if not (filename := args.get('avatar')):
         return avatar.default_avatar()
 
-    return avatar.avatar(str(filename), None, None, False)
+    return avatar.avatar(str(filename), None)
