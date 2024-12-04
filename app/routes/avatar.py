@@ -21,10 +21,7 @@ def default_avatar():
     return Response(image, media_type='image/png')
 
 @router.get('/{filename}')
-def avatar(
-    filename: str,
-    size: Optional[int] = Query(128, alias='s'),
-):
+def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
     # Workaround for older clients
     user_id = int(
         filename.replace('_000.png', '').replace('_000.jpg', '')
@@ -38,8 +35,6 @@ def avatar(
 
     allowed_sizes = (
         25,
-        120,
-        120,
         128,
         256
     )
