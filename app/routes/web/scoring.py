@@ -490,12 +490,17 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         session=score.session
     )
 
-    best_scores = scores.fetch_best(
+    best_scores_with_approved = scores.fetch_best(
         user_id=score.user.id,
         mode=score.play_mode.value,
-        exclude_approved=(not config.APPROVED_MAP_REWARDS),
         session=score.session
     )
+
+    best_scores = [
+        score
+        for score in best_scores_with_approved
+        if score.beatmap.awards_pp
+    ]
 
     rx_scores = [score for score in best_scores if (score.mods & 128) != 0]
     ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
@@ -518,7 +523,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
         # Update rscore
         user_stats.rscore = sum(
-            score.total_score for score in best_scores
+            score.total_score
+            for score in best_scores_with_approved
         )
 
         leaderboards.update(
