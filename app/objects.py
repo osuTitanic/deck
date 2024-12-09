@@ -287,9 +287,7 @@ class Score:
             # Change status for old personal best
             self.session.query(DBScore) \
                 .filter(DBScore.id == mods_pb.id) \
-                .update({
-                    'status_pp': ScoreStatus.Submitted.value
-                })
+                .update({'status_pp': ScoreStatus.Submitted.value})
             self.session.commit()
 
             return ScoreStatus.Mods
