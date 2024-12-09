@@ -61,16 +61,6 @@ def add_favourite(
         f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}'
     )
 
-    utils.track(
-        'add_favourite',
-        user=player,
-        request=request,
-        properties={
-            'beatmapset_id': beatmap_set.id,
-            'favourite_amount': count
-        }
-    )
-
     return f'Added to favourites! You have a total of {count} favourite{"s" if count > 1 else ""}'
 
 @router.get('/osu-getfavourites.php')

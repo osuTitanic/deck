@@ -148,17 +148,6 @@ def get_comments(
             f'<{user.name} ({user.id})> -> Submitted comment on {target.name}: "{content}".'
         )
 
-        utils.track(
-            'beatmap_comment',
-            user=user,
-            request=request,
-            properties={
-                'target': target.name,
-                'id': target_id,
-                'content': content
-            }
-        )
-
         return Response(f'{time}|{content}\n')
 
     raise HTTPException(400, detail="Invalid action")

@@ -636,19 +636,6 @@ def unlock_achievements(
             link=f'https://osu.{config.DOMAIN_NAME}/u/{player.id}#achievements'
         )
 
-    for achievement in new_achievements:
-        utils.track(
-            'achievement_unlocked',
-            user=player,
-            request=request,
-            properties={
-                'achievement': achievement.name,
-                'category': achievement.category,
-                'filename': achievement.filename,
-                'score_id': score_object.id
-            }
-        )
-
     return achievement_response
 
 def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
