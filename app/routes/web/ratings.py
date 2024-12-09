@@ -79,17 +79,6 @@ def rate(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
     )
 
-    utils.track(
-        'beatmap_rating',
-        user=player,
-        request=request,
-        properties={
-            'beatmap_id': beatmap.id,
-            'beatmap_name': beatmap.full_name,
-            'rating': rating
-        }
-    )
-
     return Response(
         '\n'.join([
             'ok',

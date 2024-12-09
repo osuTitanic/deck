@@ -1,16 +1,14 @@
-from datetime import datetime
+
 from typing import Optional
-
-from .common.database.repositories import scores
-from .common.helpers import performance
-
-from .common.database import (
+from app.common.database.repositories import scores
+from app.common.helpers import performance
+from app.common.database import (
     DBBeatmap,
     DBScore,
     DBUser
 )
 
-from .common.constants import (
+from app.common.constants import (
     ScoreStatus,
     GameMode,
     BadFlags,
@@ -20,9 +18,7 @@ from .common.constants import (
 
 import hashlib
 import config
-import math
 import app
-
 
 class Chart(dict):
     def entry(self, name: str, before, after):
@@ -34,7 +30,6 @@ class Chart(dict):
 
     def __repr__(self) -> str:
         return "|".join(f"{str(k)}:{str(v)}" for k, v in self.items())
-
 
 class Score:
     def __init__(
@@ -54,8 +49,7 @@ class Score:
         grade: Grade,
         enabled_mods: Mods,
         passed: bool,
-        play_mode: GameMode,
-        date: datetime,
+        mode: GameMode,
         version: int,
         flags: BadFlags,
         exited: Optional[bool],
@@ -80,13 +74,12 @@ class Score:
         self.enabled_mods = enabled_mods
         self.username = username
 
-        self.passed = passed
-        self.play_mode = play_mode
-        self.date = date
-        self.version = version
-        self.exited = exited
-        self.failtime = failtime
+        self.mode = mode
         self.flags = flags
+        self.passed = passed
+        self.exited = exited
+        self.version = version
+        self.failtime = failtime
 
         self.replay = replay
         self.status = ScoreStatus.Submitted
@@ -123,7 +116,7 @@ class Score:
     @property
     def total_hits(self) -> int:
         """Total amount of note hits in this score"""
-        if self.play_mode in (GameMode.OsuMania, GameMode.Taiko):
+        if self.mode in (GameMode.OsuMania, GameMode.Taiko):
             # taiko uses geki & katu for hitting big notes with 2 keys
             # mania uses geki & katu for rainbow 300 & 200
             return self.c50 + self.c100 + self.c300 + self.cGeki + self.cKatu
@@ -134,10 +127,10 @@ class Score:
     @property
     def total_objects(self) -> int:
         """Total amount of passed objects in this score, used for accuracy calculation"""
-        if self.play_mode in (GameMode.Osu, GameMode.Taiko):
+        if self.mode in (GameMode.Osu, GameMode.Taiko):
             return self.c50 + self.c100 + self.c300 + self.cMiss
 
-        elif self.play_mode == GameMode.CatchTheBeat:
+        elif self.mode == GameMode.CatchTheBeat:
             return self.c50 + self.c100 + self.c300 + self.cKatu + self.cMiss
 
         else:
@@ -148,25 +141,25 @@ class Score:
         if self.total_objects == 0:
             return 0.0
 
-        if self.play_mode == GameMode.Osu:
+        if self.mode == GameMode.Osu:
             return (
                 ((self.c300 * 300.0) + (self.c100 * 100.0) + (self.c50 * 50.0))
                 / (self.total_objects * 300.0)
             )
 
-        elif self.play_mode == GameMode.Taiko:
+        elif self.mode == GameMode.Taiko:
             return (
                 ((self.c100 * 0.5) + self.c300)
                 / self.total_objects
             )
 
-        elif self.play_mode == GameMode.CatchTheBeat:
+        elif self.mode == GameMode.CatchTheBeat:
             return (
                 (self.c300 + self.c100 + self.c50)
                 / self.total_objects
             )
 
-        elif self.play_mode == GameMode.OsuMania:
+        elif self.mode == GameMode.OsuMania:
             return (
                 (
                   (self.c50 * 50.0) +
@@ -187,49 +180,48 @@ class Score:
     def has_invalid_mods(self) -> bool:
         """Check if score has invalid mod combinations, like DTHT, HREZ, etc..."""
         if not self.enabled_mods:
-            # No mods are enabled
             return False
 
         # NOTE: The client is somehow sending these kinds of mod values.
         #       The wiki says it's normal, so shruge...
         #       https://github.com/ppy/osu-api/wiki#mods
 
-        if self.check_mods(Mods.DoubleTime | Mods.Nightcore):
+        if self.has_mods(Mods.DoubleTime | Mods.Nightcore):
             self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
 
-        if self.check_mods(Mods.Perfect | Mods.SuddenDeath):
+        if self.has_mods(Mods.Perfect | Mods.SuddenDeath):
             self.enabled_mods = self.enabled_mods & ~Mods.SuddenDeath
 
-        if self.check_mods(Mods.FadeIn | Mods.Hidden):
+        if self.has_mods(Mods.FadeIn | Mods.Hidden):
             self.enabled_mods = self.enabled_mods & ~Mods.FadeIn
 
-        if self.check_mods(Mods.Easy | Mods.HardRock):
+        if self.has_mods(Mods.Easy | Mods.HardRock):
             return True
 
-        if self.check_mods(Mods.HalfTime | Mods.DoubleTime):
+        if self.has_mods(Mods.HalfTime | Mods.DoubleTime):
             return True
 
-        if self.check_mods(Mods.HalfTime | Mods.Nightcore):
+        if self.has_mods(Mods.HalfTime | Mods.Nightcore):
             return True
 
-        if self.check_mods(Mods.NoFail | Mods.SuddenDeath):
+        if self.has_mods(Mods.NoFail | Mods.SuddenDeath):
             return True
 
-        if self.check_mods(Mods.NoFail | Mods.Perfect):
+        if self.has_mods(Mods.NoFail | Mods.Perfect):
             return True
 
-        if self.check_mods(Mods.Relax | Mods.Autopilot):
+        if self.has_mods(Mods.Relax | Mods.Autopilot):
             return True
 
-        if self.check_mods(Mods.SpunOut | Mods.Autopilot):
+        if self.has_mods(Mods.SpunOut | Mods.Autopilot):
             return True
 
-        if self.check_mods(Mods.Autoplay):
+        if self.has_mods(Mods.Autoplay):
             return True
 
         return False
 
-    def check_mods(self, mods: Mods) -> bool:
+    def has_mods(self, mods: Mods) -> bool:
         """Check if score has a combination of mods enabled"""
         if not self.enabled_mods:
             return False
@@ -246,15 +238,15 @@ class Score:
 
         return result
 
-    def get_status(self) -> ScoreStatus:
+    def calculate_status(self) -> ScoreStatus:
         """Set the status of this score, and the personal best of the user
 
         The score "status" determines if a score is a
-        - Personal best
-        - Personal best with mod combination
-        - Submitted score
-        - Failed/Exited score
-        - Hidden score
+            - Personal best
+            - Personal best with mod combination
+            - Submitted score
+            - Failed/Exited score
+            - Hidden score
         """
         if not config.ALLOW_RELAX and self.relaxing:
             return ScoreStatus.Hidden
@@ -281,7 +273,7 @@ class Score:
             mods_pb = scores.fetch_personal_best(
                 self.beatmap.id,
                 self.user.id,
-                self.play_mode.value,
+                self.mode.value,
                 self.enabled_mods.value,
                 self.session
             )
@@ -324,23 +316,20 @@ class Score:
     ):
         """Parse a score string"""
         args = formatted_string.split(':')
+        flags = BadFlags.Clean
+        mode = GameMode.Osu
+        version = 0
 
         try:
             version = int(args[17].strip())
             flags = BadFlags(args[17].count(' '))
         except IndexError:
-            version = 0
-            flags = BadFlags.Clean
+            pass
 
         try:
-            date = args[16]
+            mode = GameMode(int(args[15]))
         except IndexError:
-            date = datetime.now()
-
-        try:
-            play_mode = GameMode(int(args[15]))
-        except IndexError:
-            play_mode = GameMode.Osu
+            pass
 
         return Score(
             file_checksum=args[0],
@@ -358,8 +347,7 @@ class Score:
             grade=Grade[args[12]],
             enabled_mods=Mods(int(args[13])),
             passed=args[14].lower() == 'true',
-            play_mode=play_mode,
-            date=date,
+            mode=mode,
             version=version,
             flags=flags,
             exited=exited,
@@ -374,7 +362,7 @@ class Score:
             user_id=self.user.id,
             client_version=self.version,
             score_checksum=self.score_checksum,
-            mode=self.play_mode.value,
+            mode=self.mode.value,
             pp=round(self.pp, 8),
             acc=round(self.accuracy, 8),
             total_score=self.total_score,

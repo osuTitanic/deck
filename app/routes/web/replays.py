@@ -75,17 +75,4 @@ def get_replay(
         app.session.logger.warning(f'Failed to get replay "{score_id}": Not found on storage')
         raise HTTPException(404)
 
-    utils.track(
-        'viewed_replay',
-        user=player,
-        request=request,
-        properties={
-            'replay_size': len(replay),
-            'replay_hash': score.replay_md5,
-            'score_id': score_id,
-            'beatmap_id': score.beatmap_id,
-            'mode': mode
-        }
-    )
-
     return Response(replay)

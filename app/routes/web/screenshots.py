@@ -80,16 +80,6 @@ def screenshot(
     app.session.storage.upload_screenshot(id, screenshot)
     app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
 
-    utils.track(
-        'upload_screenshot',
-        user=player,
-        request=request,
-        properties={
-            'screenshot_id': id,
-            'screenshot_size': len(screenshot)
-        }
-    )
-
     return Response(str(id))
 
 @router.post('/osu-ss.php')
@@ -101,5 +91,4 @@ def monitor(
     # This endpoint will be called, when the client receives a
     # monitor packet from bancho. This was removed because of
     # privacy reasons.
-
     raise HTTPException(status_code=501)

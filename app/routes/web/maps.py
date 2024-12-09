@@ -1,6 +1,6 @@
 
 from app.common.database.repositories import beatmaps
-
+from urllib.parse import quote
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -29,6 +29,6 @@ def get_map(filename: str):
         content=file,
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename="{filename}"'
+            'Content-Disposition': f'attachment; filename="{quote(filename)}"'
         }
     )

@@ -140,19 +140,6 @@ def search(
         app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
         return "-1\nServer error. Please try again!"
 
-    utils.track(
-        'direct_search',
-        user=player,
-        request=request,
-        properties={
-            'query': query,
-            'mode': mode,
-            'results': len(results),
-            'display_mode': display_mode.name,
-            'page': page_offset
-        }
-    )
-
     return "\n".join(response)
 
 @router.get('/osu-search-set.php')
@@ -212,16 +199,6 @@ def pickup_info(
             beatmapset.id,
             beatmapset.has_video
         )
-
-    utils.track(
-        'direct_pickup',
-        user=player,
-        request=request,
-        properties={
-            'name': beatmapset.full_name,
-            'id': beatmapset.id
-        }
-    )
 
     return online_beatmap(
         beatmapset,

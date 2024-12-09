@@ -14,57 +14,34 @@ import app
 router = APIRouter()
 
 @router.get('/')
-def default_avatar(
-    height: Optional[int] = Query(None, alias='h'),
-    width: Optional[int] = Query(None, alias='w')
-):
+def default_avatar():
     if not (image := app.session.storage.get_avatar('unknown')):
         raise HTTPException(500, 'Default avatar not found')
-
-    if height is None:
-        # Default height for avatars
-        height = 128
-    else:
-        # If height/width is <= 0 it should return the default avatar size
-        height = None if height is not None and height <= 0 else height
-        width = None if width is not None and width <= 0 else width
-
-    if height or width:
-        image = utils.resize_image(image, width, height)
 
     return Response(image, media_type='image/png')
 
 @router.get('/{filename}')
-def avatar(
-    filename: str,
-    height: Optional[int] = Query(None, alias='h'),
-    width: Optional[int] = Query(None, alias='w'),
-    keep_ratio: Optional[bool] = Query(False, alias='ratio')
-):
+def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
     # Workaround for older clients
     user_id = int(
-        filename.replace('_000.png', '') \
-                .replace('_000.jpg', '')
+        filename.replace('_000.png', '').replace('_000.jpg', '')
     )
 
+    if (image := app.session.redis.get(f'avatar:{user_id}:{size}')):
+        return Response(image, media_type='image/png')
+
     if not (image := app.session.storage.get_avatar(user_id)):
-        return default_avatar(height, width)
+        return default_avatar()
 
-    # If height/width is <= 0 it should return the default avatar size
-    height = (None if height is not None and height <= 0 else height) or 128
-    width = (None if width is not None and width <= 0 else width)
+    allowed_sizes = (
+        25,
+        128,
+        256
+    )
 
-    # Cap the width/height to 500
-    height = min(height, 500) if height else height
-    width = min(width, 500) if width else width
-
-    if height or width:
-        image = utils.resize_image(
-            image,
-            width,
-            height,
-            max_width=height if not keep_ratio else None,
-        )
+    if size is not None and size in allowed_sizes:
+        image = utils.resize_image(image, size)
+        app.session.redis.set(f'avatar:{user_id}:{size}', image, ex=3600)
 
     return Response(
         image,

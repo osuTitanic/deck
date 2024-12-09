@@ -2,14 +2,9 @@
 from __future__ import annotations
 
 from app.common.database.repositories import beatmapsets
-from app.common.helpers import analytics, ip
-from app.common.database import DBUser
-from app.common.cache import status
-
 from concurrent.futures import Future
 from pydub import AudioSegment
 from functools import cache
-from fastapi import Request
 from PIL import Image
 
 import config
@@ -145,32 +140,12 @@ def update_osz_filesize(set_id: int, has_video: bool = False):
 
 def resize_image(
     image: bytes,
-    target_width: int | None = None,
-    target_height: int | None = None,
-    max_width: int | None = None,
-    max_height: int | None = None
+    target_size: int | None = None,
 ) -> bytes:
     img = Image.open(io.BytesIO(image))
-    image_width, image_height = img.size
-
-    if (target_width is None) or (target_height is None):
-        if target_height:
-            target_width = round((image_width / image_height) * min(target_height, 2000))
-
-        if target_width:
-            target_height = round((image_height / image_width) * min(target_width, 2000))
-
-        else:
-            raise ValueError('At least one value must be given.')
-
+    img = img.resize((target_size, target_size))
     image_buffer = io.BytesIO()
-
-    target_width = min(max_height, target_height) if max_height else target_height
-    target_width = min(max_width, target_width) if max_width else target_width
-
-    img = img.resize((target_width, target_height))
     img.save(image_buffer, format='PNG')
-
     return image_buffer.getvalue()
 
 def resize_and_crop_image(
@@ -238,36 +213,6 @@ def thread_callback(future: Future):
 
 def empty_zip_file() -> bytes:
     return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-
-def track(
-    event: str,
-    properties: dict,
-    user: DBUser | None,
-    request: Request
-) -> None:
-    if not user:
-        return
-
-    if not status.exists(user.id):
-        return
-
-    ip_address = ip.resolve_ip_address_fastapi(request)
-    device_id = status.device_id(user.id)
-    version = status.version(user.id)
-
-    analytics.track(
-        event,
-        user_id=user.id,
-        device_id=device_id,
-        app_version=version,
-        ip=ip_address,
-        event_properties=properties,
-        user_properties={
-            'user_id': user.id,
-            'name': user.name,
-            'country': user.country
-        }
-    )
 
 @cache
 def check_password(password: str, bcrypt_hash: str) -> bool:

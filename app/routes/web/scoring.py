@@ -15,8 +15,9 @@ from typing import Optional, Tuple, List
 from copy import copy
 
 from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
-from app.common.database import DBStats, DBScore, DBUser
+from app.common.helpers.ip import resolve_ip_address_fastapi
 from app.common.helpers.score import calculate_rx_score
+from app.common.database import DBStats, DBScore, DBUser
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
@@ -30,7 +31,6 @@ from app.common.database.repositories import (
     histories,
     beatmaps,
     scores,
-    groups,
     plays,
     users,
     stats
@@ -66,11 +66,10 @@ def decrypt_string(
 async def parse_score_data(request: Request) -> Score:
     """Parse the score submission request and return a score object"""
     user_agent = request.headers.get('user-agent', 'osu!')
+    ip = resolve_ip_address_fastapi(request)
 
     if not regexes.OSU_USER_AGENT.match(user_agent):
-        officer.call(
-            f'Failed to submit score: Invalid user agent: "{user_agent}"'
-        )
+        officer.call(f'Invalid user agent on score submission: "{user_agent}" ({ip})')
         raise HTTPException(400)
 
     query = request.query_params
@@ -79,16 +78,14 @@ async def parse_score_data(request: Request) -> Score:
     if score_data := query.get('score'):
         # Legacy score was submitted
         return await parse_legacy_score_data(
-            score_data,
-            query,
-            form
+            score_data, query, form, ip
         )
 
     # NOTE: The form data can contain two "score" sections, where one
     #       of them is the score data, and the other is the replay
 
     if not (score_form := form.getlist('score')):
-        officer.call('Got score submission without score data!')
+        officer.call(f'Got score submission without score data! ({ip})')
         raise HTTPException(400)
 
     score_data = score_form[0]
@@ -99,18 +96,16 @@ async def parse_score_data(request: Request) -> Score:
     exited = form.get('x')
     replay = None
 
-    # TODO: Implement more arguments from modern score submission endpoint
-
     if len(score_form) > 1:
         # Replay data was provided
         replay = score_form[-1]
 
         if not replay:
-            officer.call('Got score submission with empty replay data!')
+            officer.call(f'Got score submission with empty replay data! ({ip})')
             raise HTTPException(400)
 
         if replay.filename not in ('replay', 'score'):
-            officer.call(f'Got invalid replay name: "{replay.filename}"')
+            officer.call(f'Invalid replay name on score submission: "{replay.filename}" ({ip})')
             raise HTTPException(400)
 
         replay = await replay.read()
@@ -132,7 +127,7 @@ async def parse_score_data(request: Request) -> Score:
         except (UnicodeDecodeError, TypeError) as e:
             # Most likely an invalid score encryption key
             officer.call(
-                f'Could not decrypt score data: {e}',
+                f'Could not decrypt score data: {e} ({ip})',
                 exc_info=e
             )
             raise HTTPException(400)
@@ -146,29 +141,33 @@ async def parse_score_data(request: Request) -> Score:
         )
     except Exception as e:
         officer.call(
-            f'Failed to parse score data: {e}',
+            f'Failed to parse score data: {e} ({ip})',
             exc_info=e
         )
         raise HTTPException(400)
 
-    # TODO: Validate these arguments?
     score.is_legacy = request.url.path != '/web/osu-submit-modular-selector.php'
     score.fun_spoiler = fun_spoiler
     score.client_hash = client_hash
     score.processes = processes
     return score
 
-async def parse_legacy_score_data(score_data: str, query: dict, form: dict) -> Score:
+async def parse_legacy_score_data(
+    score_data: str,
+    query: dict,
+    form: dict,
+    ip: str
+) -> Score:
     failtime: Optional[str] = query.get('ft', 0)
     exited: Optional[str] = query.get('x', False)
     replay: Optional[bytes] = None
+    replay_file = form.get('score')
 
-    # Get replay
-    if replay_file := form.get('score'):
-        if replay_file.filename != 'replay':
-            app.session.logger.warning(f'Got invalid replay name: {replay.filename}')
-            raise HTTPException(400)
+    if replay_file and replay_file.filename != 'replay':
+        officer.call(f'Invalid replay name on score submission: "{replay.filename}" ({ip})')
+        raise HTTPException(400)
 
+    if replay_file:
         replay = await replay_file.read()
 
     try:
@@ -180,7 +179,7 @@ async def parse_legacy_score_data(score_data: str, query: dict, form: dict) -> S
         )
     except Exception as e:
         officer.call(
-            f'Failed to parse score data: {e}',
+            f'Failed to parse score data: {e} ({ip})',
             exc_info=e
         )
         raise HTTPException(400)
@@ -243,7 +242,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: no')
 
-    if score.beatmap.mode > 0 and score.play_mode == GameMode.Osu:
+    if score.beatmap.mode > 0 and score.mode == GameMode.Osu:
         # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
         # This can happen in old clients, where these modes were not implemented
         return Response('error: no')
@@ -401,7 +400,7 @@ def upload_replay(score: Score, score_id: int) -> None:
         score_rank = scores.fetch_score_index_by_id(
             mods=score.enabled_mods.value,
             beatmap_id=score.beatmap.id,
-            mode=score.play_mode.value,
+            mode=score.mode.value,
             score_id=score_id
         )
 
@@ -463,7 +462,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     # Update user stats
     user_stats = stats.fetch_by_mode(
         score.user.id,
-        score.play_mode.value,
+        score.mode.value,
         score.session
     )
 
@@ -490,12 +489,17 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         session=score.session
     )
 
-    best_scores = scores.fetch_best(
+    best_scores_with_approved = scores.fetch_best(
         user_id=score.user.id,
-        mode=score.play_mode.value,
-        exclude_approved=(not config.APPROVED_MAP_REWARDS),
+        mode=score.mode.value,
         session=score.session
     )
+
+    best_scores = [
+        score
+        for score in best_scores_with_approved
+        if score.beatmap.awards_pp
+    ]
 
     rx_scores = [score for score in best_scores if (score.mods & 128) != 0]
     ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
@@ -518,7 +522,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
         # Update rscore
         user_stats.rscore = sum(
-            score.total_score for score in best_scores
+            score.total_score
+            for score in best_scores_with_approved
         )
 
         leaderboards.update(
@@ -569,7 +574,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             )
 
     # Update preferred mode
-    if player.preferred_mode != score.play_mode.value:
+    if player.preferred_mode != score.mode.value:
         recent_scores = scores.fetch_recent_all(
             player.id,
             limit=30,
@@ -579,7 +584,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         if len({s.mode for s in recent_scores}) == 1:
             users.update(
                 player.id,
-                {'preferred_mode': score.play_mode.value},
+                {'preferred_mode': score.mode.value},
                 score.session
             )
 
@@ -631,19 +636,6 @@ def unlock_achievements(
             link=f'https://osu.{config.DOMAIN_NAME}/u/{player.id}#achievements'
         )
 
-    for achievement in new_achievements:
-        utils.track(
-            'achievement_unlocked',
-            user=player,
-            request=request,
-            properties={
-                'achievement': achievement.name,
-                'category': achievement.category,
-                'filename': achievement.filename,
-                'score_id': score_object.id
-            }
-        )
-
     return achievement_response
 
 def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
@@ -654,75 +646,6 @@ def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
         stats.update(user_stats.user_id, user_stats.mode, {'ppv1': user_stats.ppv1}, session=session)
         leaderboards.update(user_stats, country)
         histories.update_rank(user_stats, country, session=session)
-
-def score_analytics(score: DBScore, user: DBUser, request: Request):
-    utils.track(
-        'score_submission',
-        user=user,
-        request=request,
-        properties={
-            'score': {
-                'id': score.id,
-                'checksum': score.checksum,
-                'beatmap_id': score.beatmap_id,
-                'mode': score.mode,
-                'pp': score.pp,
-                'acc': score.acc,
-                'total_score': score.total_score,
-                'max_combo': score.max_combo,
-                'mods': score.mods,
-                'perfect': score.perfect,
-                'n300': score.n300,
-                'n100': score.n100,
-                'n50': score.n50,
-                'nmiss': score.nMiss,
-                'ngeki': score.nGeki,
-                'nkatu': score.nKatu,
-                'grade': score.grade,
-                'status': score.status,
-                'failed': score.failtime is not None,
-                'failtime': score.failtime
-            },
-            'beatmap': {
-                'id': score.beatmap.id,
-                'set_id': score.beatmap.set_id,
-                'mode': score.beatmap.mode,
-                'md5': score.beatmap.md5,
-                'status': score.beatmap.status,
-                'version': score.beatmap.version,
-                'filename': score.beatmap.filename,
-                'created_at': score.beatmap.created_at.timestamp(),
-                'last_update': score.beatmap.last_update.timestamp(),
-                'playcount': score.beatmap.playcount,
-                'passcount': score.beatmap.passcount,
-                'total_length': score.beatmap.total_length,
-                'max_combo': score.beatmap.max_combo,
-                'bpm': score.beatmap.bpm,
-                'cs': score.beatmap.cs,
-                'ar': score.beatmap.ar,
-                'od': score.beatmap.od,
-                'hp': score.beatmap.hp,
-                'sr': score.beatmap.diff
-            },
-            'beatmapset': {
-                'id': score.beatmap.set_id,
-                'title': score.beatmap.beatmapset.title,
-                'artist': score.beatmap.beatmapset.artist,
-                'creator': score.beatmap.beatmapset.creator,
-                'source': score.beatmap.beatmapset.source,
-                'tags': score.beatmap.beatmapset.tags,
-                'status': score.beatmap.beatmapset.status,
-                'has_video': score.beatmap.beatmapset.has_video,
-                'has_storyboard': score.beatmap.beatmapset.has_storyboard,
-                'server': score.beatmap.beatmapset.server,
-                'created_at': score.beatmap.beatmapset.created_at.timestamp(),
-                'added_at': score.beatmap.beatmapset.added_at.timestamp(),
-                'last_update': score.beatmap.beatmapset.last_update.timestamp(),
-                'language_id': score.beatmap.beatmapset.language_id,
-                'genre_id': score.beatmap.beatmapset.genre_id,
-            }
-        }
-    )
 
 def response_charts(
     score: Score,
@@ -775,7 +698,7 @@ def response_charts(
 
         difference, next_user = leaderboards.player_above(
             score.user.id,
-            score.play_mode.value
+            score.mode.value
         )
 
         if difference > 0:
@@ -898,17 +821,17 @@ def score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value,
+            score.mode.value,
             session=score.session
         )
 
-        score.status = score.get_status()
+        score.status = score.calculate_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value,
+                    mode=score.mode.value,
                     session=score.session
                    ) \
                 if score.personal_best else 0
@@ -941,7 +864,7 @@ def score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         return Response('error: beatmap')
 
@@ -950,7 +873,7 @@ def score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         return Response('error: no')
 
@@ -968,7 +891,7 @@ def score_submission(
     new_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
         score.beatmap.id,
-        mode=score.play_mode.value,
+        mode=score.mode.value,
         session=score.session
     )
 
@@ -985,9 +908,6 @@ def score_submission(
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
-
-    # Submit score to amplitude analytics api
-    score_analytics(score_object, player, request)
 
     score.session.close()
 
@@ -1009,7 +929,7 @@ def score_submission(
     app.session.events.submit(
         'user_update',
         user_id=player.id,
-        mode=score.play_mode.value
+        mode=score.mode.value
     )
 
     return Response('\n'.join([chart.get() for chart in response]))
@@ -1095,17 +1015,17 @@ def legacy_score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value,
+            score.mode.value,
             session=score.session
         )
 
-        score.status = score.get_status()
+        score.status = score.calculate_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value,
+                    mode=score.mode.value,
                     session=score.session
                    ) \
                 if score.personal_best else 0
@@ -1137,7 +1057,7 @@ def legacy_score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         score.session.close()
         return
@@ -1146,7 +1066,7 @@ def legacy_score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         score.session.close()
         return
@@ -1155,14 +1075,11 @@ def legacy_score_submission(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
     )
 
-    # Submit score to amplitude analytics api
-    score_analytics(score_object, player, request)
-
     if not score.passed:
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         score.session.close()
         return
@@ -1181,7 +1098,7 @@ def legacy_score_submission(
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
         score.beatmap.id,
-        mode=score.play_mode.value,
+        mode=score.mode.value,
         session=score.session
     )
 
@@ -1189,7 +1106,7 @@ def legacy_score_submission(
     app.session.events.submit(
         'user_update',
         user_id=player.id,
-        mode=score.play_mode.value
+        mode=score.mode.value
     )
 
     if score.status == ScoreStatus.Best:
@@ -1199,7 +1116,7 @@ def legacy_score_submission(
 
     difference, next_user = leaderboards.player_above(
         player.id,
-        score.play_mode.value
+        score.mode.value
     )
 
     response.append(str(round(difference)))
