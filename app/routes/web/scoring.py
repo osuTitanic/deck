@@ -15,8 +15,9 @@ from typing import Optional, Tuple, List
 from copy import copy
 
 from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
-from app.common.database import DBStats, DBScore, DBUser
+from app.common.helpers.ip import resolve_ip_address_fastapi
 from app.common.helpers.score import calculate_rx_score
+from app.common.database import DBStats, DBScore, DBUser
 from app import achievements as AchievementManager
 from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
@@ -30,7 +31,6 @@ from app.common.database.repositories import (
     histories,
     beatmaps,
     scores,
-    groups,
     plays,
     users,
     stats
@@ -66,11 +66,10 @@ def decrypt_string(
 async def parse_score_data(request: Request) -> Score:
     """Parse the score submission request and return a score object"""
     user_agent = request.headers.get('user-agent', 'osu!')
+    ip = resolve_ip_address_fastapi(request)
 
     if not regexes.OSU_USER_AGENT.match(user_agent):
-        officer.call(
-            f'Failed to submit score: Invalid user agent: "{user_agent}"'
-        )
+        officer.call(f'Invalid user agent on score submission: "{user_agent}" ({ip})')
         raise HTTPException(400)
 
     query = request.query_params
@@ -79,16 +78,14 @@ async def parse_score_data(request: Request) -> Score:
     if score_data := query.get('score'):
         # Legacy score was submitted
         return await parse_legacy_score_data(
-            score_data,
-            query,
-            form
+            score_data, query, form, ip
         )
 
     # NOTE: The form data can contain two "score" sections, where one
     #       of them is the score data, and the other is the replay
 
     if not (score_form := form.getlist('score')):
-        officer.call('Got score submission without score data!')
+        officer.call(f'Got score submission without score data! ({ip})')
         raise HTTPException(400)
 
     score_data = score_form[0]
@@ -99,18 +96,16 @@ async def parse_score_data(request: Request) -> Score:
     exited = form.get('x')
     replay = None
 
-    # TODO: Implement more arguments from modern score submission endpoint
-
     if len(score_form) > 1:
         # Replay data was provided
         replay = score_form[-1]
 
         if not replay:
-            officer.call('Got score submission with empty replay data!')
+            officer.call(f'Got score submission with empty replay data! ({ip})')
             raise HTTPException(400)
 
         if replay.filename not in ('replay', 'score'):
-            officer.call(f'Got invalid replay name: "{replay.filename}"')
+            officer.call(f'Invalid replay name on score submission: "{replay.filename}" ({ip})')
             raise HTTPException(400)
 
         replay = await replay.read()
@@ -132,7 +127,7 @@ async def parse_score_data(request: Request) -> Score:
         except (UnicodeDecodeError, TypeError) as e:
             # Most likely an invalid score encryption key
             officer.call(
-                f'Could not decrypt score data: {e}',
+                f'Could not decrypt score data: {e} ({ip})',
                 exc_info=e
             )
             raise HTTPException(400)
@@ -146,29 +141,33 @@ async def parse_score_data(request: Request) -> Score:
         )
     except Exception as e:
         officer.call(
-            f'Failed to parse score data: {e}',
+            f'Failed to parse score data: {e} ({ip})',
             exc_info=e
         )
         raise HTTPException(400)
 
-    # TODO: Validate these arguments?
     score.is_legacy = request.url.path != '/web/osu-submit-modular-selector.php'
     score.fun_spoiler = fun_spoiler
     score.client_hash = client_hash
     score.processes = processes
     return score
 
-async def parse_legacy_score_data(score_data: str, query: dict, form: dict) -> Score:
+async def parse_legacy_score_data(
+    score_data: str,
+    query: dict,
+    form: dict,
+    ip: str
+) -> Score:
     failtime: Optional[str] = query.get('ft', 0)
     exited: Optional[str] = query.get('x', False)
     replay: Optional[bytes] = None
+    replay_file = form.get('score')
 
-    # Get replay
-    if replay_file := form.get('score'):
-        if replay_file.filename != 'replay':
-            app.session.logger.warning(f'Got invalid replay name: {replay.filename}')
-            raise HTTPException(400)
+    if replay_file and replay_file.filename != 'replay':
+        officer.call(f'Invalid replay name on score submission: "{replay.filename}" ({ip})')
+        raise HTTPException(400)
 
+    if replay_file:
         replay = await replay_file.read()
 
     try:
@@ -180,7 +179,7 @@ async def parse_legacy_score_data(score_data: str, query: dict, form: dict) -> S
         )
     except Exception as e:
         officer.call(
-            f'Failed to parse score data: {e}',
+            f'Failed to parse score data: {e} ({ip})',
             exc_info=e
         )
         raise HTTPException(400)
