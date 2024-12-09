@@ -243,7 +243,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         )
         return Response('error: no')
 
-    if score.beatmap.mode > 0 and score.play_mode == GameMode.Osu:
+    if score.beatmap.mode > 0 and score.mode == GameMode.Osu:
         # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
         # This can happen in old clients, where these modes were not implemented
         return Response('error: no')
@@ -401,7 +401,7 @@ def upload_replay(score: Score, score_id: int) -> None:
         score_rank = scores.fetch_score_index_by_id(
             mods=score.enabled_mods.value,
             beatmap_id=score.beatmap.id,
-            mode=score.play_mode.value,
+            mode=score.mode.value,
             score_id=score_id
         )
 
@@ -463,7 +463,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     # Update user stats
     user_stats = stats.fetch_by_mode(
         score.user.id,
-        score.play_mode.value,
+        score.mode.value,
         score.session
     )
 
@@ -492,7 +492,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
     best_scores_with_approved = scores.fetch_best(
         user_id=score.user.id,
-        mode=score.play_mode.value,
+        mode=score.mode.value,
         session=score.session
     )
 
@@ -575,7 +575,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             )
 
     # Update preferred mode
-    if player.preferred_mode != score.play_mode.value:
+    if player.preferred_mode != score.mode.value:
         recent_scores = scores.fetch_recent_all(
             player.id,
             limit=30,
@@ -585,7 +585,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         if len({s.mode for s in recent_scores}) == 1:
             users.update(
                 player.id,
-                {'preferred_mode': score.play_mode.value},
+                {'preferred_mode': score.mode.value},
                 score.session
             )
 
@@ -781,7 +781,7 @@ def response_charts(
 
         difference, next_user = leaderboards.player_above(
             score.user.id,
-            score.play_mode.value
+            score.mode.value
         )
 
         if difference > 0:
@@ -904,17 +904,17 @@ def score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value,
+            score.mode.value,
             session=score.session
         )
 
-        score.status = score.get_status()
+        score.status = score.calculate_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value,
+                    mode=score.mode.value,
                     session=score.session
                    ) \
                 if score.personal_best else 0
@@ -947,7 +947,7 @@ def score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         return Response('error: beatmap')
 
@@ -956,7 +956,7 @@ def score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         return Response('error: no')
 
@@ -974,7 +974,7 @@ def score_submission(
     new_rank = scores.fetch_score_index_by_tscore(
         score_object.total_score,
         score.beatmap.id,
-        mode=score.play_mode.value,
+        mode=score.mode.value,
         session=score.session
     )
 
@@ -1015,7 +1015,7 @@ def score_submission(
     app.session.events.submit(
         'user_update',
         user_id=player.id,
-        mode=score.play_mode.value
+        mode=score.mode.value
     )
 
     return Response('\n'.join([chart.get() for chart in response]))
@@ -1101,17 +1101,17 @@ def legacy_score_submission(
         score.personal_best = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
-            score.play_mode.value,
+            score.mode.value,
             session=score.session
         )
 
-        score.status = score.get_status()
+        score.status = score.calculate_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
                     score.personal_best.id,
                     score.beatmap.id,
-                    mode=score.play_mode.value,
+                    mode=score.mode.value,
                     session=score.session
                    ) \
                 if score.personal_best else 0
@@ -1143,7 +1143,7 @@ def legacy_score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         score.session.close()
         return
@@ -1152,7 +1152,7 @@ def legacy_score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         score.session.close()
         return
@@ -1168,7 +1168,7 @@ def legacy_score_submission(
         app.session.events.submit(
             'user_update',
             user_id=player.id,
-            mode=score.play_mode.value
+            mode=score.mode.value
         )
         score.session.close()
         return
@@ -1187,7 +1187,7 @@ def legacy_score_submission(
     beatmap_rank = scores.fetch_score_index_by_id(
         score_object.id,
         score.beatmap.id,
-        mode=score.play_mode.value,
+        mode=score.mode.value,
         session=score.session
     )
 
@@ -1195,7 +1195,7 @@ def legacy_score_submission(
     app.session.events.submit(
         'user_update',
         user_id=player.id,
-        mode=score.play_mode.value
+        mode=score.mode.value
     )
 
     if score.status == ScoreStatus.Best:
@@ -1205,7 +1205,7 @@ def legacy_score_submission(
 
     difference, next_user = leaderboards.player_above(
         player.id,
-        score.play_mode.value
+        score.mode.value
     )
 
     response.append(str(round(difference)))
