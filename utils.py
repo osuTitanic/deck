@@ -2,14 +2,9 @@
 from __future__ import annotations
 
 from app.common.database.repositories import beatmapsets
-from app.common.helpers import analytics, ip
-from app.common.database import DBUser
-from app.common.cache import status
-
 from concurrent.futures import Future
 from pydub import AudioSegment
 from functools import cache
-from fastapi import Request
 from PIL import Image
 
 import config
