@@ -122,7 +122,7 @@ def check_beatmap(
     player: DBUser,
     mode_name: str
 ):
-    if score.status != 3:
+    if score.status_pp != 3:
         # Score is not visible on global rankings
         return
 
@@ -175,7 +175,7 @@ def check_pp(
     with app.session.database.managed_session() as session:
         result = session.query(DBScore) \
                 .filter(DBScore.mode == score.mode) \
-                .filter(DBScore.status == 3) \
+                .filter(DBScore.status_pp == 3) \
                 .order_by(DBScore.pp.desc()) \
                 .first()
 
@@ -198,7 +198,7 @@ def check_pp(
         query = session.query(DBScore) \
                 .filter(DBScore.mode == score.mode) \
                 .filter(DBScore.user_id == player.id) \
-                .filter(DBScore.status == 3)
+                .filter(DBScore.status_pp == 3)
 
         # Exclude approved map rewards if specified in the config
         if not config.APPROVED_MAP_REWARDS:

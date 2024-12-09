@@ -390,7 +390,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             return Response('error: ban')
 
 def upload_replay(score: Score, score_id: int) -> None:
-    if score.passed and score.status > ScoreStatus.Exited:
+    if score.passed and score.status_pp > ScoreStatus.Exited:
         app.session.logger.debug('Uploading replay...')
 
         # Check replay size (10mb max)
@@ -413,7 +413,7 @@ def upload_replay(score: Score, score_id: int) -> None:
         if not score.beatmap.is_ranked:
             return
 
-        if score.status < ScoreStatus.Submitted:
+        if score.status_pp < ScoreStatus.Submitted:
             return
 
         if score_rank > config.SCORE_RESPONSE_LIMIT * 10:
@@ -505,7 +505,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
     vn_scores = [score for score in best_scores if (score.mods & 128) == 0 and (score.mods & 8192) == 0]
 
-    if score.beatmap.is_ranked and score.status == ScoreStatus.Best:
+    if score.beatmap.is_ranked and score.status_pp == ScoreStatus.Best:
         # Update max combo
         if score.max_combo > user_stats.max_combo:
             user_stats.max_combo = score.max_combo
@@ -560,7 +560,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             session=score.session
         )
 
-        if score.passed and score.status == ScoreStatus.Best:
+        if score.passed and score.status_pp == ScoreStatus.Best:
             # NOTE: ppv1 calculations take a while, since we need to
             #       fetch the rank for each score from the database.
             #       I am not sure if this is the best way to do it...
@@ -825,7 +825,7 @@ def score_submission(
             session=score.session
         )
 
-        score.status = score.calculate_status()
+        score.status_pp = score.calculate_pp_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
@@ -841,7 +841,7 @@ def score_submission(
         score_object.client_hash = score.client_hash
 
         if not config.ALLOW_RELAX and score.relaxing:
-            score_object.status = -1
+            score_object.status_pp = -1
 
         score.session.add(score_object)
         score.session.flush()
@@ -912,7 +912,7 @@ def score_submission(
     score.session.close()
 
     # Send highlights on #announce
-    if score.status == ScoreStatus.Best:
+    if score.status_pp == ScoreStatus.Best:
         app.session.executor.submit(
             app.highlights.check,
             score.user,
@@ -1019,7 +1019,7 @@ def legacy_score_submission(
             session=score.session
         )
 
-        score.status = score.calculate_status()
+        score.status_pp = score.calculate_pp_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
@@ -1035,7 +1035,7 @@ def legacy_score_submission(
         score_object.client_hash = ''
 
         if not config.ALLOW_RELAX and score.relaxing:
-            score_object.status = -1
+            score_object.status_pp = -1
 
         score.session.add(score_object)
         score.session.flush()
@@ -1109,7 +1109,7 @@ def legacy_score_submission(
         mode=score.mode.value
     )
 
-    if score.status == ScoreStatus.Best:
+    if score.status_pp == ScoreStatus.Best:
         response.append(str(beatmap_rank))
     else:
         response.append('0')
@@ -1125,7 +1125,7 @@ def legacy_score_submission(
     score.session.close()
 
     # Send highlights on #announce
-    if score.status == ScoreStatus.Best:
+    if score.status_pp == ScoreStatus.Best:
         app.session.executor.submit(
             app.highlights.check,
             score.user,

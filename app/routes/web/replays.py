@@ -66,7 +66,7 @@ def get_replay(
             session
         )
 
-    if score.status <= 0:
+    if score.status_pp <= 0:
         # Score is hidden
         app.session.logger.warning(f'Failed to get replay "{score_id}": Hidden Score')
         raise HTTPException(403)

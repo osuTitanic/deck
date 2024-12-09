@@ -82,7 +82,7 @@ class Score:
         self.failtime = failtime
 
         self.replay = replay
-        self.status = ScoreStatus.Submitted
+        self.status_pp = ScoreStatus.Submitted
         self.is_legacy = True
         self.pp = 0.0
 
@@ -238,8 +238,8 @@ class Score:
 
         return result
 
-    def calculate_status(self) -> ScoreStatus:
-        """Set the status of this score, and the personal best of the user
+    def calculate_pp_status(self) -> ScoreStatus:
+        """Set the performance status of this score, and the personal best of the user
 
         The score "status" determines if a score is a
             - Personal best
@@ -288,22 +288,22 @@ class Score:
             self.session.query(DBScore) \
                 .filter(DBScore.id == mods_pb.id) \
                 .update({
-                'status': ScoreStatus.Submitted.value
-            })
+                    'status_pp': ScoreStatus.Submitted.value
+                })
             self.session.commit()
 
             return ScoreStatus.Mods
 
         # New pb was set
-        status = {'status': ScoreStatus.Submitted.value} \
+        status = {'status_pp': ScoreStatus.Submitted.value} \
             if self.enabled_mods.value == self.personal_best.mods else \
-            {'status': ScoreStatus.Mods.value}
+            {'status_pp': ScoreStatus.Mods.value}
 
         self.session.query(DBScore) \
             .filter(DBScore.id == self.personal_best.id) \
             .update(status)
-        self.session.commit()
 
+        self.session.commit()
         return ScoreStatus.Best
 
     @classmethod
@@ -376,7 +376,7 @@ class Score:
             nGeki=self.cGeki,
             nKatu=self.cKatu,
             grade=self.grade.name,
-            status=self.status.value,
+            status=self.status_pp.value,
             failtime=self.failtime,
             replay_md5=hashlib.md5(
                 self.replay
