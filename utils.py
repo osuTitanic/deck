@@ -219,36 +219,6 @@ def thread_callback(future: Future):
 def empty_zip_file() -> bytes:
     return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 
-def track(
-    event: str,
-    properties: dict,
-    user: DBUser | None,
-    request: Request
-) -> None:
-    if not user:
-        return
-
-    if not status.exists(user.id):
-        return
-
-    ip_address = ip.resolve_ip_address_fastapi(request)
-    device_id = status.device_id(user.id)
-    version = status.version(user.id)
-
-    analytics.track(
-        event,
-        user_id=user.id,
-        device_id=device_id,
-        app_version=version,
-        ip=ip_address,
-        event_properties=properties,
-        user_properties={
-            'user_id': user.id,
-            'name': user.name,
-            'country': user.country
-        }
-    )
-
 @cache
 def check_password(password: str, bcrypt_hash: str) -> bool:
     return bcrypt.checkpw(
