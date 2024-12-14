@@ -526,6 +526,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             for score in best_scores_with_approved
         )
 
+        # Update ppv1
+        user_stats.ppv1 = performance.calculate_weighted_ppv1(best_scores)
+
         leaderboards.update(
             user_stats,
             player.country.lower()
@@ -559,19 +562,6 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             },
             session=score.session
         )
-
-        if score.passed and score.status_pp == ScoreStatus.Best:
-            # NOTE: ppv1 calculations take a while, since we need to
-            #       fetch the rank for each score from the database.
-            #       I am not sure if this is the best way to do it...
-            app.session.executor.submit(
-                update_ppv1,
-                best_scores,
-                user_stats,
-                player.country
-            ).add_done_callback(
-                utils.thread_callback
-            )
 
     # Update preferred mode
     if player.preferred_mode != score.mode.value:
@@ -637,15 +627,6 @@ def unlock_achievements(
         )
 
     return achievement_response
-
-def update_ppv1(scores: DBScore, user_stats: DBStats, country: str):
-    with app.session.database.managed_session() as session:
-        app.session.logger.debug('Updating ppv1...')
-        user_stats.ppv1 = performance.calculate_weighted_ppv1(scores, session=session)
-
-        stats.update(user_stats.user_id, user_stats.mode, {'ppv1': user_stats.ppv1}, session=session)
-        leaderboards.update(user_stats, country)
-        histories.update_rank(user_stats, country, session=session)
 
 def response_charts(
     score: Score,
@@ -801,6 +782,7 @@ def score_submission(
     )
 
     score.pp = score.calculate_ppv2()
+    score.ppv1 = score.calculate_ppv1()
 
     if (error := perform_score_validation(score, player)) != None:
         return error
@@ -991,6 +973,7 @@ def legacy_score_submission(
     )
 
     score.pp = score.calculate_ppv2()
+    score.ppv1 = score.calculate_ppv1()
 
     if (error := perform_score_validation(score, player)) != None:
         raise HTTPException(400, detail=error.body.decode())
