@@ -480,6 +480,11 @@ def legacy_scores_no_ratings(
     )
 
     for index, score in enumerate(top_scores):
+        # Don't send NC to clients that interpret NC as Taiko mod
+        if score.mods & Mods.Nightcore:
+            score.mods &= ~Mods.Nightcore
+            score.mods |= Mods.DoubleTime
+
         response.append(
             score_string(score, index)
         )
@@ -561,6 +566,11 @@ def legacy_scores_no_beatmap_data(
     )
 
     for index, score in enumerate(top_scores):
+        # Don't send NC to clients that interpret NC as Taiko mod
+        if score.mods & Mods.Nightcore:
+            score.mods &= ~Mods.Nightcore
+            score.mods |= Mods.DoubleTime
+
         response.append(
             score_string(score, index)
         )
@@ -597,6 +607,11 @@ def legacy_scores_no_personal_best(
     )
 
     for score in top_scores:
+        # Don't send NC to clients that interpret NC as Taiko mod
+        if score.mods & Mods.Nightcore:
+            score.mods &= ~Mods.Nightcore
+            score.mods |= Mods.DoubleTime
+
         response.append(
             score_string_legacy(score)
         )
@@ -637,6 +652,11 @@ def legacy_scores_status_change(
     )
 
     for score in top_scores:
+        # Don't send NC to clients that interpret NC as Taiko mod
+        if score.mods & Mods.Nightcore:
+            score.mods &= ~Mods.Nightcore
+            score.mods |= Mods.DoubleTime
+
         response.append(
             score_string_legacy(score)
         )
