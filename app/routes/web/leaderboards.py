@@ -94,7 +94,6 @@ def resolve_mods(score: DBScore, send_nc: bool = True) -> int:
     return mods.value
 
 def client_supports_nc(version: int) -> bool:
-    # Nightcore mod was added around b20120623
     return True if version >= 20120620 else False
 
 def integer_boolean(parameter: str) -> Callable:
