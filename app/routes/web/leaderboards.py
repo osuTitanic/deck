@@ -102,7 +102,7 @@ def integer_boolean(parameter: str) -> Callable:
         return query == '1'
     return wrapper
 
-def score_string(score: DBScore, index: int, request_version: int = 1, send_nc: bool = True) -> str:
+def score_string(score: DBScore, index: int, send_nc: bool = True, request_version: int = 1) -> str:
     return '|'.join([
         str(score.id),
         str(score.user.name),
@@ -284,7 +284,7 @@ def get_scores(
         )
 
         response.append(
-            score_string(personal_best, index, request_version, send_nc)
+            score_string(personal_best, index, send_nc, request_version)
         )
     else:
         response.append('')
@@ -328,7 +328,7 @@ def get_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, request_version, send_nc)
+            score_string(score, index, send_nc, request_version)
         )
 
     return Response('\n'.join(response))
@@ -393,7 +393,7 @@ def legacy_scores(
         )
 
         response.append(
-            score_string(personal_best, index, send_nc=send_nc)
+            score_string(personal_best, index, send_nc)
         )
     else:
         response.append('')
@@ -407,7 +407,7 @@ def legacy_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc=send_nc)
+            score_string(score, index, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -478,7 +478,7 @@ def legacy_scores_no_ratings(
         )
 
         response.append(
-            score_string(personal_best, index, send_nc=send_nc)
+            score_string(personal_best, index, send_nc)
         )
     else:
         response.append('')
@@ -492,7 +492,7 @@ def legacy_scores_no_ratings(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc=send_nc)
+            score_string(score, index, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -560,7 +560,7 @@ def legacy_scores_no_beatmap_data(
         )
 
         response.append(
-            score_string(personal_best, index, send_nc=send_nc)
+            score_string(personal_best, index, send_nc)
         )
     else:
         response.append('')
@@ -574,7 +574,7 @@ def legacy_scores_no_beatmap_data(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc=send_nc)
+            score_string(score, index, send_nc)
         )
 
     return Response('\n'.join(response))
