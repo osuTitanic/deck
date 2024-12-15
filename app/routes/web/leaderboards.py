@@ -80,14 +80,22 @@ def resolve_player(
 
     return user
 
-def resolve_mods(score: DBScore) -> int:
+def resolve_mods(score: DBScore, send_nc: bool = True) -> int:
     mods = Mods(score.mods)
 
     if Mods.Nightcore in mods and Mods.DoubleTime not in mods:
         # NC requires DT to be present
         mods |= Mods.DoubleTime
 
+    if Mods.Nightcore in mods and not send_nc:
+        # Don't send NC to clients that read it as Taiko mod
+        mods &= ~Mods.Nightcore
+
     return mods.value
+
+def client_supports_nc(version: int) -> bool:
+    # Nightcore mod was added around b20120623
+    return True if version >= 20120623 else False
 
 def integer_boolean(parameter: str) -> Callable:
     async def wrapper(request: Request) -> bool:
@@ -95,7 +103,7 @@ def integer_boolean(parameter: str) -> Callable:
         return query == '1'
     return wrapper
 
-def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
+def score_string(score: DBScore, index: int, request_version: int = 1, send_nc: bool = True) -> str:
     return '|'.join([
         str(score.id),
         str(score.user.name),
@@ -108,7 +116,7 @@ def score_string(score: DBScore, index: int, request_version: int = 1) -> str:
         str(score.nKatu),
         str(score.nGeki),
         str(score.perfect),
-        str(resolve_mods(score)),
+        str(resolve_mods(score, send_nc)),
         str(score.user_id),
         str(index),
         # This was changed to a unix timestamp in request version 2
@@ -133,7 +141,7 @@ def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
         str(score.nKatu),
         str(score.nGeki),
         str(score.perfect),
-        str(resolve_mods(score)),
+        str(resolve_mods(score, False)), # All clients using legacy score string don't support NC
         str(score.user_id),
         str(score.user_id), # Avatar Filename
         str(score.submitted_at)
@@ -189,6 +197,8 @@ def get_scores(
     #       However, we would have to implement a few more endpoints to
     #       make this work properly.
     has_osz = False
+
+    send_nc: bool = client_supports_nc(status.version(player.id))
 
     # Fetch score count
     personal_best = None
@@ -275,7 +285,7 @@ def get_scores(
         )
 
         response.append(
-            score_string(personal_best, index, request_version)
+            score_string(personal_best, index, request_version, send_nc)
         )
     else:
         response.append('')
@@ -319,7 +329,7 @@ def get_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, request_version)
+            score_string(score, index, request_version, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -351,6 +361,7 @@ def legacy_scores(
         session=session
     )
 
+    send_nc: bool = client_supports_nc(status.version(player_id))
     response = []
     submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
 
@@ -383,7 +394,7 @@ def legacy_scores(
         )
 
         response.append(
-            score_string(personal_best, index)
+            score_string(personal_best, index, send_nc=send_nc)
         )
     else:
         response.append('')
@@ -397,7 +408,7 @@ def legacy_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index)
+            score_string(score, index, send_nc=send_nc)
         )
 
     return Response('\n'.join(response))
@@ -423,6 +434,7 @@ def legacy_scores_no_ratings(
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
+    send_nc: bool = client_supports_nc(status.version(player_id))
     current_mode = status.get(player.id).status.mode
 
     if current_mode != mode:
@@ -467,7 +479,7 @@ def legacy_scores_no_ratings(
         )
 
         response.append(
-            score_string(personal_best, index)
+            score_string(personal_best, index, send_nc=send_nc)
         )
     else:
         response.append('')
@@ -480,13 +492,8 @@ def legacy_scores_no_ratings(
     )
 
     for index, score in enumerate(top_scores):
-        # Don't send NC to clients that interpret NC as Taiko mod
-        if score.mods & Mods.Nightcore:
-            score.mods &= ~Mods.Nightcore
-            score.mods |= Mods.DoubleTime
-
         response.append(
-            score_string(score, index)
+            score_string(score, index, send_nc=send_nc)
         )
 
     return Response('\n'.join(response))
@@ -511,6 +518,7 @@ def legacy_scores_no_beatmap_data(
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
+    send_nc: bool = client_supports_nc(status.version(player_id))
     current_mode = status.get(player.id).status.mode
     mode = GameMode.Osu
 
@@ -553,7 +561,7 @@ def legacy_scores_no_beatmap_data(
         )
 
         response.append(
-            score_string(personal_best, index)
+            score_string(personal_best, index, send_nc=send_nc)
         )
     else:
         response.append('')
@@ -566,13 +574,8 @@ def legacy_scores_no_beatmap_data(
     )
 
     for index, score in enumerate(top_scores):
-        # Don't send NC to clients that interpret NC as Taiko mod
-        if score.mods & Mods.Nightcore:
-            score.mods &= ~Mods.Nightcore
-            score.mods |= Mods.DoubleTime
-
         response.append(
-            score_string(score, index)
+            score_string(score, index, send_nc=send_nc)
         )
 
     return Response('\n'.join(response))
@@ -607,11 +610,6 @@ def legacy_scores_no_personal_best(
     )
 
     for score in top_scores:
-        # Don't send NC to clients that interpret NC as Taiko mod
-        if score.mods & Mods.Nightcore:
-            score.mods &= ~Mods.Nightcore
-            score.mods |= Mods.DoubleTime
-
         response.append(
             score_string_legacy(score)
         )
@@ -652,11 +650,6 @@ def legacy_scores_status_change(
     )
 
     for score in top_scores:
-        # Don't send NC to clients that interpret NC as Taiko mod
-        if score.mods & Mods.Nightcore:
-            score.mods &= ~Mods.Nightcore
-            score.mods |= Mods.DoubleTime
-
         response.append(
             score_string_legacy(score)
         )
