@@ -55,7 +55,8 @@ def check_pack(score: DBScore, beatmapset_ids: List[int]) -> bool:
                 .join(DBBeatmap) \
                 .filter(DBBeatmap.set_id == set_id) \
                 .filter(DBScore.user_id == score.user_id) \
-                .filter(DBScore.status == 3) \
+                .filter(DBScore.status_pp == 3) \
+                .filter(DBScore.hidden == False) \
                 .first()
 
             if not result:
@@ -129,7 +130,7 @@ def sranker(score: DBScore) -> bool:
 @register(name="Most Improved", category='Hush-Hush', filename='improved.png')
 def improved(score: DBScore) -> bool:
     """Set a D Rank then A rank (or higher), in the last day"""
-    if score.status != ScoreStatus.Best:
+    if score.status_pp != ScoreStatus.Best:
         return False
 
     with app.session.database.managed_session() as session:

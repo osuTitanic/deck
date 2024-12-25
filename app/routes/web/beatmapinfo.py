@@ -105,7 +105,8 @@ def get_beatmap_info(
                 .filter(DBScore.beatmap_id == beatmap.id) \
                 .filter(DBScore.user_id == player.id) \
                 .filter(DBScore.mode == mode) \
-                .filter(DBScore.status == 3) \
+                .filter(DBScore.status_pp == 3) \
+                .filter(DBScore.hidden == False) \
                 .scalar()
 
             if grade:
