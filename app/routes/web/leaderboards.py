@@ -211,7 +211,7 @@ def get_scores(
         )
 
     if beatmap.is_ranked:
-        personal_best = scores.fetch_personal_best(
+        personal_best = scores.fetch_personal_best_score(
             beatmap.id,
             player.id,
             mode.value,
@@ -377,7 +377,7 @@ def legacy_scores(
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
-    personal_best = scores.fetch_personal_best(
+    personal_best = scores.fetch_personal_best_score(
         beatmap.id,
         player.id,
         mode.value,
@@ -462,7 +462,7 @@ def legacy_scores_no_ratings(
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
-    personal_best = scores.fetch_personal_best(
+    personal_best = scores.fetch_personal_best_score(
         beatmap.id,
         player.id,
         mode.value,
@@ -544,7 +544,7 @@ def legacy_scores_no_beatmap_data(
     if skip_scores or not beatmap.is_ranked:
         return Response('\n'.join(response))
 
-    personal_best = scores.fetch_personal_best(
+    personal_best = scores.fetch_personal_best_score(
         beatmap.id,
         player.id,
         mode.value,
