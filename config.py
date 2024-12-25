@@ -19,16 +19,20 @@ S3_BASEURL    = os.environ.get('S3_BASEURL')
 REDIS_HOST = os.environ.get('REDIS_HOST')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 
+EMAIL_PROVIDER = os.environ.get('EMAIL_PROVIDER')
+EMAIL_SENDER = os.environ.get('EMAIL_SENDER')
+EMAIL_DOMAIN = EMAIL_SENDER.split('@')[-1]
+
+SMTP_HOST = os.environ.get('SMTP_HOST')
+SMTP_PORT = int(os.environ.get('SMTP_PORT') or '587')
+SMTP_USER = os.environ.get('SMTP_USER')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
-SENDGRID_EMAIL = os.environ.get('SENDGRID_EMAIL')
-
 MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY')
-MAILGUN_EMAIL = os.environ.get('MAILGUN_EMAIL', '')
 MAILGUN_URL = os.environ.get('MAILGUN_URL', 'api.eu.mailgun.net')
-MAILGUN_DOMAIN = MAILGUN_EMAIL.split('@')[-1]
 
-EMAILS_ENABLED = MAILGUN_API_KEY is not None or SENDGRID_API_KEY is not None
-EMAIL = MAILGUN_EMAIL or SENDGRID_EMAIL
+EMAILS_ENABLED = bool(EMAIL_PROVIDER and EMAIL_SENDER)
 
 WEB_HOST = os.environ.get('WEB_HOST')
 WEB_PORT = int(os.environ.get('WEB_PORT', 80))
