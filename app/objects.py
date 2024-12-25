@@ -330,16 +330,12 @@ class Score:
         mode = GameMode.Osu
         version = 0
 
-        try:
+        if len(args) > 15:
+            mode = GameMode(int(args[15]))
+
+        if len(args) > 17:
             version = int(args[17].strip())
             flags = BadFlags(args[17].count(' '))
-        except IndexError:
-            pass
-
-        try:
-            mode = GameMode(int(args[15]))
-        except IndexError:
-            pass
 
         return Score(
             file_checksum=args[0],
