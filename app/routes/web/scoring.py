@@ -489,17 +489,18 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         session=score.session
     )
 
-    best_scores_with_approved = scores.fetch_best(
+    best_scores_by_score = scores.fetch_best_by_score(
         user_id=score.user.id,
         mode=score.mode.value,
         session=score.session
     )
 
-    best_scores = [
-        score
-        for score in best_scores_with_approved
-        if score.beatmap.awards_pp
-    ]
+    best_scores = scores.fetch_best(
+        user_id=score.user.id,
+        mode=score.mode.value,
+        exclude_approved=(not config.APPROVED_MAP_REWARDS),
+        session=score.session
+    )
 
     rx_scores = [score for score in best_scores if (score.mods & 128) != 0]
     ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
@@ -523,7 +524,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         # Update rscore
         user_stats.rscore = sum(
             score.total_score
-            for score in best_scores_with_approved
+            for score in best_scores_by_score
         )
 
         # Update ppv1
@@ -694,7 +695,7 @@ def response_charts(
     beatmap_ranking['chartName'] = 'Beatmap Ranking'
     beatmap_ranking['chartUrl'] = f'https://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'
 
-    old_score = score.personal_best
+    old_score = score.personal_best_score
     new_score = score.to_database()
 
     if old_score:
@@ -800,7 +801,14 @@ def score_submission(
         score.version = status.version(player.id) or 0
 
     if score.beatmap.is_ranked:
-        score.personal_best = scores.fetch_personal_best(
+        score.personal_best_pp = scores.fetch_personal_best(
+            score.beatmap.id,
+            score.user.id,
+            score.mode.value,
+            session=score.session
+        )
+
+        score.personal_best_score = scores.fetch_personal_best_score(
             score.beatmap.id,
             score.user.id,
             score.mode.value,
@@ -808,15 +816,16 @@ def score_submission(
         )
 
         score.status_pp = score.calculate_pp_status()
+        score.status_score = score.calculate_score_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                    score.personal_best.id,
+                    score.personal_best_pp.id,
                     score.beatmap.id,
                     mode=score.mode.value,
                     session=score.session
-                   ) \
-                if score.personal_best else 0
+                ) \
+                if score.personal_best_score else 0
 
         # Submit to database
         score_object = score.to_database()
@@ -995,7 +1004,14 @@ def legacy_score_submission(
         raise HTTPException(400)
 
     if score.beatmap.is_ranked:
-        score.personal_best = scores.fetch_personal_best(
+        score.personal_best_pp = scores.fetch_personal_best(
+            score.beatmap.id,
+            score.user.id,
+            score.mode.value,
+            session=score.session
+        )
+
+        score.personal_best_score = scores.fetch_personal_best_score(
             score.beatmap.id,
             score.user.id,
             score.mode.value,
@@ -1003,15 +1019,16 @@ def legacy_score_submission(
         )
 
         score.status_pp = score.calculate_pp_status()
+        score.status_score = score.calculate_score_status()
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                    score.personal_best.id,
+                    score.personal_best_pp.id,
                     score.beatmap.id,
                     mode=score.mode.value,
                     session=score.session
-                   ) \
-                if score.personal_best else 0
+                ) \
+                if score.personal_best_score else 0
 
         # Submit to database
         score_object = score.to_database()

@@ -84,17 +84,18 @@ class Score:
 
         self.replay = replay
         self.status_pp = ScoreStatus.Submitted
+        self.status_score = ScoreStatus.Submitted
         self.is_legacy = True
         self.ppv1 = 0.0
         self.pp = 0.0
 
         self.session = app.session.database.session
-        self.personal_best: Optional[DBScore] = None
+        self.personal_best_score: Optional[DBScore] = None
+        self.personal_best_pp: Optional[DBScore] = None
         self.beatmap: Optional[DBBeatmap] = None
         self.user: Optional[DBUser] = None
 
         # Optional
-        self.personal_best: Optional[DBScore] = None
         self.fun_spoiler: Optional[str] = None
         self.client_hash: Optional[str] = None
         self.processes: Optional[str] = None
@@ -266,19 +267,19 @@ class Score:
         if not self.passed:
             return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
 
-        if not self.personal_best:
+        if not self.personal_best_pp:
             return ScoreStatus.Best
 
         # Use pp to determine the better score, but fallback
         # to total score, if the pp is the same (spin to win)
         better_score = (
-            self.pp > self.personal_best.pp
-            if round(self.pp) != round(self.personal_best.pp)
-            else self.total_score > self.personal_best.total_score
+            self.pp > self.personal_best_pp.pp
+            if round(self.pp) != round(self.personal_best_pp.pp)
+            else self.total_score > self.personal_best_pp.total_score
         )
 
         if not better_score:
-            if self.enabled_mods.value == self.personal_best.mods:
+            if self.enabled_mods.value == self.personal_best_pp.mods:
                 return ScoreStatus.Submitted
 
             # Check pb with mods
@@ -301,16 +302,77 @@ class Score:
                 .filter(DBScore.id == mods_pb.id) \
                 .update({'status_pp': ScoreStatus.Submitted.value})
             self.session.commit()
-
             return ScoreStatus.Mods
 
         # New pb was set
         status = {'status_pp': ScoreStatus.Submitted.value} \
-            if self.enabled_mods.value == self.personal_best.mods else \
+            if self.enabled_mods.value == self.personal_best_pp.mods else \
             {'status_pp': ScoreStatus.Mods.value}
 
         self.session.query(DBScore) \
-            .filter(DBScore.id == self.personal_best.id) \
+            .filter(DBScore.id == self.personal_best_pp.id) \
+            .update(status)
+
+        self.session.commit()
+        return ScoreStatus.Best
+    
+    def calculate_score_status(self) -> ScoreStatus:
+        """Set the score status of this score, and the personal best of the user
+
+        The score "status" determines if a score is a
+            - Personal best
+            - Personal best with mod combination
+            - Submitted score
+            - Failed/Exited score
+            - Hidden score
+        """
+        if not config.ALLOW_RELAX and self.relaxing:
+            return ScoreStatus.Hidden
+
+        if not self.passed:
+            return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
+
+        if not self.personal_best_score:
+            return ScoreStatus.Best
+
+        # Use score to determine the better score
+        better_score = (
+            self.total_score > self.personal_best_score.total_score
+        )
+
+        if not better_score:
+            if self.enabled_mods.value == self.personal_best_score.mods:
+                return ScoreStatus.Submitted
+
+            # Check pb with mods
+            mods_pb = scores.fetch_personal_best_score(
+                self.beatmap.id,
+                self.user.id,
+                self.mode.value,
+                self.enabled_mods.value,
+                self.session
+            )
+
+            if not mods_pb:
+                return ScoreStatus.Mods
+
+            if self.total_score < mods_pb.total_score:
+                return ScoreStatus.Submitted
+
+            # Change status for old personal best
+            self.session.query(DBScore) \
+                .filter(DBScore.id == mods_pb.id) \
+                .update({'status_score': ScoreStatus.Submitted.value})
+            self.session.commit()
+            return ScoreStatus.Mods
+
+        # New pb was set
+        status = {'status_score': ScoreStatus.Submitted.value} \
+            if self.enabled_mods.value == self.personal_best_score.mods else \
+            {'status_score': ScoreStatus.Mods.value}
+
+        self.session.query(DBScore) \
+            .filter(DBScore.id == self.personal_best_score.id) \
             .update(status)
 
         self.session.commit()
@@ -330,16 +392,12 @@ class Score:
         mode = GameMode.Osu
         version = 0
 
-        try:
+        if len(args) > 15:
+            mode = GameMode(int(args[15]))
+
+        if len(args) > 17:
             version = int(args[17].strip())
             flags = BadFlags(args[17].count(' '))
-        except IndexError:
-            pass
-
-        try:
-            mode = GameMode(int(args[15]))
-        except IndexError:
-            pass
 
         return Score(
             file_checksum=args[0],
@@ -388,6 +446,7 @@ class Score:
             nKatu=self.cKatu,
             grade=self.grade.name,
             status_pp=self.status_pp.value,
+            status_score=self.status_score.value,
             failtime=self.failtime,
             submitted_at=datetime.now(),
             replay_md5=(
