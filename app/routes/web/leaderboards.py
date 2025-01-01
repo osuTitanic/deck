@@ -328,7 +328,7 @@ def get_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc, request_version)
+            score_string(score, index+1, send_nc, request_version)
         )
 
     return Response('\n'.join(response))
@@ -407,7 +407,7 @@ def legacy_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc)
+            score_string(score, index+1, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -492,7 +492,7 @@ def legacy_scores_no_ratings(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc)
+            score_string(score, index+1, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -574,7 +574,7 @@ def legacy_scores_no_beatmap_data(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc)
+            score_string(score, index+1, send_nc)
         )
 
     return Response('\n'.join(response))
