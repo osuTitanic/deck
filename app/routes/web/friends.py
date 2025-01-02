@@ -13,7 +13,7 @@ def get_friends(
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias="u"),
     password: str = Query(..., alias="h")
-) -> bytes:
+) -> str:
     if not (player := users.fetch_by_name(username, session=session)):
         raise HTTPException(401)
 
