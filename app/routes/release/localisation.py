@@ -23,7 +23,7 @@ def localisation(filename: str, request: Request):
     return response.content
 
 @router.get('/{language}/{filename}')
-def get_legacy_localisation(
+def legacy_localisation(
     language: str,
     filename: str
 ) -> bytes:
