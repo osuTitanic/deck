@@ -907,9 +907,9 @@ def score_submission(
         app.session.executor.submit(
             app.highlights.check,
             score.user,
+            score_object,
             new_stats,
             old_stats,
-            score_object,
             new_rank,
             old_rank
         ).add_done_callback(
@@ -1129,9 +1129,9 @@ def legacy_score_submission(
         app.session.executor.submit(
             app.highlights.check,
             score.user,
+            score_object,
             new_stats,
             old_stats,
-            score_object,
             beatmap_rank,
             old_rank
         ).add_done_callback(
