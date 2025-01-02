@@ -20,13 +20,13 @@ import uvicorn
 import config
 import utils
 
-utils.setup()
-
 logging.basicConfig(
     format='[%(asctime)s] - <%(name)s> %(levelname)s: %(message)s',
     level=logging.DEBUG if config.DEBUG else logging.INFO,
     handlers=[Console, File]
 )
+
+utils.setup()
 
 if logging.getLogger('uvicorn.access').handlers:
     # Redirect uvicorn logs to file

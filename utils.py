@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from app.common.database.repositories import beatmapsets
+from app.common.database import beatmapsets
 from concurrent.futures import Future
 from pydub import AudioSegment
 from functools import cache
@@ -13,7 +13,7 @@ import app
 import io
 import os
 
-REQUIRED_BUCKETS = [
+REQUIRED_STORAGE_KEYS = [
     'screenshots',
     'beatmaps',
     'avatars',
@@ -25,7 +25,57 @@ REQUIRED_BUCKETS = [
     'osz2'
 ]
 
-def download_to_file(path: str, url: str):
+def setup() -> None:
+    os.makedirs(
+        f'{config.DATA_PATH}/logs',
+        exist_ok=True
+    )
+
+    if not config.S3_ENABLED:
+        setup_data_folder()
+        return
+
+    return setup_s3_buckets()
+
+def setup_data_folder() -> None:
+    # Create required folders if not they not already exist
+    for bucket in REQUIRED_STORAGE_KEYS:
+        os.makedirs(
+            f'{config.DATA_PATH}/{bucket}',
+            exist_ok=True
+        )
+
+    if any(os.scandir(f'{config.DATA_PATH}/avatars')):
+        return
+
+    app.session.logger.info('Downloading default avatars...')
+    download_to_file(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
+    download_to_file(f'{config.DATA_PATH}/avatars/1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
+
+def setup_s3_buckets() -> None:
+    bucket_list = app.session.storage.s3.list_buckets()
+
+    # Create required buckets if needed
+    buckets = [
+        bucket['Name']
+        for bucket in bucket_list['Buckets']
+    ]
+
+    for bucket in REQUIRED_STORAGE_KEYS:
+        if bucket in buckets:
+            continue
+
+        app.session.logger.info(f'Creating bucket: "{bucket}"')
+        app.session.storage.s3.create_bucket(Bucket=bucket)
+
+        if bucket != 'avatars':
+            continue
+
+        app.session.logger.info('Downloading default avatars...')
+        download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
+        download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
+
+def download_to_file(path: str, url: str) -> None:
     if os.path.isfile(path):
         return
 
@@ -38,7 +88,7 @@ def download_to_file(path: str, url: str):
     with open(path, 'wb') as f:
         f.write(response.content)
 
-def download_to_s3(bucket: str, key: str, url: str):
+def download_to_s3(bucket: str, key: str, url: str) -> None:
     response = app.session.requests.get(url)
 
     if not response.ok:
@@ -50,48 +100,6 @@ def download_to_s3(bucket: str, key: str, url: str):
         key,
         bucket
     )
-
-def setup():
-    os.makedirs(f'{config.DATA_PATH}/logs', exist_ok=True)
-
-    if not config.S3_ENABLED:
-        # Create required folders if not they not already exist
-        for bucket in REQUIRED_BUCKETS:
-            os.makedirs(
-                f'{config.DATA_PATH}/{bucket}',
-                exist_ok=True
-            )
-
-        if os.listdir(f'{config.DATA_PATH}/avatars'):
-            return
-
-        app.session.logger.info('Downloading default avatars...')
-
-        download_to_file(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
-        download_to_file(f'{config.DATA_PATH}/avatars/1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
-        return
-
-    s3 = app.session.storage.s3
-
-    # Create required buckets if needed
-    buckets = [
-        bucket['Name'] for bucket in s3.list_buckets()['Buckets']
-    ]
-
-    for bucket in REQUIRED_BUCKETS:
-        if bucket in buckets:
-            continue
-
-        app.session.logger.info(f'Creating bucket: "{bucket}"')
-        s3.create_bucket(Bucket=bucket)
-
-        if bucket != 'avatars':
-            continue
-
-        app.session.logger.info('Downloading default avatars...')
-
-        download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
-        download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
 
 def has_jpeg_headers(data_view: memoryview) -> bool:
     return (
@@ -122,7 +130,7 @@ def get_osz_size(set_id: int, no_video: bool = False) -> int:
 
     return int(filesize)
 
-def update_osz_filesize(set_id: int, has_video: bool = False):
+def update_osz_filesize(set_id: int, has_video: bool = False) -> None:
     updates = {}
 
     if has_video:
@@ -198,7 +206,7 @@ def extract_audio_snippet(
     snippet.export(snippet_buffer, format='mp3', bitrate=bitrate)
     return snippet_buffer.getvalue()
 
-def thread_callback(future: Future):
+def thread_callback(future: Future) -> None:
     if e := future.exception():
         app.session.database.logger.error(
             f'Failed to execute thread: {e}',
