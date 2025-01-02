@@ -1,20 +1,18 @@
 
 from sqlalchemy.orm import Session
 from datetime import datetime
+from fastapi import (
+    HTTPException,
+    APIRouter,
+    Depends,
+    Query
+)
 
 from app.common.cache import status
 from app.common.database.repositories import (
     beatmapsets,
     favourites,
     users
-)
-
-from fastapi import (
-    HTTPException,
-    APIRouter,
-    Request,
-    Depends,
-    Query
 )
 
 import utils
@@ -24,12 +22,11 @@ router = APIRouter()
 
 @router.get('/osu-addfavourite.php')
 def add_favourite(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='a'),
-):
+) -> str:
     if not (player := users.fetch_by_name(username, session)):
         raise HTTPException(401)
 
@@ -68,7 +65,7 @@ def get_favourites(
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h')
-):
+) -> str:
     if not (player := users.fetch_by_name(username, session)):
         raise HTTPException(401)
 

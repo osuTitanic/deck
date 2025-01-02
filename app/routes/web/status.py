@@ -1,6 +1,5 @@
 
-from app.common.database.repositories import beatmaps
-
+from app.common.database import beatmaps
 from sqlalchemy.orm import Session
 from fastapi import (
     HTTPException,
@@ -18,7 +17,7 @@ router = APIRouter()
 def get_beatmaps(
     session: Session = Depends(app.session.database.yield_session),
     checksums: str = Query(..., alias='c')
-):
+) -> Response:
     # Check amount of requests
     if len(checksums := checksums.split(',')) > 60:
         raise HTTPException(400)

@@ -7,7 +7,6 @@ from app.common import officer
 from sqlalchemy.orm import Session
 from typing import Dict
 from fastapi import (
-    HTTPException,
     APIRouter,
     Response,
     Depends,
@@ -47,7 +46,7 @@ def osu_error(
     exehash: str | None = Form(None),
     version: str = Form(...),
     config: str = Form(...)
-):
+) -> Response:
     ignored_feedback = [
         'update error',
         # TODO Add more

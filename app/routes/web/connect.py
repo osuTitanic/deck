@@ -25,7 +25,7 @@ def connect(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     version: str = Query(..., alias='v')
-):
+) -> str:
     if not (match := regexes.OSU_VERSION.match(version)):
         return ""
 

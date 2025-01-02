@@ -1,10 +1,4 @@
 
-from app.common.cache import status
-from app.common.database.repositories import (
-    screenshots,
-    users
-)
-
 from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import (
@@ -16,12 +10,18 @@ from fastapi import (
     Query
 )
 
+from app.common.cache import status
+from app.common.database.repositories import (
+    screenshots,
+    users
+)
+
 import utils
 import app
 
 router = APIRouter()
 
-async def read_screenshot(request: Request):
+async def read_screenshot(request: Request) -> bytes:
     form = await request.form()
 
     if not (screenshot := form.get('ss')):
@@ -47,7 +47,7 @@ def screenshot(
     screenshot: bytes = Depends(read_screenshot),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p')
-):
+) -> Response:
     if not (player := users.fetch_by_name(username, session)):
         raise HTTPException(401)
 
@@ -79,7 +79,6 @@ def screenshot(
 
     app.session.storage.upload_screenshot(id, screenshot)
     app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
-
     return Response(str(id))
 
 @router.post('/osu-ss.php')
@@ -87,7 +86,7 @@ def monitor(
     screenshot: bytes = Depends(read_screenshot),
     user_id: int = Query(..., alias='u'),
     password: str = Query(..., alias='h')
-):
+) -> Response:
     # This endpoint will be called, when the client receives a
     # monitor packet from bancho. This was removed because of
     # privacy reasons.

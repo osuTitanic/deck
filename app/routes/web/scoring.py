@@ -724,7 +724,7 @@ def score_submission(
     legacy_password: Optional[str] = Query(None, alias='pass'),
     password: Optional[str] = Form(None, alias='pass'),
     score: Score = Depends(parse_score_data),
-):
+) -> Response:
     password = legacy_password or password
 
     score.user = users.fetch_by_name(
@@ -927,7 +927,7 @@ def legacy_score_submission(
     request: Request,
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
-):
+) -> Response:
     score.user = users.fetch_by_name(
         score.username,
         score.session
