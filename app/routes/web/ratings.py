@@ -1,5 +1,4 @@
 
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
@@ -29,7 +28,7 @@ def rate(
     password: str = Query(..., alias='p'),
     beatmap_md5: str = Query(..., alias='c'),
     rating: Optional[int] = Query(None, alias='v')
-):
+) -> Response:
     if not (player := users.fetch_by_name(username, session)):
         return Response('auth fail')
 
