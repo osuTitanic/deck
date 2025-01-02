@@ -591,7 +591,7 @@ def unlock_achievements(
     unlocked_achievements = achievements.fetch_many(player.id, score.session)
     ignore_list = [a.filename for a in unlocked_achievements]
 
-    new_achievements = AchievementManager.check(score_object, ignore_list)
+    new_achievements = AchievementManager.check(score_object, score.session, ignore_list)
     achievement_response = [a.filename for a in new_achievements]
 
     if new_achievements:

@@ -1,12 +1,13 @@
+
 from concurrent.futures import Future, TimeoutError
 from datetime import datetime, timedelta
 from typing import List, Callable, Tuple
-
-from app.common.constants import ScoreStatus, Grade
-from app.common.database.repositories import scores
-from app.common.cache import leaderboards
+from sqlalchemy.orm import Session
 
 from app.common.database.objects import DBScore, DBBeatmap
+from app.common.database.repositories import scores
+from app.common.constants import ScoreStatus, Grade
+from app.common.cache import leaderboards
 from app.common.constants import Mods
 
 import config
@@ -828,7 +829,7 @@ def get_by_name(name: str):
             return achievement
     return None
 
-def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achievement]:
+def check(score: DBScore, session: Session, ignore_list: List[Achievement] = []) -> List[Achievement]:
     app.session.logger.debug('Checking for new achievements...')
 
     results: List[Tuple[Future, Achievement]] = []
@@ -862,6 +863,7 @@ def check(score: DBScore, ignore_list: List[Achievement] = []) -> List[Achieveme
             app.highlights.submit(
                 score.user_id,
                 score.mode,
+                session,
                 '{}' + f' unlocked an achievement: {achievement.name}',
                 (score.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{score.user_id}')
             )
