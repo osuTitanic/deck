@@ -107,6 +107,18 @@ class Score:
 
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
+    
+    @property
+    def is_performance_pb(self) -> bool:
+        return self.status_pp == ScoreStatus.Best
+    
+    @property
+    def is_score_pb(self) -> bool:
+        return self.status_score == ScoreStatus.Best
+    
+    @property
+    def has_pb(self) -> bool:
+        return self.is_performance_pb or self.is_score_pb
 
     @property
     def elapsed_time(self) -> int:
