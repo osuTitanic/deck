@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from app.common.database.repositories import beatmapsets
+from app.common.database import beatmapsets
 from app.routes import avatar
 
 from fastapi.responses import StreamingResponse
@@ -70,4 +70,4 @@ def legacy_avatar(request: Request):
     if not (filename := args.get('avatar')):
         return avatar.default_avatar()
 
-    return avatar.avatar(str(filename), 128)
+    return avatar.avatar(str(filename), size=128)

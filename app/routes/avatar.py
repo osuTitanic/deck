@@ -1,6 +1,5 @@
 
 from typing import Optional
-
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -47,7 +46,7 @@ def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
         image,
         media_type=(
             'image/jpeg'
-            if utils.has_jpeg_headers(memoryview(image))
+            if utils.has_jpeg_headers(image)
             else 'image/png'
         )
     )

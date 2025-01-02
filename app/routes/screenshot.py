@@ -1,6 +1,5 @@
 
-from app.common.database.repositories import screenshots
-
+from app.common.database import screenshots
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -31,7 +30,7 @@ def get_screenshot(id: int):
         image,
         media_type=(
             'image/jpeg'
-            if utils.has_jpeg_headers(memoryview(image))
+            if utils.has_jpeg_headers(image)
             else 'image/png'
         )
     )
