@@ -21,7 +21,7 @@ router.include_router(static.router)
 
 @router.get('/')
 def index():
-    return PlainTextResponse(
+    return (
         f'deck-{config.VERSION} '
         f'{"(Debug)" if config.DEBUG else ""}'
     )
