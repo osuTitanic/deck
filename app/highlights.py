@@ -1,5 +1,5 @@
 
-from app.common.database.repositories import notifications, activities, beatmaps, scores, wrapper
+from app.common.database.repositories import notifications, activities, scores, wrapper
 from app.common.constants import Mods, NotificationType
 from app.common import officer
 from app.common.database import (
@@ -210,7 +210,7 @@ def check_pp(
             session,
             '{} ' + 'has set the new pp record on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            (result.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
+            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
         )
         return
 
@@ -241,14 +241,14 @@ def check_pp(
             session,
             '{} ' + 'got a new top play on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            (result.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
             submit_to_chat=False
         )
 
 @wrapper.exception_wrapper(on_check_fail)
 def check(
+    score_id: int,
     player: DBUser,
-    score: DBScore,
     new_stats: DBStats,
     previous_stats: DBStats,
     new_rank: int,
@@ -261,6 +261,11 @@ def check(
             2: "CatchTheBeat",
             3: "osu!mania"
         }[new_stats.mode]
+
+        score = scores.fetch_by_id(
+            score_id,
+            session=session
+        )
 
         check_rank(
             new_stats,
