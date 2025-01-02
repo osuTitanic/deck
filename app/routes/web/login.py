@@ -1,13 +1,7 @@
 
-from app.common.database.repositories import users
-from app.common.helpers import ip
-
+from app.common.database import users
+from fastapi import APIRouter, Query
 from datetime import datetime
-from fastapi import (
-    Request,
-    APIRouter,
-    Query
-)
 
 import utils
 import app
@@ -16,23 +10,27 @@ router = APIRouter()
 
 @router.get('/osu-login.php')
 def legacy_login(
-    request: Request,
     username: str = Query(...),
     password: str = Query(...)
-):
-    if not (player := users.fetch_by_name(username)):
-        return "0"
+) -> str:
+    with app.session.database.managed_session() as session:
+        if not (player := users.fetch_by_name(username, session=session)):
+            return "0"
 
-    if not utils.check_password(password, player.bcrypt):
-        return "0"
+        if not utils.check_password(password, player.bcrypt):
+            return "0"
 
-    if player.restricted or not player.activated:
-        return "0"
+        if player.restricted or not player.activated:
+            return "0"
 
-    users.update(player.id, {'latest_activity': datetime.now()})
+        users.update(
+            player.id,
+            {'latest_activity': datetime.now()},
+            session=session
+        )
 
-    app.session.logger.info(
-        f'Player "{player.name}" is about to connect to irc.'
-    )
+        app.session.logger.info(
+            f'Player "{player.name}" is about to connect to irc.'
+        )
 
-    return "1"
+        return "1"
