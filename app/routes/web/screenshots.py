@@ -1,4 +1,6 @@
 
+from app.common.database import screenshots, users
+from app.common.cache import status
 from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import (
@@ -8,12 +10,6 @@ from fastapi import (
     Request,
     Depends,
     Query
-)
-
-from app.common.cache import status
-from app.common.database.repositories import (
-    screenshots,
-    users
 )
 
 import utils
@@ -42,7 +38,6 @@ async def read_screenshot(request: Request) -> bytes:
 
 @router.post('/osu-screenshot.php')
 def screenshot(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     screenshot: bytes = Depends(read_screenshot),
     username: str = Query(..., alias='u'),
@@ -64,22 +59,34 @@ def screenshot(
                 status_code=400,
                 detail="Screenshot file too large"
             )
+        
+        is_valid_image = (
+            utils.has_jpeg_headers(screenshot_view) or
+            utils.has_png_headers(screenshot_view)
+        )
 
-        if not utils.has_jpeg_headers(screenshot_view) \
-        and not utils.has_png_headers(screenshot_view):
+        if not is_valid_image:
             app.session.logger.warning('Failed to upload screenshot: Invalid filetype')
             raise HTTPException(
                 status_code=400,
                 detail="Invalid file type"
             )
 
-        users.update(player.id, {'latest_activity': datetime.now()}, session)
+        users.update(
+            player.id,
+            {'latest_activity': datetime.now()},
+            session=session
+        )
 
-        id = screenshots.create(player.id, hidden=False, session=session).id
+        id = screenshots.create(
+            player.id,
+            hidden=False,
+            session=session
+        ).id
 
-    app.session.storage.upload_screenshot(id, screenshot)
-    app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
-    return Response(str(id))
+        app.session.storage.upload_screenshot(id, screenshot)
+        app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
+        return Response(str(id))
 
 @router.post('/osu-ss.php')
 def monitor(
