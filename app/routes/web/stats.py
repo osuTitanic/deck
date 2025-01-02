@@ -1,8 +1,9 @@
 
-from app.common.database.repositories import users
-from app.common.cache import leaderboards
+from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
+from app.common.database.repositories import users
+from app.common.cache import leaderboards
 
 import hashlib
 import app
@@ -15,7 +16,7 @@ def legacy_user_stats(
     username: str = Query(..., alias='u'),
     checksum: str | None = Query(None, alias='c'),
     password: str | None = Query(None, alias='p')
-):
+) -> str:
     app.session.logger.info(f'Got stats request for "{username}" ({checksum})')
 
     if not (password or checksum):
@@ -30,12 +31,11 @@ def legacy_user_stats(
             app.session.logger.warning('Failed to send stats: Checksum mismatch!')
             raise HTTPException(400)
 
-    # TODO: Validate password
-
     if not (user_id := users.fetch_user_id(username)):
         app.session.logger.warning('Failed to send stats: User not found!')
         raise HTTPException(404)
 
+    # TODO: Validate password
     # TODO: Check if user is online?
 
     current_rank = leaderboards.global_rank(user_id, mode=0)

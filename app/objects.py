@@ -107,6 +107,18 @@ class Score:
 
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
+    
+    @property
+    def is_performance_pb(self) -> bool:
+        return self.status_pp == ScoreStatus.Best
+    
+    @property
+    def is_score_pb(self) -> bool:
+        return self.status_score == ScoreStatus.Best
+    
+    @property
+    def has_pb(self) -> bool:
+        return self.is_performance_pb or self.is_score_pb
 
     @property
     def elapsed_time(self) -> int:
@@ -178,51 +190,6 @@ class Score:
     @property
     def relaxing(self) -> bool:
         return (Mods.Relax in self.enabled_mods) or (Mods.Autopilot in self.enabled_mods)
-
-    @property
-    def has_invalid_mods(self) -> bool:
-        """Check if score has invalid mod combinations, like DTHT, HREZ, etc..."""
-        if not self.enabled_mods:
-            return False
-
-        # NOTE: The client is somehow sending these kinds of mod values.
-        #       The wiki says it's normal, so shruge...
-        #       https://github.com/ppy/osu-api/wiki#mods
-
-        if self.has_mods(Mods.DoubleTime | Mods.Nightcore):
-            self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
-
-        if self.has_mods(Mods.Perfect | Mods.SuddenDeath):
-            self.enabled_mods = self.enabled_mods & ~Mods.SuddenDeath
-
-        if self.has_mods(Mods.FadeIn | Mods.Hidden):
-            self.enabled_mods = self.enabled_mods & ~Mods.FadeIn
-
-        if self.has_mods(Mods.Easy | Mods.HardRock):
-            return True
-
-        if self.has_mods(Mods.HalfTime | Mods.DoubleTime):
-            return True
-
-        if self.has_mods(Mods.HalfTime | Mods.Nightcore):
-            return True
-
-        if self.has_mods(Mods.NoFail | Mods.SuddenDeath):
-            return True
-
-        if self.has_mods(Mods.NoFail | Mods.Perfect):
-            return True
-
-        if self.has_mods(Mods.Relax | Mods.Autopilot):
-            return True
-
-        if self.has_mods(Mods.SpunOut | Mods.Autopilot):
-            return True
-
-        if self.has_mods(Mods.Autoplay):
-            return True
-
-        return False
 
     def has_mods(self, mods: Mods) -> bool:
         """Check if score has a combination of mods enabled"""
@@ -378,6 +345,50 @@ class Score:
         self.session.commit()
         return ScoreStatus.Best
 
+    def check_invalid_mods(self) -> bool:
+        """Check if score has invalid mod combinations, like DTHT, HREZ, etc..."""
+        if not self.enabled_mods:
+            return False
+
+        # NOTE: The client is somehow sending these kinds of mod values.
+        #       The wiki says it's normal, so shruge...
+        #       https://github.com/ppy/osu-api/wiki#mods
+
+        if self.has_mods(Mods.DoubleTime | Mods.Nightcore):
+            self.enabled_mods = self.enabled_mods & ~Mods.DoubleTime
+
+        if self.has_mods(Mods.Perfect | Mods.SuddenDeath):
+            self.enabled_mods = self.enabled_mods & ~Mods.SuddenDeath
+
+        if self.has_mods(Mods.FadeIn | Mods.Hidden):
+            self.enabled_mods = self.enabled_mods & ~Mods.FadeIn
+
+        if self.has_mods(Mods.Easy | Mods.HardRock):
+            return True
+
+        if self.has_mods(Mods.HalfTime | Mods.DoubleTime):
+            return True
+
+        if self.has_mods(Mods.HalfTime | Mods.Nightcore):
+            return True
+
+        if self.has_mods(Mods.NoFail | Mods.SuddenDeath):
+            return True
+
+        if self.has_mods(Mods.NoFail | Mods.Perfect):
+            return True
+
+        if self.has_mods(Mods.Relax | Mods.Autopilot):
+            return True
+
+        if self.has_mods(Mods.SpunOut | Mods.Autopilot):
+            return True
+
+        if self.has_mods(Mods.Autoplay):
+            return True
+
+        return False
+
     @classmethod
     def parse(
         cls,
@@ -385,7 +396,7 @@ class Score:
         replay: Optional[bytes],
         exited: Optional[bool],
         failtime: Optional[int]
-    ):
+    ) -> "Score":
         """Parse a score string"""
         args = formatted_string.split(':')
         flags = BadFlags.Clean

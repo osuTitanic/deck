@@ -13,7 +13,7 @@ router = APIRouter()
 def legacy_menu_icon(
     image_checksum: Optional[str] = Query('', alias='c'),
     redirect: Optional[bool] = Query(False, alias='l')
-):
+) -> Response:
     if redirect:
         # Used when the user clicks on the title image
         return RedirectResponse(config.MENUICON_URL or f'http://osu.{config.DOMAIN_NAME}')

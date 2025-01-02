@@ -1,12 +1,11 @@
 
 from fastapi import APIRouter, Response
-
 import app
 
 router = APIRouter()
 
 @router.get('/osu-checktweets.php')
-def bancho_down_message():
+def bancho_down_message() -> Response:
     """
     This endpoint was used to fetch tweets from @osustatus on twitter/x, which
     would be displayed on the client side. I will be using it here, to display

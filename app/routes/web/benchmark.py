@@ -86,7 +86,7 @@ def benchmark(
     raw_score: int = Form(..., alias='r', le=1_000_000_000),
     client: str = Form(..., alias='c'),
     hardware: str = Form(..., alias='h')
-):
+) -> Response:
     if not (player := users.fetch_by_name(username, session)):
         app.session.logger.warning(f'Failed to submit score: Invalid User')
         raise HTTPException(401)

@@ -14,7 +14,6 @@ from fastapi import (
     HTTPException,
     APIRouter,
     Response,
-    Request,
     Depends,
     Query
 )
@@ -26,13 +25,12 @@ import app
 
 @router.get('/osu-getreplay.php')
 def get_replay(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
-    score_id: int = Query(..., alias='c'),
-    mode: int = Query(0, alias='m'),
     username: str = Query(None, alias='u'),
-    password: str = Query(None, alias='h')
-):
+    password: str = Query(None, alias='h'),
+    score_id: int = Query(..., alias='c'),
+    mode: int = Query(0, alias='m')
+) -> Response:
     # NOTE: Old clients don't have authentication for this endpoint
     player = None
 
@@ -48,7 +46,9 @@ def get_replay(
 
         users.update(player.id, {'latest_activity': datetime.now()}, session)
 
-    app.session.logger.info(f'{player} requested replay for "{score_id}".')
+    app.session.logger.info(
+        f'{player} requested replay for "{score_id}".'
+    )
 
     if not (score := scores.fetch_by_id(score_id, session)):
         app.session.logger.warning(f'Failed to get replay "{score_id}": Not found')
@@ -66,8 +66,7 @@ def get_replay(
             session
         )
 
-    if score.status_pp <= 0:
-        # Score is hidden
+    if score.hidden:
         app.session.logger.warning(f'Failed to get replay "{score_id}": Hidden Score')
         raise HTTPException(403)
 

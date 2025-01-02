@@ -1,5 +1,5 @@
 
-from app.common.database.repositories import beatmaps
+from app.common.database import beatmaps
 from urllib.parse import quote
 from fastapi import (
     HTTPException,
@@ -11,12 +11,8 @@ import app
 
 router = APIRouter()
 
-@router.get('/maps/')
-def index():
-    raise HTTPException(404)
-
 @router.get('/maps/{filename}')
-def get_map(filename: str):
+def beatmap_file(filename: str) -> Response:
     app.session.logger.info(f'Got map request for: "{filename}".')
 
     if not (beatmap := beatmaps.fetch_by_file(filename)):

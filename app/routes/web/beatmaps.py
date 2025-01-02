@@ -957,7 +957,7 @@ def upload_beatmap(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='s')
-):
+) -> Response:
     if not config.OSZ2_SERVICE_URL:
         app.session.logger.warning('The osz2-service url was not found. Aborting...')
         return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
@@ -1113,7 +1113,7 @@ def forum_post(
     message: str = Form(...),
     complete: bool = Depends(integer_boolean_form('complete')),
     notify: bool = Depends(integer_boolean_form('notify'))
-):
+) -> Response:
     error, user = authenticate_user(
         username,
         password,
@@ -1212,7 +1212,7 @@ def topic_contents(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='s')
-):
+) -> Response:
     error, user = authenticate_user(
         username,
         password,
@@ -1505,7 +1505,7 @@ def update_beatmap_files_endpoint(
     has_storyboard: bool = Depends(integer_boolean('sb')),
     beatmap_file: UploadFile = File(..., alias='osu'),
     session: Session = Depends(app.session.database.yield_session)
-):
+) -> Response:
     error, user = authenticate_user(
         username,
         password,
@@ -1585,7 +1585,7 @@ def upload_osz(
     file: UploadFile = File(..., alias='osu'),
     is_first: bool = Depends(integer_boolean('r')),
     session: Session = Depends(app.session.database.yield_session)
-):
+) -> Response:
     error, user = authenticate_user(
         username,
         password,
@@ -1716,7 +1716,7 @@ def legacy_forum_post(
     complete: bool = Depends(integer_boolean_form('complete')),
     bumprequest: bool = Depends(integer_boolean_form('bumprequest')),
     session: Session = Depends(app.session.database.yield_session)
-):
+) -> Response:
     error, user = authenticate_user(
         username,
         password,

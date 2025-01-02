@@ -311,7 +311,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
             return Response('error: no')
 
-    if score.has_invalid_mods:
+    if score.check_invalid_mods():
         officer.call(
             f'"{score.username}" submitted score with invalid mods.'
         )
@@ -419,11 +419,10 @@ def upload_replay(score: Score, score_id: int) -> None:
         if score_rank > config.SCORE_RESPONSE_LIMIT * 10:
             return
 
-        app.session.storage.upload_replay(
+        return app.session.storage.upload_replay(
             score_id,
             score.replay
         )
-        return
 
     # Cache replay for 30 minutes
     app.session.storage.cache_replay(
@@ -506,9 +505,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
     vn_scores = [score for score in best_scores if (score.mods & 128) == 0 and (score.mods & 8192) == 0]
 
-    if score.beatmap.is_ranked and score.status_pp == ScoreStatus.Best:
-        # Update max combo
+    if score.beatmap.is_ranked and score.has_pb:
         if score.max_combo > user_stats.max_combo:
+            # Update max combo, if higher
             user_stats.max_combo = score.max_combo
 
     if best_scores:
@@ -592,7 +591,7 @@ def unlock_achievements(
     unlocked_achievements = achievements.fetch_many(player.id, score.session)
     ignore_list = [a.filename for a in unlocked_achievements]
 
-    new_achievements = AchievementManager.check(score_object, ignore_list)
+    new_achievements = AchievementManager.check(score_object, score.session, ignore_list)
     achievement_response = [a.filename for a in new_achievements]
 
     if new_achievements:
@@ -725,7 +724,7 @@ def score_submission(
     legacy_password: Optional[str] = Query(None, alias='pass'),
     password: Optional[str] = Form(None, alias='pass'),
     score: Score = Depends(parse_score_data),
-):
+) -> Response:
     password = legacy_password or password
 
     score.user = users.fetch_by_name(
@@ -903,15 +902,12 @@ def score_submission(
     score.session.close()
 
     # Send highlights on #announce
-    if score.status_pp == ScoreStatus.Best:
+    if score.has_pb:
         app.session.executor.submit(
             app.highlights.check,
-            score.user,
-            new_stats,
-            old_stats,
-            score_object,
-            new_rank,
-            old_rank
+            score_object.id, score.user,
+            new_stats, old_stats,
+            new_rank, old_rank
         ).add_done_callback(
             utils.thread_callback
         )
@@ -931,7 +927,7 @@ def legacy_score_submission(
     request: Request,
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
-):
+) -> Response:
     score.user = users.fetch_by_name(
         score.username,
         score.session
@@ -1109,7 +1105,7 @@ def legacy_score_submission(
         mode=score.mode.value
     )
 
-    if score.status_pp == ScoreStatus.Best:
+    if score.is_performance_pb:
         response.append(str(beatmap_rank))
     else:
         response.append('0')
@@ -1125,15 +1121,12 @@ def legacy_score_submission(
     score.session.close()
 
     # Send highlights on #announce
-    if score.status_pp == ScoreStatus.Best:
+    if score.has_pb:
         app.session.executor.submit(
             app.highlights.check,
-            score.user,
-            new_stats,
-            old_stats,
-            score_object,
-            beatmap_rank,
-            old_rank
+            score_object.id, score.user,
+            new_stats, old_stats,
+            beatmap_rank, old_rank
         ).add_done_callback(
             utils.thread_callback
         )

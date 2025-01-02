@@ -161,7 +161,7 @@ def get_scores(
     osz_hash: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='i'),
     mods: int | None = Query(0),
-):
+) -> Response:
     player = resolve_player(
         username,
         user_id,
@@ -328,7 +328,7 @@ def get_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc, request_version)
+            score_string(score, index+1, send_nc, request_version)
         )
 
     return Response('\n'.join(response))
@@ -341,7 +341,7 @@ def legacy_scores(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     player_id: int = Query(..., alias='u')
-):
+) -> Response:
     if not status.exists(player_id):
         raise HTTPException(401)
 
@@ -407,7 +407,7 @@ def legacy_scores(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc)
+            score_string(score, index+1, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -420,7 +420,7 @@ def legacy_scores_no_ratings(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     player_id: int = Query(..., alias='u')
-):
+) -> Response:
     if not status.exists(player_id):
         raise HTTPException(401)
 
@@ -492,7 +492,7 @@ def legacy_scores_no_ratings(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc)
+            score_string(score, index+1, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -504,7 +504,7 @@ def legacy_scores_no_beatmap_data(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     player_id: int = Query(..., alias='u')
-):
+) -> Response:
     if not status.exists(player_id):
         raise HTTPException(401)
 
@@ -574,7 +574,7 @@ def legacy_scores_no_beatmap_data(
 
     for index, score in enumerate(top_scores):
         response.append(
-            score_string(score, index, send_nc)
+            score_string(score, index+1, send_nc)
         )
 
     return Response('\n'.join(response))
@@ -585,7 +585,7 @@ def legacy_scores_no_personal_best(
     skip_scores: bool = Depends(integer_boolean('s')),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f')
-):
+) -> Response:
     if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1') # Not Submitted
 
@@ -621,7 +621,7 @@ def legacy_scores_status_change(
     skip_scores: bool = Depends(integer_boolean('s')),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f')
-):
+) -> Response:
     # TODO: /osu-getscores2.php response format is different in some versions
     #       One method would be to check the client version over the cache
 
@@ -659,7 +659,7 @@ def legacy_scores_status_change(
 def legacy_scores_no_status(
     session: Session = Depends(app.session.database.yield_session),
     beatmap_hash: str = Query(..., alias='c')
-):
+) -> Response:
     if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
         return Response('-1') # Not Submitted
 

@@ -1,23 +1,22 @@
 
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
-from fastapi import (
-    HTTPException,
-    APIRouter,
-    Request,
-    Depends,
-    Query
-)
-
 from app.common.cache import status
-from app.common.database import DBBeatmapset, DBUser
 from app.common.constants import DisplayMode
+from app.common.database import DBBeatmapset, DBUser
 from app.common.database.repositories import (
     beatmapsets,
     beatmaps,
     users,
     posts
+)
+
+from sqlalchemy.orm import Session
+from fastapi import (
+    HTTPException,
+    APIRouter,
+    Depends,
+    Query
 )
 
 import utils
@@ -69,7 +68,6 @@ def online_beatmap(set: DBBeatmapset, post_id: int) -> str:
 
 @router.get('/osu-search.php')
 def search(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     legacy_password: str | None = Query(None, alias='c'),
     page_offset: int | None = Query(None, alias='p'),
@@ -78,7 +76,7 @@ def search(
     display_mode: int = Query(4, alias='r'),
     query: str = Query(..., alias='q'),
     mode: int = Query(-1, alias='m')
-):
+) -> str:
     supports_page_offset = page_offset is not None
     page_offset = page_offset or 0
     player = None
@@ -144,7 +142,6 @@ def search(
 
 @router.get('/osu-search-set.php')
 def pickup_info(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     beatmap_id: int | None = Query(None, alias='b'),
     topic_id: int | None = Query(None, alias='t'),
@@ -153,7 +150,7 @@ def pickup_info(
     set_id: int | None = Query(None, alias='s'),
     username: str | None = Query(None, alias='u'),
     password: str | None = Query(None, alias='h'),
-):
+) -> str:
     beatmapset: DBBeatmapset | None = None
     player: DBUser | None = None
 

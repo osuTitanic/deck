@@ -14,7 +14,7 @@ logger = logging.getLogger('deck')
 
 requests = Session()
 requests.headers = {
-    'User-Agent': f'deck-{config.VERSION}'
+    'User-Agent': f'osuTitanic/deck {config.DOMAIN_NAME}'
 }
 
 redis = Redis(

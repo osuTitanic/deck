@@ -1,26 +1,25 @@
 
+from __future__ import annotations
 from sqlalchemy.orm import Session
-from typing import Optional, List
 from datetime import datetime
+from typing import List
 from fastapi import (
     HTTPException,
     APIRouter,
     Response,
-    Request,
     Depends,
     Form
 )
 
+from app.common.cache import status
+from app.common.constants import CommentTarget, Permissions
+from app.common.database import DBComment
 from app.common.database.repositories import (
     beatmaps,
     comments,
     groups,
     users
 )
-
-from app.common.constants import CommentTarget, Permissions
-from app.common.database import DBComment
-from app.common.cache import status
 
 router = APIRouter()
 
@@ -29,7 +28,6 @@ import app
 
 @router.post('/osu-comment.php')
 def get_comments(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
@@ -38,11 +36,11 @@ def get_comments(
     replay_id: int = Form(None, alias='r'),
     playmode: int = Form(None, alias='m'),
     set_id: int = Form(None, alias='s'),
-    content: Optional[str] = Form(None, alias='comment'),
-    time: Optional[int] = Form(None, alias='starttime'),
-    color: Optional[str] = Form(None, alias='f'),
-    target: Optional[str] = Form(None)
-):
+    content: str | None = Form(None, alias='comment'),
+    time: int | None = Form(None, alias='starttime'),
+    color: str | None = Form(None, alias='f'),
+    target: str | None = Form(None)
+) -> Response:
     if not (user := users.fetch_by_name(username, session)):
         app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
