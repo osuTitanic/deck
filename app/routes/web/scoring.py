@@ -311,7 +311,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
 
             return Response('error: no')
 
-    if score.has_invalid_mods:
+    if score.check_invalid_mods():
         officer.call(
             f'"{score.username}" submitted score with invalid mods.'
         )
