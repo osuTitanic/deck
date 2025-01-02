@@ -1,19 +1,17 @@
 
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
-
-from fastapi.responses import RedirectResponse
 from fastapi import (
     APIRouter,
     Response,
-    Request,
     Depends,
     Query
 )
 
 from app.common.cache import status
-from app.common.database.repositories import (
+from app.common.database import (
     beatmaps,
     ratings,
     users
@@ -27,13 +25,12 @@ router = APIRouter()
 @router.get('/ingame-rate.php')
 @router.get('/ingame-rate2.php')
 def ingame_rate(
-    request: Request,
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
     beatmap_md5: str = Query(..., alias='c'),
     rating: Optional[int] = Query(None, alias='v')
-):
+) -> Response:
     if not (player := users.fetch_by_name(username, session)):
         return Response('auth fail')
 
@@ -67,7 +64,7 @@ def ingame_rate(
         return Response('ok')
 
     if rating < 0 or rating > 10:
-        return RedirectResponse('https://pbs.twimg.com/media/Dqnn54dVYAAVuki.jpg')
+        return Response('no')
 
     ratings.create(
         beatmap.md5,
