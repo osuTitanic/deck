@@ -1,5 +1,5 @@
 
-from app.common.database.repositories import notifications, activities, scores, wrapper
+from app.common.database.repositories import notifications, activities, beatmaps, scores, wrapper
 from app.common.constants import Mods, NotificationType
 from app.common import officer
 from app.common.database import (
@@ -61,61 +61,61 @@ def submit(
     )
 
 def check_rank(
-    new_stats: DBStats,
+    stats: DBStats,
     previous_stats: DBStats,
     player: DBUser,
     mode_name: str,
     session: Session
 ) -> None:
-    if new_stats.rank == previous_stats.rank:
+    if stats.rank == previous_stats.rank:
         return
 
-    ranks_gained = previous_stats.rank - new_stats.rank
+    ranks_gained = previous_stats.rank - stats.rank
 
-    if new_stats.playcount > 1:
+    if stats.playcount > 1:
         if ranks_gained <= 0:
             return
 
     if previous_stats.rank <= 0:
         return
 
-    if previous_stats.rank < 1000 <= new_stats.rank:
+    if previous_stats.rank < 1000 <= stats.rank:
         # Player has risen to the top 1000
         return submit(
             player.id,
-            new_stats.mode,
+            stats.mode,
             session,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{new_stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
 
-    if previous_stats.rank < 100 <= new_stats.rank:
+    if previous_stats.rank < 100 <= stats.rank:
         # Player has risen to the top 100
         return submit(
             player.id,
-            new_stats.mode,
+            stats.mode,
             session,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{new_stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
             submit_to_chat=False
         )
 
-    if new_stats.rank >= 10 and new_stats.rank != 1:
+    if stats.rank >= 10 and stats.rank != 1:
         # Player has risen to the top 10 or above
         submit(
             player.id,
-            new_stats.mode,
+            stats.mode,
             session,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{new_stats.rank} overall in {mode_name}.",
+            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
         )
 
-    if new_stats.rank == 1:
+    if stats.rank == 1:
         # Player is now #1
         submit(
             player.id,
-            new_stats.mode,
+            stats.mode,
             session,
             '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
@@ -210,7 +210,7 @@ def check_pp(
             session,
             '{} ' + 'has set the new pp record on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
+            (result.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
         )
         return
 
@@ -241,7 +241,7 @@ def check_pp(
             session,
             '{} ' + 'got a new top play on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
             (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
+            (result.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
             submit_to_chat=False
         )
 
