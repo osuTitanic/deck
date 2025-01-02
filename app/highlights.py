@@ -139,7 +139,7 @@ def check_beatmap(
     mode_name: str,
     session: Session
 ) -> None:
-    if score.status_pp != 3:
+    if score.status_score != 3:
         # Score is not visible on global rankings
         return
 
