@@ -1,10 +1,11 @@
 
 from __future__ import annotations
 
-from app.common.cache import status
-from app.common.constants import DisplayMode
 from app.common.database import DBBeatmapset, DBUser
-from app.common.database.repositories import (
+from app.common.constants import DisplayMode
+from app.common.cache import status
+from app.common import officer
+from app.common.database import (
     beatmapsets,
     beatmaps,
     users,
@@ -136,7 +137,7 @@ def search(
             post_id = posts.fetch_initial_post_id(set.topic_id, session)
             response.append(online_beatmap(set, post_id))
     except Exception as e:
-        app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
+        officer.call(f'Failed to execute search.', exc_info=e)
         return "-1\nServer error. Please try again!"
 
     return "\n".join(response)
