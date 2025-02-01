@@ -188,6 +188,10 @@ def pickup_info(
         app.session.logger.warning("osu!direct pickup request failed: Not found")
         raise HTTPException(404)
 
+    if beatmapset.status == -3:
+        # Beatmap was deleted or has not been submitted yet
+        raise HTTPException(404)
+
     app.session.logger.info(
         f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
         f'from "{player}"'
