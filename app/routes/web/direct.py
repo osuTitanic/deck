@@ -39,6 +39,7 @@ def online_beatmap(set: DBBeatmapset, post_id: int) -> str:
     )
 
     status = {
+        -3: "3",
         -2: "3",
         -1: "3",
         0: "3",
