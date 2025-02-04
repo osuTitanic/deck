@@ -2,7 +2,7 @@ bcrypt==4.2.1
 boto3<2
 boto3-type-annotations-with-docs==0.3.1
 fastapi==0.115.7
-geoip2==4.8.1
+geoip2==5.0.1
 pillow==11.1.0
 psycopg2-binary==2.9.10
 py3rijndael==0.3.3
