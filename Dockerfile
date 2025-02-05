@@ -14,9 +14,9 @@ RUN pip install --upgrade pip
 WORKDIR /deck
 
 # Install python dependencies
+RUN pip install gunicorn
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-RUN pip install gunicorn
 
 # Copy source code
 COPY . .
