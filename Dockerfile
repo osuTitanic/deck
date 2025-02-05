@@ -30,5 +30,6 @@ CMD gunicorn \
         -b 0.0.0.0:80 \
         -w $WEB_WORKERS \
         -k uvicorn.workers.UvicornWorker \
-        --max-requests 100000 \
+        --max-requests 50000 \
+        --max-requests-jitter 20000 \
         app:api
