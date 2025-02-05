@@ -42,11 +42,4 @@ def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
         image = utils.resize_image(image, size)
         app.session.redis.set(f'avatar:{user_id}:{size}', image, ex=3600)
 
-    return Response(
-        image,
-        media_type=(
-            'image/jpeg'
-            if utils.has_jpeg_headers(image)
-            else 'image/png'
-        )
-    )
+    return Response(image, media_type='image/png')
