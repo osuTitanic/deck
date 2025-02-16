@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime
 from app.common.database.repositories import scores
 from app.common.helpers import performance
+from app.common import officer
 from app.common.database import (
     DBBeatmap,
     DBScore,
@@ -203,7 +204,7 @@ class Score:
         result = performance.calculate_ppv1(score, self.session)
 
         if result is None:
-            app.session.logger.warning('Failed to calculate ppv1: No result')
+            officer.call('Failed to calculate ppv1: No result')
             return 0.0
 
         return result
@@ -213,7 +214,7 @@ class Score:
         result = performance.calculate_ppv2(score)
 
         if result is None:
-            app.session.logger.warning('Failed to calculate pp: No result')
+            officer.call('Failed to calculate pp: No result')
             return 0.0
 
         return result
