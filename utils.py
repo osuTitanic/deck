@@ -219,12 +219,12 @@ def thread_callback(future: Future) -> None:
         exc_info=e
     )
 
-def empty_zip_file() -> bytes:
-    return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-
 @cache
 def check_password(password: str, bcrypt_hash: str) -> bool:
     return bcrypt.checkpw(
         password.encode(),
         bcrypt_hash.encode()
     )
+
+def empty_zip_file() -> bytes:
+    return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
