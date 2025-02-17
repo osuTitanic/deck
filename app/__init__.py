@@ -7,6 +7,7 @@ from .common.logging import Console, File
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
+from contextlib import asynccontextmanager
 
 from fastapi import (
     HTTPException,
@@ -26,8 +27,6 @@ logging.basicConfig(
     handlers=[Console, File]
 )
 
-utils.setup()
-
 if logging.getLogger('uvicorn.access').handlers:
     # Redirect uvicorn logs to file
     logging.getLogger('uvicorn.access').addHandler(File)
@@ -36,13 +35,20 @@ if logging.getLogger('uvicorn.access').handlers:
 # Disable multipart warnings (https://github.com/osuAkatsuki/bancho.py/pull/674)
 logging.getLogger('multipart.multipart').setLevel(logging.ERROR)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    utils.setup()
+    session.database.wait_for_connection()
+    yield
+
 api = FastAPI(
     title='Deck',
     description='API for osu! clients',
     version=config.VERSION,
     redoc_url=None if not config.DEBUG else '/redoc',
     docs_url=None if not config.DEBUG else '/docs',
-    debug=True if config.DEBUG else False
+    debug=True if config.DEBUG else False,
+    lifespan=lifespan
 )
 
 @api.exception_handler(HTTPException)
