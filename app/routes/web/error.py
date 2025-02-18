@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from app.common.database import users
 from app.common import officer
-
 from sqlalchemy.orm import Session
 from typing import Dict
 from fastapi import (
@@ -31,19 +30,19 @@ def parse_osu_config(config: str) -> Dict[str, str]:
 @router.post('/osu-error.php')
 def osu_error(
     session: Session = Depends(app.session.database.yield_session),
-    username: str = Form(..., alias='u'),
-    user_id: int | None = Form(None, alias='i'),
+    beatmap_md5: str | None = Form(None, alias='bc'),
+    beatmap_id: int | None = Form(None, alias='b'),
     language: str = Form(..., alias='culture'),
     mode: str = Form(..., alias='gamemode'),
     time: int = Form(..., alias='gametime'),
-    beatmap_id: int | None = Form(None, alias='b'),
-    beatmap_md5: str | None = Form(None, alias='bc'),
-    audiotime: int = Form(...),
-    exception: str = Form(...),
-    stacktrace: str = Form(...),
+    username: str = Form(..., alias='u'),
+    user_id: int | None = Form(None, alias='i'),
     feedback: str | None = Form(None),
     iltrace: str | None = Form(None),
     exehash: str | None = Form(None),
+    stacktrace: str = Form(...),
+    audiotime: int = Form(...),
+    exception: str = Form(...),
     version: str = Form(...),
     config: str = Form(...)
 ) -> Response:
@@ -52,7 +51,7 @@ def osu_error(
         # TODO Add more
     ]
 
-    if feedback in ignored_feedback:
+    if feedback.lower() in ignored_feedback:
         return Response(status_code=200)
 
     # Parse config to get password
@@ -94,12 +93,6 @@ def osu_error(
     app.session.logger.warning(
         f'Client error from "{username}":\n'
         f'{json.dumps(error_dict, indent=4)}'
-    )
-
-    app.session.events.submit(
-        'osu_error',
-        user_id,
-        error_dict
     )
 
     return Response(status_code=200)

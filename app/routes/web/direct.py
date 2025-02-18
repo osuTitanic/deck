@@ -1,10 +1,11 @@
 
 from __future__ import annotations
 
-from app.common.cache import status
-from app.common.constants import DisplayMode
 from app.common.database import DBBeatmapset, DBUser
-from app.common.database.repositories import (
+from app.common.constants import DisplayMode
+from app.common.cache import status
+from app.common import officer
+from app.common.database import (
     beatmapsets,
     beatmaps,
     users,
@@ -39,6 +40,7 @@ def online_beatmap(set: DBBeatmapset, post_id: int) -> str:
     )
 
     status = {
+        -3: "3",
         -2: "3",
         -1: "3",
         0: "3",
@@ -135,7 +137,7 @@ def search(
             post_id = posts.fetch_initial_post_id(set.topic_id, session)
             response.append(online_beatmap(set, post_id))
     except Exception as e:
-        app.session.logger.error(f'Failed to execute search: {e}', exc_info=e)
+        officer.call(f'Failed to execute search.', exc_info=e)
         return "-1\nServer error. Please try again!"
 
     return "\n".join(response)
@@ -184,6 +186,10 @@ def pickup_info(
 
     if not beatmapset:
         app.session.logger.warning("osu!direct pickup request failed: Not found")
+        raise HTTPException(404)
+
+    if beatmapset.status == -3:
+        # Beatmap was deleted or has not been submitted yet
         raise HTTPException(404)
 
     app.session.logger.info(

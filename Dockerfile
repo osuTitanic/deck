@@ -14,9 +14,9 @@ RUN pip install --upgrade pip
 WORKDIR /deck
 
 # Install python dependencies
+RUN pip install gunicorn
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-RUN pip install gunicorn
 
 # Copy source code
 COPY . .
@@ -27,8 +27,10 @@ ENV WEB_WORKERS $WEB_WORKERS
 
 CMD gunicorn \
         --access-logfile - \
+        --preload \
         -b 0.0.0.0:80 \
         -w $WEB_WORKERS \
         -k uvicorn.workers.UvicornWorker \
-        --max-requests 100000 \
+        --max-requests 50000 \
+        --max-requests-jitter 10000 \
         app:api
