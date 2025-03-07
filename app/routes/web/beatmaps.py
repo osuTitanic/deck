@@ -727,27 +727,27 @@ def update_beatmap_files(files: dict, session: Session) -> None:
             content
         )
 
-def detect_language_from_tags(tags: List[str]) -> BeatmapLanguage:
-    languages = [
-        BeatmapLanguage(language_id).name.lower()
-        for language_id in BeatmapLanguage.values()
-    ]
+LanguageDict = {
+    BeatmapLanguage(language_id).name.lower(): BeatmapLanguage(language_id)
+    for language_id in BeatmapLanguage.values()
+}
 
+GenreDict = {
+    BeatmapGenre(genre_id).name.lower(): BeatmapGenre(genre_id)
+    for genre_id in BeatmapGenre.values()
+}
+
+def detect_language_from_tags(tags: List[str]) -> BeatmapLanguage:
     for tag in tags:
-        if tag.lower() in languages:
-            return BeatmapLanguage[tag.lower()]
-        
+        if language := LanguageDict.get(tag.lower()):
+            return language
+
     return BeatmapLanguage.Unspecified
 
 def detect_genre_from_tags(tags: List[str]) -> BeatmapGenre:
-    genres = [
-        BeatmapGenre(genre_id).name.lower()
-        for genre_id in BeatmapGenre.values()
-    ]
-
     for tag in tags:
-        if tag.lower() in genres:
-            return BeatmapGenre[tag.lower()]
+        if genre := GenreDict.get(tag.lower()):
+            return genre
 
     return BeatmapGenre.Unspecified
 
