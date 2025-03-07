@@ -741,14 +741,18 @@ GenreDict = {
 
 def detect_language_from_tags(tags: List[str]) -> BeatmapLanguage:
     for tag in tags:
-        if language := LanguageDict.get(tag.lower()):
+        filtered_tag = tag.lower().strip(",").strip()
+
+        if language := LanguageDict.get(filtered_tag):
             return language
 
     return BeatmapLanguage.Unspecified
 
 def detect_genre_from_tags(tags: List[str]) -> BeatmapGenre:
     for tag in tags:
-        if genre := GenreDict.get(tag.lower()):
+        filtered_tag = tag.lower().strip(",").strip()
+
+        if genre := GenreDict.get(filtered_tag):
             return genre
 
     return BeatmapGenre.Unspecified
