@@ -561,12 +561,6 @@ def update_beatmap_metadata(
     detected_language = detect_language_from_tags(tags)
     detected_genre = detect_genre_from_tags(tags)
 
-    if beatmapset.genre_id <= 1:
-        beatmapset.genre_id = detected_genre.value
-
-    if beatmapset.language_id <= 1:
-        beatmapset.language_id = detected_language.value
-
     # Update beatmapset metadata
     beatmapsets.update(
         beatmapset.id,
@@ -579,9 +573,17 @@ def update_beatmap_metadata(
             'artist_unicode': metadata.get('ArtistUnicode'),
             'title_unicode': metadata.get('TitleUnicode'),
             'source_unicode': metadata.get('SourceUnicode'),
-            'genre_id': int(metadata.get('Genre', beatmapset.genre_id)),
-            'language_id': int(metadata.get('Language', beatmapset.language_id)),
             'has_video': any(ext in file_extensions for ext in video_file_extensions),
+            'language_id': (
+                detected_language.value
+                if beatmapset.language_id <= 1
+                else beatmapset.language_id
+            ),
+            'genre_id': (
+                detected_genre.value
+                if beatmapset.genre_id <= 1
+                else beatmapset.genre_id
+            ),
             'display_title': (
                 f'[bold:0,size:20]{metadata.get("Artist", "")}|'
                 f'[]{metadata.get("Title", "")}'
