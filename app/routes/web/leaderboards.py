@@ -255,7 +255,9 @@ def get_scores(
             str(has_osz),
             str(beatmap.id),
             str(beatmap.set_id),
-            str(score_count)
+            str(score_count),
+            "", # Featured Artist Track ID
+            ""  # Featured Artist License Text
         ])
     )
 
