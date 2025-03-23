@@ -25,7 +25,7 @@ import app
 
 router = APIRouter()
 
-def online_beatmap(set: DBBeatmapset, post_id: int) -> str:
+def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
     versions = ",".join(
         [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
     )
@@ -134,8 +134,12 @@ def search(
             ))
 
         for set in results:
-            post_id = posts.fetch_initial_post_id(set.topic_id, session)
-            response.append(online_beatmap(set, post_id))
+            if set.topic_id:
+                post_id = posts.fetch_initial_post_id(set.topic_id, session)
+                response.append(online_beatmap(set, post_id))
+                continue
+
+            response.append(online_beatmap(set))
     except Exception as e:
         officer.call(f'Failed to execute search.', exc_info=e)
         return "-1\nServer error. Please try again!"

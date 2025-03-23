@@ -1,15 +1,14 @@
 
 from __future__ import annotations
-
 from typing import List, Callable, Tuple, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime
 from zipfile import ZipFile
 
+from app.common.constants import SendAction, BeatmapGenre, BeatmapLanguage
 from app.common.database.objects import DBUser, DBBeatmapset
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.webhooks import Embed, Image, Author
-from app.common.constants import SendAction
 from app.common.helpers import performance
 from app.common.streams import StreamIn
 from app.common.cache import status
@@ -557,6 +556,11 @@ def update_beatmap_metadata(
     # Map is in "wip", until the user posts it to the forums
     status = (-1 if beatmapset.status <= -1 else 0)
 
+    # Try to detect genre & language from tags
+    tags = metadata.get('Tags', '').split()
+    detected_language = detect_language_from_tags(tags)
+    detected_genre = detect_genre_from_tags(tags)
+
     # Update beatmapset metadata
     beatmapsets.update(
         beatmapset.id,
@@ -569,9 +573,17 @@ def update_beatmap_metadata(
             'artist_unicode': metadata.get('ArtistUnicode'),
             'title_unicode': metadata.get('TitleUnicode'),
             'source_unicode': metadata.get('SourceUnicode'),
-            'genre_id': int(metadata.get('Genre', beatmapset.genre_id or 1)),
-            'language_id': int(metadata.get('Language', beatmapset.language_id or 1)),
             'has_video': any(ext in file_extensions for ext in video_file_extensions),
+            'language_id': (
+                detected_language.value
+                if beatmapset.language_id <= 1
+                else beatmapset.language_id
+            ),
+            'genre_id': (
+                detected_genre.value
+                if beatmapset.genre_id <= 1
+                else beatmapset.genre_id
+            ),
             'display_title': (
                 f'[bold:0,size:20]{metadata.get("Artist", "")}|'
                 f'[]{metadata.get("Title", "")}'
@@ -716,6 +728,34 @@ def update_beatmap_files(files: dict, session: Session) -> None:
             beatmap_id,
             content
         )
+
+LanguageDict = {
+    BeatmapLanguage(language_id).name.lower(): BeatmapLanguage(language_id)
+    for language_id in BeatmapLanguage.values()
+}
+
+GenreDict = {
+    BeatmapGenre(genre_id).name.lower(): BeatmapGenre(genre_id)
+    for genre_id in BeatmapGenre.values()
+}
+
+def detect_language_from_tags(tags: List[str]) -> BeatmapLanguage:
+    for tag in tags:
+        filtered_tag = tag.lower().strip(",").strip()
+
+        if language := LanguageDict.get(filtered_tag):
+            return language
+
+    return BeatmapLanguage.Unspecified
+
+def detect_genre_from_tags(tags: List[str]) -> BeatmapGenre:
+    for tag in tags:
+        filtered_tag = tag.lower().strip(",").strip()
+
+        if genre := GenreDict.get(filtered_tag):
+            return genre
+
+    return BeatmapGenre.Unspecified
 
 def duplicate_beatmap_files(files: dict, creator_id: int, session: Session) -> bool:
     """Check for duplicate beatmap filenames & checksums"""
