@@ -21,6 +21,7 @@ from . import error
 from . import title
 from . import stats
 from . import login
+from . import coins
 from . import maps
 
 router = APIRouter()
@@ -44,4 +45,5 @@ router.include_router(error.router)
 router.include_router(title.router)
 router.include_router(stats.router)
 router.include_router(login.router)
+router.include_router(coins.router)
 router.include_router(maps.router)
