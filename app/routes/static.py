@@ -57,7 +57,7 @@ def beatmap_osz(id: str):
         response.iter_content(6400),
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename={set_id} {beatmapset.artist} - {beatmapset.title}.osz',
+            'Content-Disposition': f'attachment; filename="{set_id} {beatmapset.artist} - {beatmapset.title}.osz"',
             'Content-Length': response.headers.get('Content-Length', 0)
         }
     )
