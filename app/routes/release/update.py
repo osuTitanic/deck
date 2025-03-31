@@ -12,7 +12,7 @@ def check_for_updates(
     filename: str = Query(..., alias='f'),
     checksum: str = Query(..., alias='h'),
     ticks: int = Query(..., alias='t')
-):
+) -> str:
     if config.DISABLE_CLIENT_VERIFICATION:
         return "0"
 
@@ -43,7 +43,7 @@ def check_for_updates(
 @router.get('/update')
 def get_files(
     ticks: int = Query(..., alias='t')
-):
+) -> str:
     # Respone format:
     # <server_filename> <file_checksum> <description> <file_action> <old_checksum>\n (for each file)
     # File action can be: "del", "noup", "zip" or "diff"
@@ -84,12 +84,12 @@ def get_files(
     return '\n'.join(response)
 
 @router.get('/patches.php')
-def patches():
+def patches() -> str:
     return '\n'.join([
         file for file in app.session.storage.list('release')
         if file.endswith('.patch')
     ])
 
 @router.get('/update2.php')
-def ingame_update_check():
+def ingame_update_check() -> str:
     return "" # TODO
