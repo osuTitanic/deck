@@ -34,5 +34,5 @@ def get_screenshot(id: int):
     return Response(
         image,
         media_type=f"image/{file_extension}",
-        headers={'Content-Length': len(image)}
+        headers={'Content-Length': str(len(image))}
     )
