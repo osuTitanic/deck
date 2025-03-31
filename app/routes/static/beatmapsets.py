@@ -1,14 +1,12 @@
 
 from __future__ import annotations
 from app.common.database import beatmapsets
-from app.routes import avatar
 
 from fastapi.responses import StreamingResponse
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response,
-    Request
+    Response
 )
 
 import app
@@ -61,12 +59,3 @@ def beatmap_osz(id: str):
             'Content-Length': response.headers.get('Content-Length', 0)
         }
     )
-
-@router.get('/forum/download.php')
-def legacy_avatar(request: Request):
-    args = request.query_params
-
-    if not (filename := args.get('avatar')):
-        return avatar.default_avatar()
-
-    return avatar.avatar(str(filename), size=128)
