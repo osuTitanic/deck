@@ -9,13 +9,13 @@ import utils
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    utils.setup()
+    session.database.engine.dispose()
     session.database.wait_for_connection()
     session.redis.ping()
+    utils.setup()
     yield
     session.achievement_executor.shutdown(wait=True)
     session.executor.shutdown(wait=True)
-    session.database.engine.dispose()
     session.redis.close()
 
 api = FastAPI(
