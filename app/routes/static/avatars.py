@@ -50,7 +50,6 @@ def legacy_avatar(request: Request):
     args = request.query_params
 
     if not (filename := args.get('avatar')):
-        return avatar.default_avatar()
+        return default_avatar()
 
-    return avatar.avatar(str(filename), size=128)
-
+    return avatar(str(filename), size=128)
