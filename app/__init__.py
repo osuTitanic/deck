@@ -40,6 +40,8 @@ async def lifespan(app: FastAPI):
     utils.setup()
     session.database.wait_for_connection()
     yield
+    session.executor.shutdown(wait=True)
+    session.achievement_executor.shutdown(wait=True)
 
 api = FastAPI(
     title='Deck',
