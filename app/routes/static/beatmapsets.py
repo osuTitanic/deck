@@ -21,8 +21,21 @@ def beatmap_thumbnail(id: str):
 
     if not (image := app.session.storage.get_background(id)):
         return
+    
+    set_id = int(id.removesuffix('l'))
 
-    return Response(image, media_type='image/jpeg')
+    # Cache beatmapsets from bancho
+    cache_response = set_id < 1000000000
+    cache_headers = (
+        {'Cache-Control': 'public, max-age=3600'}
+        if cache_response else {}
+    )
+
+    return Response(
+        image,
+        media_type='image/jpeg',
+        headers=cache_headers
+    )
 
 @router.get('/preview/{filename}')
 @router.get('/mp3/preview/{filename}')
@@ -32,7 +45,18 @@ def beatmap_preview(filename: str):
     if not (mp3 := app.session.storage.get_mp3(set_id)):
         return
 
-    return Response(mp3, media_type='audio/mpeg')
+    # Cache beatmapsets from bancho
+    cache_response = set_id < 1000000000
+    cache_headers = (
+        {'Cache-Control': 'public, max-age=3600'}
+        if cache_response else {}
+    )
+
+    return Response(
+        mp3,
+        media_type='audio/mpeg',
+        headers=cache_headers
+    )
 
 @router.get('/d/{id}')
 def beatmap_osz(id: str):
