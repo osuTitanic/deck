@@ -4,6 +4,7 @@ from fastapi import (
     HTTPException,
     APIRouter,
     Response,
+    Request,
     Query
 )
 
@@ -12,14 +13,14 @@ import app
 
 router = APIRouter()
 
-@router.get('/')
+@router.get('/a/')
 def default_avatar():
     if not (image := app.session.storage.get_avatar('unknown')):
         raise HTTPException(500, 'Default avatar not found')
 
     return Response(image, media_type='image/png')
 
-@router.get('/{filename}')
+@router.get('/a/{filename}')
 def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
     # Workaround for older clients
     user_id = int(
@@ -43,3 +44,12 @@ def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
         app.session.redis.set(f'avatar:{user_id}:{size}', image, ex=3600)
 
     return Response(image, media_type='image/png')
+
+@router.get('/forum/download.php')
+def legacy_avatar(request: Request):
+    args = request.query_params
+
+    if not (filename := args.get('avatar')):
+        return default_avatar()
+
+    return avatar(str(filename), size=128)

@@ -1,14 +1,12 @@
 
 from __future__ import annotations
 from app.common.database import beatmapsets
-from app.routes import avatar
 
 from fastapi.responses import StreamingResponse
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response,
-    Request
+    Response
 )
 
 import app
@@ -23,8 +21,21 @@ def beatmap_thumbnail(id: str):
 
     if not (image := app.session.storage.get_background(id)):
         return
+    
+    set_id = int(id.removesuffix('l'))
 
-    return Response(image, media_type='image/jpeg')
+    # Cache beatmapsets from bancho
+    cache_response = set_id < 1000000000
+    cache_headers = (
+        {'Cache-Control': 'public, max-age=3600'}
+        if cache_response else {}
+    )
+
+    return Response(
+        image,
+        media_type='image/jpeg',
+        headers=cache_headers
+    )
 
 @router.get('/preview/{filename}')
 @router.get('/mp3/preview/{filename}')
@@ -34,7 +45,18 @@ def beatmap_preview(filename: str):
     if not (mp3 := app.session.storage.get_mp3(set_id)):
         return
 
-    return Response(mp3, media_type='audio/mpeg')
+    # Cache beatmapsets from bancho
+    cache_response = set_id < 1000000000
+    cache_headers = (
+        {'Cache-Control': 'public, max-age=3600'}
+        if cache_response else {}
+    )
+
+    return Response(
+        mp3,
+        media_type='audio/mpeg',
+        headers=cache_headers
+    )
 
 @router.get('/d/{id}')
 def beatmap_osz(id: str):
@@ -57,16 +79,7 @@ def beatmap_osz(id: str):
         response.iter_content(6400),
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename={set_id} {beatmapset.artist} - {beatmapset.title}.osz',
+            'Content-Disposition': f'attachment; filename="{set_id} {beatmapset.artist} - {beatmapset.title}.osz"',
             'Content-Length': response.headers.get('Content-Length', 0)
         }
     )
-
-@router.get('/forum/download.php')
-def legacy_avatar(request: Request):
-    args = request.query_params
-
-    if not (filename := args.get('avatar')):
-        return avatar.default_avatar()
-
-    return avatar.avatar(str(filename), size=128)

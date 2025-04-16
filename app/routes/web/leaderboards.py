@@ -94,7 +94,7 @@ def resolve_mods(score: DBScore, send_nc: bool = True) -> int:
     return mods.value
 
 def client_supports_nc(version: int) -> bool:
-    return version >= 20120620
+    return (version or 0) >= 20120620
 
 def integer_boolean(parameter: str) -> Callable:
     async def wrapper(request: Request) -> bool:
