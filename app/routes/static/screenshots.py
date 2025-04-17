@@ -34,5 +34,8 @@ def get_screenshot(id: int):
     return Response(
         image,
         media_type=f"image/{file_extension}",
-        headers={'Content-Length': str(len(image))}
+        headers={
+            'Content-Length': f'{len(image)}',
+            'Date': ss.created_at.strftime('%a, %d %b %Y %H:%M:%S GMT'),
+        }
     )
