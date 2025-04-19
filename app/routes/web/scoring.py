@@ -91,7 +91,7 @@ async def parse_score_data(request: Request) -> Score:
     score_data = score_form[0]
     fun_spoiler = form.get('fs')
     client_hash = form.get('s')
-    processes = form.get('pl')
+    #processes = form.get('pl')
     failtime = form.get('ft')
     exited = form.get('x')
     replay = None
@@ -123,7 +123,7 @@ async def parse_score_data(request: Request) -> Score:
             client_hash = decrypt_string(client_hash, iv, decryption_key)
             fun_spoiler = decrypt_string(fun_spoiler, iv, decryption_key)
             score_data = decrypt_string(score_data, iv, decryption_key)
-            processes = decrypt_string(processes, iv, decryption_key)
+            #processes = decrypt_string(processes, iv, decryption_key)
         except (UnicodeDecodeError, TypeError) as e:
             # Most likely an invalid score encryption key
             officer.call(
@@ -149,7 +149,7 @@ async def parse_score_data(request: Request) -> Score:
     score.is_legacy = request.url.path != '/web/osu-submit-modular-selector.php'
     score.fun_spoiler = fun_spoiler
     score.client_hash = client_hash
-    score.processes = processes
+    #score.processes = processes
     return score
 
 async def parse_legacy_score_data(
