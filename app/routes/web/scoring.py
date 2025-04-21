@@ -2,7 +2,6 @@
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response,
     Request,
     Depends,
     Query,
@@ -228,7 +227,7 @@ def validate_replay(replay_bytes: bytes) -> bool:
 
     return True
 
-def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]:
+def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
     """Validate the score submission requests and return an error if the validation fails"""
     app.session.logger.debug('Performing score validation...')
 
@@ -240,12 +239,12 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" submitted score with no hits, score or combo.'
         )
-        return Response('error: no')
+        return 'error: no'
 
     if score.beatmap.mode > 0 and score.mode == GameMode.Osu:
         # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
         # This can happen in old clients, where these modes were not implemented
-        return Response('error: no')
+        return 'error: no'
     
     unranked_mods = (
         Mods.Autoplay,
@@ -257,7 +256,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
         officer.call(
             f'"{score.username}" submitted score with unranked mods: {score.enabled_mods.name}.'
         )
-        return Response('error: no')
+        return 'error: no'
 
     client_hash = status.client_hash(player.id)
 
@@ -270,7 +269,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
             f'"{score.username}" submitted score with client hash mismatch. '
             f'({score.client_hash} -> {client_hash})'
         )
-        return Response('error: no')
+        return 'error: no'
 
     if score.passed:
         # Check for replay
@@ -284,7 +283,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 autoban=True,
                 reason='Score submission without replay'
             )
-            return Response('error: ban')
+            return 'error: ban'
 
         # Check for duplicate score
         replay_hash = hashlib.md5(score.replay).hexdigest()
@@ -302,14 +301,14 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                     autoban=True,
                     reason='Duplicate replay in score submission'
                 )
-                return Response('error: ban')
+                return 'error: ban'
 
             app.session.logger.warning(
                 f'"{score.username}" submitted duplicate replay from themselves '
                 f'({duplicate_score.replay_md5}).'
             )
 
-            return Response('error: no')
+            return 'error: no'
 
     if score.check_invalid_mods():
         officer.call(
@@ -323,7 +322,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 autoban=True,
                 reason='Invalid mods on score submission'
             )
-            return Response('error: ban')
+            return 'error: ban'
 
     flags = [
         BadFlags.FlashLightImageHack,
@@ -354,7 +353,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 autoban=True,
                 reason='Invalid replay'
             )
-            return Response('error: ban')
+            return 'error: ban'
 
     account_age = (datetime.now() - player.created_at)
     pp_cutoff = min(1500, max(750, account_age.total_seconds() / 8))
@@ -371,7 +370,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 autoban=True,
                 reason=f'Exceeded pp limit ({round(score.pp)})'
             )
-            return Response('error: ban')
+            return 'error: ban'
 
     multiaccounting_lock = app.session.redis.get(f'multiaccounting:{player.id}')
 
@@ -387,7 +386,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[Response]
                 autoban=True,
                 reason='Multiaccounting'
             )
-            return Response('error: ban')
+            return 'error: ban'
 
 def upload_replay(score: Score, score_id: int) -> None:
     if score.passed and score.status_pp > ScoreStatus.Exited:
@@ -724,7 +723,7 @@ def score_submission(
     legacy_password: Optional[str] = Query(None, alias='pass'),
     password: Optional[str] = Form(None, alias='pass'),
     score: Score = Depends(parse_score_data),
-) -> Response:
+) -> str:
     password = legacy_password or password
 
     score.user = users.fetch_by_name(
@@ -734,23 +733,23 @@ def score_submission(
 
     if not (player := score.user):
         app.session.logger.warning(f'Failed to submit score: Invalid User')
-        return Response('error: nouser')
+        return 'error: nouser'
 
     if not utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to submit score: Invalid Password')
-        return Response('error: pass')
+        return 'error: pass'
 
     if not player.activated:
         app.session.logger.warning(f'Failed to submit score: Inactive')
-        return Response('error: inactive')
+        return 'error: inactive'
 
     if player.restricted:
         app.session.logger.warning(f'Failed to submit score: Restricted')
-        return Response('error: ban')
+        return 'error: ban'
 
     if player.is_bot:
         app.session.logger.warning(f'Failed to submit score: Bot account')
-        return Response('error: inactive')
+        return 'error: inactive'
 
     score.beatmap = beatmaps.fetch_by_checksum(
         score.file_checksum,
@@ -759,11 +758,11 @@ def score_submission(
 
     if not score.beatmap:
         app.session.logger.warning(f'Failed to submit score: Beatmap not found')
-        return Response('error: beatmap')
+        return 'error: beatmap'
 
     if not status.exists(player.id):
         # Let the client resend the request
-        return Response('')
+        return ''
 
     if score.user.stats:
         score.user.stats.sort(
@@ -856,7 +855,7 @@ def score_submission(
             user_id=player.id,
             mode=score.mode.value
         )
-        return Response('error: beatmap')
+        return 'error: beatmap'
 
     if not config.ALLOW_RELAX and score.relaxing:
         score.session.close()
@@ -865,7 +864,7 @@ def score_submission(
             user_id=player.id,
             mode=score.mode.value
         )
-        return Response('error: no')
+        return 'error: no'
 
     achievement_response: List[str] = []
 
@@ -919,7 +918,7 @@ def score_submission(
         mode=score.mode.value
     )
 
-    return Response('\n'.join([chart.get() for chart in response]))
+    return "\n".join([chart.get() for chart in response])
 
 @router.post('/osu-submit.php')
 @router.post('/osu-submit-new.php')
@@ -927,7 +926,7 @@ def legacy_score_submission(
     request: Request,
     password: Optional[str] = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
-) -> Response:
+) -> str:
     score.user = users.fetch_by_name(
         score.username,
         score.session
@@ -959,7 +958,7 @@ def legacy_score_submission(
         raise HTTPException(404)
 
     if not status.exists(player.id):
-        return Response('')
+        return ''
 
     if score.user.stats:
         score.user.stats.sort(
@@ -1116,7 +1115,7 @@ def legacy_score_submission(
     )
 
     response.append(str(round(difference)))
-    response.append(' '.join(achievement_response))
+    response.append(" ".join(achievement_response))
 
     score.session.close()
 
@@ -1131,4 +1130,4 @@ def legacy_score_submission(
             utils.thread_callback
         )
 
-    return '\n'.join(response)
+    return "\n".join(response)

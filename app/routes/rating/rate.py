@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 from fastapi import (
     APIRouter,
-    Response,
     Depends,
     Query
 )
@@ -28,37 +27,37 @@ def ingame_rate(
     password: str = Query(..., alias='p'),
     beatmap_md5: str = Query(..., alias='c'),
     rating: Optional[int] = Query(None, alias='v')
-) -> Response:
+) -> str:
     if not (player := users.fetch_by_name(username, session)):
-        return Response('auth fail')
+        return 'auth fail'
 
     if not utils.check_password(password, player.bcrypt):
-        return Response('auth fail')
+        return 'auth fail'
 
     if not status.exists(player.id):
-        return Response('auth fail')
+        return 'auth fail'
 
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     if not (beatmap := beatmaps.fetch_by_checksum(beatmap_md5, session)):
-        return Response('no exist')
+        return 'no exist'
 
     if beatmap.status <= 0:
-        return Response('not ranked')
+        return 'not ranked'
 
     if beatmap.beatmapset.creator_id == player.id:
-        return Response('owner')
+        return 'owner'
 
     previous_rating = ratings.fetch_one(beatmap.md5, player.id, session)
 
     if previous_rating:
-        return Response('alreadyvoted')
+        return 'alreadyvoted'
 
     if rating is None:
-        return Response('ok')
+        return 'ok'
 
     if rating < 0 or rating > 10:
-        return Response('no')
+        return 'no'
 
     ratings.create(
         beatmap.md5,
@@ -72,7 +71,7 @@ def ingame_rate(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
     )
 
-    return Response(str(ratings.fetch_average(beatmap.md5, session)))
+    return str(ratings.fetch_average(beatmap.md5, session))
 
 @router.get('/ingame-rate2.php')
 def ingame_rate_with_rating(
@@ -81,41 +80,40 @@ def ingame_rate_with_rating(
     password: str = Query(..., alias='p'),
     beatmap_md5: str = Query(..., alias='c'),
     rating: Optional[int] = Query(None, alias='v')
-) -> Response:
+) -> str:
     if not (player := users.fetch_by_name(username, session)):
-        return Response('auth fail')
+        return 'auth fail'
 
     if not utils.check_password(password, player.bcrypt):
-        return Response('auth fail')
+        return 'auth fail'
 
     if not status.exists(player.id):
-        return Response('auth fail')
+        return 'auth fail'
 
     users.update(player.id, {'latest_activity': datetime.now()}, session)
 
     if not (beatmap := beatmaps.fetch_by_checksum(beatmap_md5, session)):
-        return Response('no exist')
+        return 'no exist'
 
     if beatmap.status <= 0:
-        return Response('not ranked')
+        return 'not ranked'
 
     if beatmap.beatmapset.creator_id == player.id:
-        return Response('owner')
+        return 'owner'
 
     previous_rating = ratings.fetch_one(beatmap.md5, player.id, session)
 
     if previous_rating:
-        return Response(
-            '\n'.join([
-                'alreadyvoted',
-                str(ratings.fetch_average(beatmap.md5, session))
-            ]))
+        return '\n'.join([
+            'alreadyvoted',
+            str(ratings.fetch_average(beatmap.md5, session))
+        ])
 
     if rating is None:
-        return Response('ok')
+        return 'ok'
 
     if rating < 0 or rating > 10:
-        return Response('no')
+        return 'no'
 
     ratings.create(
         beatmap.md5,
@@ -129,4 +127,4 @@ def ingame_rate_with_rating(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
     )
 
-    return Response(str(ratings.fetch_average(beatmap.md5, session)))
+    return str(ratings.fetch_average(beatmap.md5, session))

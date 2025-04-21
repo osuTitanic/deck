@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response,
     Depends,
     Query
 )
@@ -39,7 +38,7 @@ def osu_coins(
     password: str = Query(..., alias='h'),
     count: int = Query(..., alias='c'),
     action: str = Query(...)
-) -> Response:
+) -> str:
     if not (player := users.fetch_by_name(username, session=session)):
         raise HTTPException(401)
     
@@ -62,4 +61,4 @@ def osu_coins(
     if action == "recharge":
         set_coins(player.id, 99)
 
-    return Response(str(get_coins(player.id)))
+    return str(get_coins(player.id))
