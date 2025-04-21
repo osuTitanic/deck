@@ -19,6 +19,9 @@ import json
 import app
 
 def parse_osu_config(config: str) -> Dict[str, str]:
+    if config.count('\n') > 2**8:
+        return {}
+
     return {
         k.strip():v.strip()
         for (k, v) in [
@@ -37,14 +40,14 @@ def osu_error(
     time: int = Form(..., alias='gametime'),
     username: str = Form(..., alias='u'),
     user_id: int | None = Form(None, alias='i'),
+    config: str = Form(..., max_length=2**13),
     feedback: str | None = Form(None),
     iltrace: str | None = Form(None),
     exehash: str | None = Form(None),
     stacktrace: str = Form(...),
     audiotime: int = Form(...),
     exception: str = Form(...),
-    version: str = Form(...),
-    config: str = Form(...)
+    version: str = Form(...)
 ) -> Response:
     ignored_feedback = [
         'update error',
