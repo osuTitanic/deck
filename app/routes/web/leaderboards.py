@@ -333,7 +333,7 @@ def get_scores(
             score_string(score, index+1, send_nc, request_version)
         )
 
-    return Response('\n'.join(response))
+    return Response('\n'.join(response), media_type="text/plain; charset=utf-8")
 
 @router.get('/osu-getscores6.php')
 def legacy_scores(
@@ -412,7 +412,7 @@ def legacy_scores(
             score_string(score, index+1, send_nc)
         )
 
-    return Response('\n'.join(response))
+    return Response('\n'.join(response), media_type="text/plain; charset=utf-8")
 
 @router.get('/osu-getscores5.php')
 def legacy_scores_no_ratings(
@@ -497,7 +497,7 @@ def legacy_scores_no_ratings(
             score_string(score, index+1, send_nc)
         )
 
-    return Response('\n'.join(response))
+    return Response('\n'.join(response), media_type="text/plain; charset=utf-8")
 
 @router.get('/osu-getscores4.php')
 def legacy_scores_no_beatmap_data(
@@ -579,7 +579,7 @@ def legacy_scores_no_beatmap_data(
             score_string(score, index+1, send_nc)
         )
 
-    return Response('\n'.join(response))
+    return Response('\n'.join(response), media_type="text/plain; charset=utf-8")
 
 @router.get('/osu-getscores3.php')
 def legacy_scores_no_personal_best(
@@ -615,7 +615,7 @@ def legacy_scores_no_personal_best(
             score_string_legacy(score)
         )
 
-    return Response('\n'.join(response))
+    return Response('\n'.join(response), media_type="text/plain; charset=utf-8")
 
 @router.get('/osu-getscores2.php')
 def legacy_scores_status_change(
@@ -655,7 +655,7 @@ def legacy_scores_status_change(
             score_string_legacy(score)
         )
 
-    return Response('\n'.join(response))
+    return Response('\n'.join(response), media_type="text/plain; charset=utf-8")
 
 @router.get('/osu-getscores.php')
 def legacy_scores_no_status(
@@ -672,7 +672,9 @@ def legacy_scores_no_status(
         session=session
     )
 
-    return Response('\n'.join([
+    response = '\n'.join([
         score_string_legacy(score, seperator=':')
         for score in top_scores
-    ]))
+    ])
+
+    return Response(response, media_type="text/plain; charset=utf-8")
