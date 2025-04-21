@@ -39,8 +39,11 @@ def validate_hardware_data(hardware: str) -> dict:
         raise HTTPException(400, "Invalid hardware format")
 
     # Always require 'renderer' and validate its value
-    if 'renderer' not in hardware_dict:
-        raise HTTPException(400, "Renderer is required")
+    if 'renderer' not in hardware_dict or len(hardware_dict['renderer']) <= 0:
+        raise HTTPException(400, "Renderer must be a valid string")
+
+    if len(hardware_dict['renderer']) > 12:
+        raise HTTPException(400, "Renderer must be less than 12 characters")
 
     # If only 'renderer' is present, return early without further validation
     if len(hardware_dict) == 1:
