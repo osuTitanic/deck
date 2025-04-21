@@ -42,9 +42,6 @@ def validate_hardware_data(hardware: str) -> dict:
     if 'renderer' not in hardware_dict:
         raise HTTPException(400, "Renderer is required")
 
-    if hardware_dict['renderer'] not in ['OpenGL', 'DirectX']:
-        raise HTTPException(400, "Renderer must be 'OpenGL' or 'DirectX'")
-
     # If only 'renderer' is present, return early without further validation
     if len(hardware_dict) == 1:
         return hardware_dict
