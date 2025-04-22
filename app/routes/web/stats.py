@@ -36,12 +36,7 @@ def legacy_user_stats(
         app.session.logger.warning('Failed to send stats: User not found!')
         raise HTTPException(404)
 
-    if not utils.check_password(password, player.bcrypt):
-        app.session.logger.warning(f'Failed to send stats: Invalid Password')
-        raise HTTPException(401)
-
     # TODO: Check if user is online?
-
     current_rank = leaderboards.global_rank(user_id, mode=0)
     current_acc = leaderboards.accuracy(user_id, mode=0)
     current_score = leaderboards.score(user_id, mode=0)
