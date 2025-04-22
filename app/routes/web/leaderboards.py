@@ -7,6 +7,7 @@ from datetime import datetime
 from fastapi import (
     HTTPException,
     APIRouter,
+    Response,
     Request,
     Depends,
     Query
@@ -622,15 +623,15 @@ def legacy_scores_status_change(
     skip_scores: bool = Depends(integer_boolean('s')),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f')
-) -> str:
+) -> Response:
     # TODO: /osu-getscores2.php response format is different in some versions
     #       One method would be to check the client version over the cache
 
     if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
-        return '-1' # Not Submitted
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
-        return '1' # Update Available
+        return Response('1') # Update Available
 
     response = []
     submission_status = LegacyStatus.from_database(beatmap.status)
@@ -640,7 +641,7 @@ def legacy_scores_status_change(
         response.append(f'{submission_status.value}')
 
     if skip_scores or not beatmap.is_ranked:
-        return "\n".join(response)
+        return Response("\n".join(response))
 
     top_scores = scores.fetch_range_scores(
         beatmap.id,
@@ -654,7 +655,7 @@ def legacy_scores_status_change(
             score_string_legacy(score)
         )
 
-    return "\n".join(response)
+    return Response("\n".join(response))
 
 @router.get('/osu-getscores.php')
 def legacy_scores_no_status(
