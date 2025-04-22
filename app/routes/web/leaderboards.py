@@ -624,9 +624,6 @@ def legacy_scores_status_change(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f')
 ) -> Response:
-    # TODO: /osu-getscores2.php response format is different in some versions
-    #       One method would be to check the client version over the cache
-
     if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1') # Not Submitted
 
