@@ -33,7 +33,7 @@ def legacy_login(
         session=session
     )
 
-    ip_address = ip.resolve_ip_adddress_fastapi(request)
+    ip_address = ip.resolve_ip_address_fastapi(request)
 
     app.session.redis.setex(
         f"bancho:irc_login:{player.safe_name}",
