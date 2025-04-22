@@ -587,12 +587,12 @@ def legacy_scores_no_personal_best(
     skip_scores: bool = Depends(integer_boolean('s')),
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f')
-) -> str:
+) -> Response:
     if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
-        return '-1' # Not Submitted
+        return Response('-1') # Not Submitted
 
     if beatmap.md5 != beatmap_hash:
-        return '1' # Update Available
+        return Response('1') # Update Available
 
     response = []
     submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
@@ -601,7 +601,7 @@ def legacy_scores_no_personal_best(
     response.append(f'{submission_status.value}')
 
     if skip_scores or not beatmap.is_ranked:
-        return "\n".join(response)
+        return Response("\n".join(response))
 
     top_scores = scores.fetch_range_scores(
         beatmap.id,
@@ -615,7 +615,7 @@ def legacy_scores_no_personal_best(
             score_string_legacy(score)
         )
 
-    return "\n".join(response)
+    return Response("\n".join(response))
 
 @router.get('/osu-getscores2.php')
 def legacy_scores_status_change(
