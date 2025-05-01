@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.common.database.repositories import users
 from app.common.cache import leaderboards
 
+import utils
 import hashlib
 import app
 
@@ -35,9 +36,7 @@ def legacy_user_stats(
         app.session.logger.warning('Failed to send stats: User not found!')
         raise HTTPException(404)
 
-    # TODO: Validate password
     # TODO: Check if user is online?
-
     current_rank = leaderboards.global_rank(user_id, mode=0)
     current_acc = leaderboards.accuracy(user_id, mode=0)
     current_score = leaderboards.score(user_id, mode=0)

@@ -6,7 +6,6 @@ from typing import List
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response,
     Depends,
     Form
 )
@@ -40,7 +39,7 @@ def get_comments(
     time: int | None = Form(None, alias='starttime'),
     color: str | None = Form(None, alias='f'),
     target: str | None = Form(None)
-) -> Response:
+) -> str:
     if not (user := users.fetch_by_name(username, session)):
         app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
@@ -85,7 +84,7 @@ def get_comments(
                     ])
                 )
 
-        return Response('\n'.join(response))
+        return "\n".join(response)
 
     elif action == 'post':
         try:
@@ -146,6 +145,6 @@ def get_comments(
             f'<{user.name} ({user.id})> -> Submitted comment on {target.name}: "{content}".'
         )
 
-        return Response(f'{time}|{content}\n')
+        return f"{time}|{content}\n"
 
     raise HTTPException(400, detail="Invalid action")

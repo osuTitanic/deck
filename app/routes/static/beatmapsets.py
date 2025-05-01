@@ -21,13 +21,14 @@ def beatmap_thumbnail(id: str):
 
     if not (image := app.session.storage.get_background(id)):
         return
-    
+
     set_id = int(id.removesuffix('l'))
 
     # Cache beatmapsets from bancho
     cache_response = set_id < 1000000000
+    cache_expiry = 3600*24
     cache_headers = (
-        {'Cache-Control': 'public, max-age=3600'}
+        {'Cache-Control': f'public, max-age={cache_expiry}'}
         if cache_response else {}
     )
 
@@ -47,8 +48,9 @@ def beatmap_preview(filename: str):
 
     # Cache beatmapsets from bancho
     cache_response = set_id < 1000000000
+    cache_expiry = 3600*24
     cache_headers = (
-        {'Cache-Control': 'public, max-age=3600'}
+        {'Cache-Control': f'public, max-age={cache_expiry}'}
         if cache_response else {}
     )
 
