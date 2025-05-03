@@ -1,6 +1,7 @@
 
 from app.common.database.repositories import notifications, activities, scores, wrapper
 from app.common.constants import Mods, NotificationType
+from app.common.cache import leaderboards
 from app.common import officer
 from app.common.database import (
     DBBeatmap,
@@ -162,6 +163,12 @@ def check_beatmap(
 
     if old_rank == beatmap_rank:
         return
+    
+    leaderboards.update_leader_scores(
+        player.stats[score.mode],
+        player.country.lower(),
+        session=session
+    )
 
     top_scores = scores.fetch_range_scores(
         score.beatmap_id,
@@ -184,6 +191,17 @@ def check_beatmap(
             (second_place.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{second_place.user_id}'),
             (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
             submit_to_chat=False
+        )
+
+        second_place.user.stats.sort(
+            key=lambda x: x.mode,
+            reverse=False
+        )
+
+        leaderboards.update_leader_scores(
+            second_place.user.stats[score.mode],
+            second_place.country.lower(),
+            session=session
         )
 
 def check_pp(
@@ -265,6 +283,11 @@ def check(
         score = scores.fetch_by_id(
             score_id,
             session=session
+        )
+
+        player.stats.sort(
+            key=lambda x: x.mode,
+            reverse=False
         )
 
         check_rank(
