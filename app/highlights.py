@@ -200,7 +200,7 @@ def check_beatmap(
 
         leaderboards.update_leader_scores(
             second_place.user.stats[score.mode],
-            second_place.country.lower(),
+            second_place.user.country.lower(),
             session=session
         )
 
