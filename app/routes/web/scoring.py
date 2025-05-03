@@ -465,6 +465,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     )
 
     old_stats = copy(user_stats)
+    old_rank, old_pp = resolve_preferred_ranking(player, score.mode.value)
+    new_rank, new_pp = old_rank, old_pp
 
     user_stats.playcount += 1
     user_stats.playtime += score.elapsed_time
@@ -562,6 +564,11 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             session=score.session
         )
 
+        new_rank, new_pp = resolve_preferred_ranking(
+            player,
+            score.mode.value
+        )
+
     # Update preferred mode
     if player.preferred_mode != score.mode.value:
         recent_scores = scores.fetch_recent_all(
@@ -577,7 +584,16 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
                 score.session
             )
 
-    return user_stats, old_stats
+    return (
+        user_stats,
+        old_stats,
+        {
+            "old_rank": old_rank,
+            "old_pp": old_pp,
+            "new_rank": new_rank,
+            "new_pp": new_pp
+        }
+    )
 
 def unlock_achievements(
     score: Score,
@@ -627,15 +643,48 @@ def unlock_achievements(
 
     return achievement_response
 
+def resolve_preferred_ranking(user: DBUser, mode: int) -> Tuple[int, int]:
+    """Receive the preferred ranking type from cache (ppv2/ppv1/tscore/...)"""
+    ranking_mapping = {
+        'global': leaderboards.global_rank,
+        'rscore': leaderboards.score_rank,
+        'tscore': leaderboards.total_score_rank,
+        'clears': leaderboards.clears_rank,
+        'ppv1': leaderboards.ppv1_rank
+    }
+
+    preferred_rank_function = ranking_mapping.get(
+        user.preferred_ranking,
+        leaderboards.global_rank
+    )
+
+    preferred_rank = preferred_rank_function(
+        user.id,
+        mode
+    )
+
+    if user.preferred_ranking != 'ppv1':
+        return (
+            preferred_rank,
+            leaderboards.performance(user.id, mode)
+        )
+
+    return (
+        preferred_rank,
+        leaderboards.ppv1(user.id, mode)
+    )
+
 def response_charts(
     score: Score,
     score_id: int,
+    ranking: dict,
     old_stats: DBStats,
     new_stats: DBStats,
     old_rank: int,
     new_rank: int,
     achievement_response: List[str]
 ) -> List[Chart]:
+    """Generates the required charts for a score submission response"""
     beatmap_info = Chart()
     beatmap_info['beatmapId'] = score.beatmap.id
     beatmap_info['beatmapSetId'] = score.beatmap.set_id
@@ -653,12 +702,12 @@ def response_charts(
     overall_chart['achievements'] = ' '.join(achievement_response)
     overall_chart['achievements-new'] = '' # TODO
 
-    overall_chart.entry('rank', old_stats.rank, new_stats.rank)
+    overall_chart.entry('rank', ranking["old_rank"], ranking["new_rank"])
     overall_chart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
     overall_chart.entry('totalScore', old_stats.tscore, new_stats.tscore)
     overall_chart.entry('playCount', old_stats.playcount, new_stats.playcount)
     overall_chart.entry('maxCombo', old_stats.max_combo, new_stats.max_combo)
-    overall_chart.entry('pp', round(old_stats.pp), round(new_stats.pp))
+    overall_chart.entry('pp', round(ranking["old_pp"]), round(ranking["new_pp"]))
     overall_chart.entry(
         'accuracy',
         round(old_stats.acc, 4) * (100 if not score.is_legacy else 1),
@@ -846,7 +895,7 @@ def score_submission(
 
         score.session.commit()
 
-    new_stats, old_stats = update_stats(score, player)
+    new_stats, old_stats, ranking = update_stats(score, player)
 
     if not score.beatmap.is_ranked:
         score.session.close()
@@ -887,6 +936,7 @@ def score_submission(
     response = response_charts(
         score,
         score_object.id,
+        ranking,
         old_stats,
         new_stats,
         old_rank,
@@ -1046,7 +1096,7 @@ def legacy_score_submission(
 
         score.session.commit()
 
-    new_stats, old_stats = update_stats(score, player)
+    new_stats, old_stats, ranking = update_stats(score, player)
 
     if not score.beatmap.is_ranked:
         app.session.events.submit(
