@@ -540,10 +540,11 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             user_stats.mode
         )
 
-        histories.update_rank(
-            user_stats,
-            player.country
-        )
+        if not config.FROZEN_RANK_UPDATES:
+            histories.update_rank(
+                user_stats,
+                player.country
+            )
 
         score.session.commit()
 
