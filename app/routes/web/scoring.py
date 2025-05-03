@@ -810,8 +810,9 @@ def score_submission(
         return 'error: beatmap'
 
     if not status.exists(player.id):
+        # Bancho may be down most likely
         # Let the client resend the request
-        return ''
+        raise HTTPException(503)
 
     if score.user.stats:
         score.user.stats.sort(
@@ -1008,7 +1009,9 @@ def legacy_score_submission(
         raise HTTPException(404)
 
     if not status.exists(player.id):
-        return ''
+        # Bancho may be down most likely
+        # Let the client resend the request
+        raise HTTPException(503)
 
     if score.user.stats:
         score.user.stats.sort(
