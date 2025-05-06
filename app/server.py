@@ -7,24 +7,16 @@ from . import routes
 import config
 import utils
 
-def initialize_application():
-    # Preload database & redis connections
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     session.database.engine.dispose()
     session.database.wait_for_connection()
     session.redis.ping()
-    # Setup data buckets/folders
     utils.setup()
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
     yield
     session.achievement_executor.shutdown(wait=True)
     session.executor.shutdown(wait=True)
     session.redis.close()
-
-# Initialize session to make sure
-# that --preload will use it
-initialize_application()
 
 api = FastAPI(
     title='Deck',
