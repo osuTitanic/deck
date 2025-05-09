@@ -627,6 +627,7 @@ def update_beatmap_metadata(
                 'status': status,
                 'filename': filename,
                 'last_update': datetime.now(),
+                'drain_length': 0, # TODO
                 'total_length': round(beatmap['length'] / 1000),
                 'md5': hashlib.md5(files[filename]).hexdigest(),
                 'version': beatmap['difficultyName'] or 'Normal',
@@ -636,6 +637,9 @@ def update_beatmap_metadata(
                 'cs': beatmap['difficulty']['circleSize'],
                 'od': beatmap['difficulty']['overallDifficulty'],
                 'ar': beatmap['difficulty']['approachRate'],
+                'count_normal': difficulty_attributes.n_circles,
+                'count_slider': difficulty_attributes.n_sliders,
+                'count_spinner': difficulty_attributes.n_spinners,
                 'max_combo': difficulty_attributes.max_combo,
                 'diff': difficulty_attributes.stars
             },
