@@ -1,6 +1,6 @@
 
 from app.common.cache import status
-from app.common.database import DBStats
+from app.common.database import DBStats, DBScore
 from app.common.database.repositories import (
     histories,
     scores,
@@ -26,15 +26,13 @@ import app
 @router.get('/osu-getreplay.php')
 def get_replay(
     session: Session = Depends(app.session.database.yield_session),
-    username: str = Query(None, alias='u'),
-    password: str = Query(None, alias='h'),
+    username: str | None = Query(None, alias='u'),
+    password: str | None = Query(None, alias='h'),
     score_id: int = Query(..., alias='c'),
     mode: int = Query(0, alias='m')
 ) -> Response:
-    # NOTE: Old clients don't have authentication for this endpoint
-    player = None
-
-    if username:
+    # NOTE: Legacy clients don't implement authentication for this endpoint
+    if username != None:
         if not (player := users.fetch_by_name(username, session)):
             raise HTTPException(401)
 
@@ -45,18 +43,15 @@ def get_replay(
             raise HTTPException(401)
 
         users.update(player.id, {'latest_activity': datetime.now()}, session)
-
-    app.session.logger.info(
-        f'{player} requested replay for "{score_id}".'
-    )
+        app.session.logger.info(f'{player} requested replay for "{score_id}".')
 
     if not (score := scores.fetch_by_id(score_id, session)):
         app.session.logger.warning(f'Failed to get replay "{score_id}": Not found')
         raise HTTPException(404)
 
     if score.hidden:
-        app.session.logger.warning(f'Failed to get replay "{score_id}": Hidden Score')
-        raise HTTPException(403)
+        app.session.logger.warning(f'Failed to get replay "{score_id}": Hidden score')
+        raise HTTPException(404)
 
     if not (replay := app.session.storage.get_replay(score_id)):
         app.session.logger.warning(f'Failed to get replay "{score_id}": Not found on storage')
@@ -65,12 +60,17 @@ def get_replay(
     if player and player.id != score.user.id:
         histories.update_replay_views(
             score.user.id,
-            mode,
+            score.mode,
             session
         )
         stats.update(
-            score.user.id, mode,
+            score.user.id, score.mode,
             {'replay_views': DBStats.replay_views + 1},
+            session
+        )
+        scores.update(
+            score.id,
+            {'replay_views': DBScore.replay_views + 1},
             session
         )
 
