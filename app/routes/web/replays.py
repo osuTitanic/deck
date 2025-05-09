@@ -32,6 +32,8 @@ def get_replay(
     mode: int = Query(0, alias='m')
 ) -> Response:
     # NOTE: Legacy clients don't implement authentication for this endpoint
+    player = None
+
     if username != None:
         if not (player := users.fetch_by_name(username, session)):
             raise HTTPException(401)
