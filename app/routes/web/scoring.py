@@ -1133,6 +1133,17 @@ def legacy_score_submission(
         score.session.close()
         return ""
 
+    # Send highlights on #announce
+    if score.has_pb:
+        app.session.executor.submit(
+            app.highlights.check,
+            score_object.id, score.user,
+            new_stats, old_stats,
+            beatmap_rank, old_rank
+        ).add_done_callback(
+            utils.thread_callback
+        )
+
     achievement_response: List[str] = []
     response: List[Chart] = []
 
@@ -1150,6 +1161,7 @@ def legacy_score_submission(
         mode=score.mode.value,
         session=score.session
     )
+    score.session.close()
 
     # Reload stats on bancho
     app.session.events.submit(
@@ -1167,21 +1179,9 @@ def legacy_score_submission(
         player.id,
         score.mode.value
     )
-
     response.append(str(round(difference)))
-    response.append(" ".join(achievement_response))
 
-    score.session.close()
-
-    # Send highlights on #announce
-    if score.has_pb:
-        app.session.executor.submit(
-            app.highlights.check,
-            score_object.id, score.user,
-            new_stats, old_stats,
-            beatmap_rank, old_rank
-        ).add_done_callback(
-            utils.thread_callback
-        )
+    if achievement_response:
+        response.append(" ".join(achievement_response))
 
     return "\n".join(response)
