@@ -1109,7 +1109,7 @@ def legacy_score_submission(
             mode=score.mode.value
         )
         score.session.close()
-        return
+        return ""
 
     if not config.ALLOW_RELAX and score.relaxing:
         app.session.events.submit(
@@ -1118,7 +1118,7 @@ def legacy_score_submission(
             mode=score.mode.value
         )
         score.session.close()
-        return
+        return ""
 
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
@@ -1131,7 +1131,7 @@ def legacy_score_submission(
             mode=score.mode.value
         )
         score.session.close()
-        return
+        return ""
 
     achievement_response: List[str] = []
     response: List[Chart] = []
@@ -1158,7 +1158,7 @@ def legacy_score_submission(
         mode=score.mode.value
     )
 
-    if score.is_performance_pb:
+    if score.is_score_pb:
         response.append(str(beatmap_rank))
     else:
         response.append('0')
