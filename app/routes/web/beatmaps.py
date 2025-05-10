@@ -637,9 +637,9 @@ def update_beatmap_metadata(
                 'cs': beatmap['difficulty']['circleSize'],
                 'od': beatmap['difficulty']['overallDifficulty'],
                 'ar': beatmap['difficulty']['approachRate'],
-                'count_normal': difficulty_attributes.n_circles,
-                'count_slider': difficulty_attributes.n_sliders,
-                'count_spinner': difficulty_attributes.n_spinners,
+                'count_normal': difficulty_attributes.n_circles or 0,
+                'count_slider': difficulty_attributes.n_sliders or 0,
+                'count_spinner': difficulty_attributes.n_spinners or 0,
                 'max_combo': difficulty_attributes.max_combo,
                 'diff': difficulty_attributes.stars
             },
