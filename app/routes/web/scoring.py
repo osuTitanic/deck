@@ -869,19 +869,19 @@ def score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                    score.personal_best_pp.id,
-                    score.beatmap.id,
-                    mode=score.mode.value,
-                    session=score.session
-                ) \
-                if score.personal_best_score else 0
+                score.personal_best_pp.id,
+                score.beatmap.id,
+                mode=score.mode.value,
+                session=score.session
+            ) \
+            if score.personal_best_score else 0
 
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = score.client_hash
 
         if not config.ALLOW_RELAX and score.relaxing:
-            score_object.status_pp = -1
+            score_object.hidden = True
 
         score.session.add(score_object)
         score.session.flush()
@@ -899,27 +899,23 @@ def score_submission(
 
     new_stats, old_stats, ranking = update_stats(score, player)
 
+    # Reload stats on bancho
+    app.session.events.submit(
+        'user_update',
+        user_id=player.id,
+        mode=score.mode.value
+    )
+
     if not score.beatmap.is_ranked:
         score.session.close()
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
         return 'error: beatmap'
 
     if not config.ALLOW_RELAX and score.relaxing:
         score.session.close()
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
         return 'error: no'
 
     achievement_response: List[str] = []
 
-    # TODO: Enable achievements for relax?
     if score.passed and not score.relaxing:
         achievement_response = unlock_achievements(
             score,
@@ -962,13 +958,6 @@ def score_submission(
         ).add_done_callback(
             utils.thread_callback
         )
-
-    # Reload stats on bancho
-    app.session.events.submit(
-        'user_update',
-        user_id=player.id,
-        mode=score.mode.value
-    )
 
     return "\n".join([chart.get() for chart in response])
 
@@ -1072,19 +1061,19 @@ def legacy_score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                    score.personal_best_pp.id,
-                    score.beatmap.id,
-                    mode=score.mode.value,
-                    session=score.session
-                ) \
-                if score.personal_best_score else 0
+                score.personal_best_pp.id,
+                score.beatmap.id,
+                mode=score.mode.value,
+                session=score.session
+            ) \
+            if score.personal_best_score else 0
 
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = ''
 
         if not config.ALLOW_RELAX and score.relaxing:
-            score_object.status_pp = -1
+            score_object.hidden = True
 
         score.session.add(score_object)
         score.session.flush()
@@ -1102,21 +1091,18 @@ def legacy_score_submission(
 
     new_stats, old_stats, ranking = update_stats(score, player)
 
+    # Reload stats on bancho
+    app.session.events.submit(
+        'user_update',
+        user_id=player.id,
+        mode=score.mode.value
+    )
+
     if not score.beatmap.is_ranked:
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
         score.session.close()
         return ""
 
     if not config.ALLOW_RELAX and score.relaxing:
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
         score.session.close()
         return ""
 
@@ -1125,11 +1111,6 @@ def legacy_score_submission(
     )
 
     if not score.passed:
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
         score.session.close()
         return ""
 
@@ -1162,13 +1143,6 @@ def legacy_score_submission(
         session=score.session
     )
     score.session.close()
-
-    # Reload stats on bancho
-    app.session.events.submit(
-        'user_update',
-        user_id=player.id,
-        mode=score.mode.value
-    )
 
     if score.is_score_pb:
         response.append(str(beatmap_rank))
