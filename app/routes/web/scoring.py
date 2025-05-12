@@ -1114,17 +1114,6 @@ def legacy_score_submission(
         score.session.close()
         return ""
 
-    # Send highlights on #announce
-    if score.has_pb:
-        app.session.executor.submit(
-            app.highlights.check,
-            score_object.id, score.user,
-            new_stats, old_stats,
-            beatmap_rank, old_rank
-        ).add_done_callback(
-            utils.thread_callback
-        )
-
     achievement_response: List[str] = []
     response: List[Chart] = []
 
@@ -1157,5 +1146,16 @@ def legacy_score_submission(
 
     if achievement_response:
         response.append(" ".join(achievement_response))
+
+    # Send highlights on #announce
+    if score.has_pb:
+        app.session.executor.submit(
+            app.highlights.check,
+            score_object.id, score.user,
+            new_stats, old_stats,
+            beatmap_rank, old_rank
+        ).add_done_callback(
+            utils.thread_callback
+        )
 
     return "\n".join(response)
