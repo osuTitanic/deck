@@ -35,7 +35,6 @@ from app.common.database.repositories import (
     stats
 )
 
-import binascii
 import hashlib
 import base64
 import config
@@ -76,9 +75,10 @@ async def parse_score_data(request: Request) -> Score:
     form = await request.form()
 
     if score_data := query.get('score'):
-        # Legacy score was submitted
+        # Legacy score was submitted via. query argument
         return await parse_legacy_score_data(
-            score_data, query, form, ip
+            score_data, query,
+            form, ip
         )
 
     # NOTE: The form data can contain two "score" sections, where one
@@ -124,7 +124,7 @@ async def parse_score_data(request: Request) -> Score:
             fun_spoiler = decrypt_string(fun_spoiler, iv, decryption_key)
             score_data = decrypt_string(score_data, iv, decryption_key)
             processes = decrypt_string(processes, iv, decryption_key)
-        except (UnicodeDecodeError, TypeError, binascii.Error) as e:
+        except Exception as e:
             # Most likely an invalid score encryption key
             officer.call(
                 f'Could not decrypt score data: {e} ({ip})',
@@ -308,7 +308,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
                 f'"{score.username}" submitted duplicate replay from themselves '
                 f'({duplicate_score.replay_md5}).'
             )
-
             return 'error: no'
 
     if score.check_invalid_mods():
@@ -600,8 +599,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 def unlock_achievements(
     score: Score,
     score_object: DBScore,
-    player: DBUser,
-    request: Request
+    player: DBUser
 ) -> List[str]:
     app.session.logger.debug('Checking achievements...')
 
@@ -921,8 +919,7 @@ def score_submission(
         achievement_response = unlock_achievements(
             score,
             score_object,
-            player,
-            request
+            player
         )
 
     new_rank = scores.fetch_score_index_by_tscore(
@@ -1122,8 +1119,7 @@ def legacy_score_submission(
         achievement_response = unlock_achievements(
             score,
             score_object,
-            player,
-            request
+            player
         )
 
     beatmap_rank = scores.fetch_score_index_by_id(

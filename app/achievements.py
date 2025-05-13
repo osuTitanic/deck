@@ -859,7 +859,9 @@ def check(score: DBScore, session: Session, ignore_list: List[Achievement] = [])
 
             new_achievements.append(achievement)
 
-            app.session.logger.info(f'Player {score.user} unlocked achievement: {achievement.name}')
+            app.session.logger.info(
+                f'Player {score.user} unlocked achievement: {achievement.name}'
+            )
             app.highlights.submit(
                 score.user_id,
                 score.mode,
