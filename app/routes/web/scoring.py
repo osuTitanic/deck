@@ -35,6 +35,7 @@ from app.common.database.repositories import (
     stats
 )
 
+import binascii
 import hashlib
 import base64
 import config
@@ -123,7 +124,7 @@ async def parse_score_data(request: Request) -> Score:
             fun_spoiler = decrypt_string(fun_spoiler, iv, decryption_key)
             score_data = decrypt_string(score_data, iv, decryption_key)
             processes = decrypt_string(processes, iv, decryption_key)
-        except (UnicodeDecodeError, TypeError) as e:
+        except (UnicodeDecodeError, TypeError, binascii.Error) as e:
             # Most likely an invalid score encryption key
             officer.call(
                 f'Could not decrypt score data: {e} ({ip})',
