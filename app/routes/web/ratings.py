@@ -53,7 +53,7 @@ def rate(
     if previous_rating:
         return '\n'.join([
             'alreadyvoted',
-            str(ratings.fetch_average(beatmap.md5, session))
+            f'{ratings.fetch_average(beatmap.md5, session):.2f}'
         ])
 
     if rating is None:
@@ -76,5 +76,5 @@ def rate(
 
     return '\n'.join([
         'ok',
-        str(ratings.fetch_average(beatmap.md5, session))
+        f'{ratings.fetch_average(beatmap.md5, session):.2f}'
     ])
