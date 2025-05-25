@@ -896,7 +896,7 @@ def score_submission(
         score.session.flush()
 
         # Try to upload replay
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             upload_replay,
             score,
             score_object.id
@@ -956,7 +956,7 @@ def score_submission(
 
     # Send highlights on #announce
     if score.has_pb:
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             app.highlights.check,
             score_object.id, score.user,
             new_stats, old_stats,
@@ -1083,7 +1083,7 @@ def legacy_score_submission(
         score.session.flush()
 
         # Try to upload replay
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             upload_replay,
             score,
             score_object.id
@@ -1150,7 +1150,7 @@ def legacy_score_submission(
 
     # Send highlights on #announce
     if score.has_pb:
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             app.highlights.check,
             score_object.id, score.user,
             new_stats, old_stats,

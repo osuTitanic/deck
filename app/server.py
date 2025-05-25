@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
     utils.setup()
     yield
     session.achievement_executor.shutdown(wait=True)
-    session.executor.shutdown(wait=True)
+    session.score_executor.shutdown(wait=True)
     session.redis.close()
 
 api = FastAPI(
