@@ -49,8 +49,8 @@ def setup_data_folder() -> None:
         return
 
     app.session.logger.info('Downloading default avatars...')
-    download_to_file(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
-    download_to_file(f'{config.DATA_PATH}/avatars/1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
+    download_to_file(f'{config.DATA_PATH}/avatars/unknown', 'https://github.com/osuTitanic/titanic/blob/main/.github/images/avatars/unknown.jpg?raw=true')
+    download_to_file(f'{config.DATA_PATH}/avatars/1', 'https://github.com/osuTitanic/titanic/blob/main/.github/images/avatars/banchobot.jpg?raw=true')
 
 def setup_s3_buckets() -> None:
     bucket_list = app.session.storage.s3.list_buckets()
@@ -72,14 +72,14 @@ def setup_s3_buckets() -> None:
             continue
 
         app.session.logger.info('Downloading default avatars...')
-        download_to_s3('avatars', 'unknown', 'https://github.com/lekuru-static/download/blob/main/unknown?raw=true')
-        download_to_s3('avatars', '1', 'https://github.com/lekuru-static/download/blob/main/1?raw=true')
+        download_to_s3('avatars', 'unknown', 'https://github.com/osuTitanic/titanic/blob/main/.github/images/avatars/unknown.jpg?raw=true')
+        download_to_s3('avatars', '1', 'https://github.com/osuTitanic/titanic/blob/main/.github/images/avatars/banchobot.jpg?raw=true')
 
 def download_to_file(path: str, url: str) -> None:
     if os.path.isfile(path):
         return
 
-    response = app.session.requests.get(url)
+    response = app.session.requests.get(url, allow_redirects=True)
 
     if not response.ok:
         app.session.logger.error(f'Failed to download file: {url}')
