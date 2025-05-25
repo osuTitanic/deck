@@ -185,7 +185,7 @@ def get_scores(
         return "1|false" # Update Available
 
     if not ranking_type:
-        ranking_type = RankingType.Top
+        ranking_type = RankingType.To
 
     submission_status = SubmissionStatus.from_database(
         beatmap.status,
@@ -197,12 +197,18 @@ def get_scores(
     #       make this work properly.
     has_osz = False
 
+    # Only send NC if the client supports it
     send_nc: bool = client_supports_nc(status.version(player.id))
 
-    # Fetch score count
+    mods = Mods(mods or 0)
     personal_best = None
-    score_count = 0
     friends = None
+    score_count = 0
+
+    if Mods.Nightcore in mods and Mods.DoubleTime in mods:
+        # Remove DT if NC is present, as titanic's database
+        # does not store both mods together
+        mods &= ~Mods.DoubleTime
 
     if ranking_type == RankingType.Friends:
         friends = relationships.fetch_target_ids(
