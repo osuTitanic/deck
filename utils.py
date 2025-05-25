@@ -1,8 +1,6 @@
 
 from __future__ import annotations
 
-from app.common.database import beatmapsets
-from concurrent.futures import Future
 from pydub import AudioSegment
 from functools import cache
 from PIL import Image
@@ -101,6 +99,13 @@ def download_to_s3(bucket: str, key: str, url: str) -> None:
         bucket
     )
 
+@cache
+def check_password(password: str, bcrypt_hash: str) -> bool:
+    return bcrypt.checkpw(
+        password.encode(),
+        bcrypt_hash.encode()
+    )
+
 def has_jpeg_headers(data_view: memoryview) -> bool:
     return (
         data_view[:4] == b"\xff\xd8\xff\xe0"
@@ -112,39 +117,6 @@ def has_png_headers(data_view: memoryview) -> bool:
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8] == b"\x49END\xae\x42\x60\x82"
     )
-
-def get_osz_size(set_id: int, no_video: bool = False) -> int:
-    r = app.session.requests.head(f'https://osu.direct/api/d/{set_id}{"noVideo=" if no_video else ""}')
-
-    if not r.ok:
-        app.session.logger.error(
-            f"Failed to get osz size: {r.status_code}"
-        )
-        return 0
-
-    if not (filesize := r.headers.get('content-length')):
-        app.session.logger.error(
-            "Failed to get osz size: content-length header missing"
-        )
-        return 0
-
-    return int(filesize)
-
-def update_osz_filesize(set_id: int, has_video: bool = False) -> None:
-    updates = {}
-
-    if has_video:
-        updates['osz_filesize_novideo'] = get_osz_size(
-            set_id,
-            no_video=True
-        )
-
-    updates['osz_filesize'] = get_osz_size(
-        set_id,
-        no_video=False
-    )
-
-    beatmapsets.update(set_id, updates)
 
 def resize_image(
     image: bytes,
@@ -205,26 +177,3 @@ def extract_audio_snippet(
     snippet_buffer = io.BytesIO()
     snippet.export(snippet_buffer, format='mp3', bitrate=bitrate)
     return snippet_buffer.getvalue()
-
-def thread_callback(future: Future) -> None:
-    if e := future.exception():
-        app.session.database.logger.error(
-            f'Failed to execute thread: {e}',
-            exc_info=e
-        )
-        return
-
-    app.session.database.logger.debug(
-        f'Thread completed: {e}',
-        exc_info=e
-    )
-
-@cache
-def check_password(password: str, bcrypt_hash: str) -> bool:
-    return bcrypt.checkpw(
-        password.encode(),
-        bcrypt_hash.encode()
-    )
-
-def empty_zip_file() -> bytes:
-    return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'

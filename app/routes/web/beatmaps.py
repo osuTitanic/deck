@@ -376,6 +376,9 @@ def update_osz2_hashes(set_id: int, osz2_file: bytes, session: Session) -> None:
         session=session
     )
 
+def empty_zip_file() -> bytes:
+    return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+
 def update_beatmap_package(
     set_id: int,
     files: Dict[str, bytes],
@@ -1448,7 +1451,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         return error_response(1, legacy=True)
 
     previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
-    previous_osz = previous_osz or utils.empty_zip_file()
+    previous_osz = previous_osz or empty_zip_file()
 
     # Read all files of previous osz
     with ZipFile(io.BytesIO(previous_osz)) as zip_file:

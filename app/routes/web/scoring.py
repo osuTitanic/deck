@@ -11,6 +11,7 @@ from fastapi import (
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
+from concurrent.futures import Future
 from copy import copy
 
 from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
@@ -762,6 +763,15 @@ def response_charts(
 
     return [beatmap_info, beatmap_ranking, overall_chart]
 
+def thread_callback(future: Future) -> None:
+    if not (e := future.exception()):
+        return
+
+    app.session.database.logger.error(
+        f'Failed to execute thread: {e}',
+        exc_info=e
+    )
+
 @router.post("/osu-submit-modular-selector.php")
 @router.post('/osu-submit-modular.php')
 def score_submission(
@@ -890,9 +900,7 @@ def score_submission(
             upload_replay,
             score,
             score_object.id
-        ).add_done_callback(
-            utils.thread_callback
-        )
+        ).add_done_callback(thread_callback)
 
         score.session.commit()
 
@@ -953,9 +961,7 @@ def score_submission(
             score_object.id, score.user,
             new_stats, old_stats,
             new_rank, old_rank
-        ).add_done_callback(
-            utils.thread_callback
-        )
+        ).add_done_callback(thread_callback)
 
     return "\n".join([chart.get() for chart in response])
 
@@ -1081,9 +1087,7 @@ def legacy_score_submission(
             upload_replay,
             score,
             score_object.id
-        ).add_done_callback(
-            utils.thread_callback
-        )
+        ).add_done_callback(thread_callback)
 
         score.session.commit()
 
@@ -1151,8 +1155,6 @@ def legacy_score_submission(
             score_object.id, score.user,
             new_stats, old_stats,
             beatmap_rank, old_rank
-        ).add_done_callback(
-            utils.thread_callback
-        )
+        ).add_done_callback(thread_callback)
 
     return "\n".join(response)
