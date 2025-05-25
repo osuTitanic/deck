@@ -44,7 +44,7 @@ def get_replay(
             raise HTTPException(401)
 
         users.update(player.id, {'latest_activity': datetime.now()}, session)
-        app.session.logger.info(f'{player} requested replay for "{score_id}".')
+        app.session.logger.info(f'{player} -> Requested replay for "{score_id}".')
 
     if not (score := scores.fetch_by_id(score_id, session)):
         app.session.logger.warning(f'Failed to get replay "{score_id}": Not found')

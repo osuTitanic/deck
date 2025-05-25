@@ -40,7 +40,9 @@ def get_beatmap_info(
     if total_maps <= 0 or total_maps > 100:
         return b""
 
-    app.session.logger.info(f'Got {total_maps} beatmap requests from {player.name}')
+    app.session.logger.info(
+        f'<{player.name} ({player.id})> -> Got {total_maps} beatmap requests.'
+    )
 
     filename_beatmaps = session.query(DBBeatmap) \
         .options(selectinload(DBBeatmap.beatmapset)) \

@@ -232,8 +232,8 @@ def pickup_info(
         raise HTTPException(404)
 
     app.session.logger.info(
-        f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
-        f'from "{player}"'
+        f'{player} -> '
+        f'Got osu!direct pickup request for: "{beatmapset.full_name}".'
     )
 
     if not beatmapset.osz_filesize:
