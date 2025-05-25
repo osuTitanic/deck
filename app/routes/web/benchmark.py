@@ -18,7 +18,6 @@ from app.common.database.repositories import (
     users
 )
 
-import utils
 import json
 import app
 
@@ -91,7 +90,7 @@ def benchmark(
         app.session.logger.warning(f'Failed to submit score: Invalid User')
         raise HTTPException(401)
 
-    if not utils.check_password(password, player.bcrypt):
+    if not app.utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to submit score: Invalid Password')
         raise HTTPException(401)
 

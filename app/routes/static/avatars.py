@@ -8,7 +8,7 @@ from fastapi import (
     Query
 )
 
-import utils
+import app.utils as utils
 import app
 
 router = APIRouter()

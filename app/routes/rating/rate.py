@@ -15,7 +15,7 @@ from app.common.database import (
     users
 )
 
-import utils
+import app.utils as utils
 import app
 
 router = APIRouter()

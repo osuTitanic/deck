@@ -8,8 +8,8 @@ from app.common.database import DBBeatmap, DBScore
 from app.common.constants import Grade
 from app.common.database import users
 from app.common.cache import status
+from app import utils
 
-import utils
 import app
 
 router = APIRouter()

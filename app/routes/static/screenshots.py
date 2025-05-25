@@ -9,7 +9,7 @@ from fastapi import (
 )
 
 import hashlib
-import utils
+import app.utils as utils
 import app
 
 router = APIRouter()

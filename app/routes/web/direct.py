@@ -20,7 +20,6 @@ from fastapi import (
     Query
 )
 
-import utils
 import app
 
 router = APIRouter()
@@ -124,7 +123,7 @@ def search(
         if not (player := users.fetch_by_name(username, session=session)):
             return '-1\nFailed to authenticate user'
 
-        if not utils.check_password(password or legacy_password, player.bcrypt):
+        if not app.utils.check_password(password or legacy_password, player.bcrypt):
             return '-1\nFailed to authenticate user'
 
         if not status.exists(player.id):
@@ -201,7 +200,7 @@ def pickup_info(
         if not (player := users.fetch_by_name(username, session=session)):
             raise HTTPException(401)
 
-        if not utils.check_password(password, player.bcrypt):
+        if not app.utils.check_password(password, player.bcrypt):
             raise HTTPException(401)
 
         if not player.is_supporter:

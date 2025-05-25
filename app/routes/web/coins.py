@@ -11,7 +11,6 @@ from fastapi import (
 )
 
 import hashlib
-import utils
 import app
 
 router = APIRouter()
@@ -42,7 +41,7 @@ def osu_coins(
     if not (player := users.fetch_by_name(username, session=session)):
         raise HTTPException(401)
     
-    if not utils.check_password(password, player.bcrypt):
+    if not app.utils.check_password(password, player.bcrypt):
         raise HTTPException(401)
 
     # Set the player's coins to 10, if they don't exist

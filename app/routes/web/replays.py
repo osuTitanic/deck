@@ -18,10 +18,9 @@ from fastapi import (
     Query
 )
 
-router = APIRouter()
-
-import utils
 import app
+
+router = APIRouter()
 
 @router.get('/osu-getreplay.php')
 def get_replay(
@@ -38,7 +37,7 @@ def get_replay(
         if not (player := users.fetch_by_name(username, session)):
             raise HTTPException(401)
 
-        if not utils.check_password(password, player.bcrypt):
+        if not app.utils.check_password(password, player.bcrypt):
             raise HTTPException(401)
 
         if not status.exists(player.id):

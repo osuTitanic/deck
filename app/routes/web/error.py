@@ -14,7 +14,6 @@ from fastapi import (
 
 router = APIRouter()
 
-import utils
 import json
 import app
 
@@ -63,7 +62,7 @@ def osu_error(
     if not (user := users.fetch_by_id(user_id, session=session)):
         return Response(status_code=200)
 
-    if not utils.check_password(config.get('Password', ''), user.bcrypt):
+    if not app.utils.check_password(config.get('Password', ''), user.bcrypt):
         return Response(status_code=200)
 
     if user.restricted or not user.activated:

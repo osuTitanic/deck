@@ -5,8 +5,8 @@ from datetime import datetime
 
 from app.common.database.repositories import users
 from app.common.helpers import ip
+from app import utils
 
-import utils
 import app
 
 router = APIRouter()

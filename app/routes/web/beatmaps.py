@@ -44,8 +44,6 @@ import zipfile
 import hashlib
 import base64
 import config
-import utils
-import zlib
 import time
 import app
 import io
@@ -109,7 +107,7 @@ def authenticate_user(
         app.session.logger.warning(f'Failed to authenticate user: User not found')
         return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
-    if not utils.check_password(password, player.bcrypt):
+    if not app.utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to authenticate user: Invalid password')
         return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
@@ -676,7 +674,7 @@ def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
         app.session.logger.debug(f'Background file not found. Skipping...')
         return
 
-    thumbnail = utils.resize_and_crop_image(
+    thumbnail = app.utils.resize_and_crop_image(
         files[target_background],
         target_width=160,
         target_height=120
@@ -711,7 +709,7 @@ def update_beatmap_audio(set_id: int, files: dict, beatmaps: dict) -> None:
         app.session.logger.debug(f'Audio file not found. Skipping...')
         return
 
-    audio_snippet = utils.extract_audio_snippet(
+    audio_snippet = app.utils.extract_audio_snippet(
         files[audio_file],
         offset_ms=audio_offset
     )

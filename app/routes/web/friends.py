@@ -2,8 +2,8 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from app.common.database import users, relationships
 from sqlalchemy.orm import Session
+from app import utils
 
-import utils
 import app
 
 router = APIRouter()

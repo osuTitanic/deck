@@ -24,6 +24,7 @@ from app.common.cache import leaderboards, status
 from app.common.helpers import performance
 from app.common.constants import regexes
 from app.common import officer
+from app import utils
 
 from app.common.database.repositories import (
     notifications,
@@ -39,7 +40,6 @@ from app.common.database.repositories import (
 import hashlib
 import base64
 import config
-import utils
 import lzma
 import app
 
