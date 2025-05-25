@@ -185,7 +185,7 @@ def get_scores(
         return "1|false" # Update Available
 
     if not ranking_type:
-        ranking_type = RankingType.To
+        ranking_type = RankingType.Top
 
     submission_status = SubmissionStatus.from_database(
         beatmap.status,
