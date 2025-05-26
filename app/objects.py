@@ -122,6 +122,10 @@ class Score:
         return self.is_performance_pb or self.is_score_pb
 
     @property
+    def relaxing(self) -> bool:
+        return (Mods.Relax in self.enabled_mods) or (Mods.Autopilot in self.enabled_mods)
+
+    @property
     def elapsed_time(self) -> int:
         """Total time elapsed for this score, in seconds"""
         if self.passed:
@@ -187,10 +191,6 @@ class Score:
             )
 
         return 0.0
-
-    @property
-    def relaxing(self) -> bool:
-        return (Mods.Relax in self.enabled_mods) or (Mods.Autopilot in self.enabled_mods)
 
     def has_mods(self, mods: Mods) -> bool:
         """Check if score has a combination of mods enabled"""

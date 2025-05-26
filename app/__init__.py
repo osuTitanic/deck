@@ -7,6 +7,7 @@ from . import highlights
 from . import session
 from . import routes
 from . import server
+from . import utils
 
 import logging
 import uvicorn

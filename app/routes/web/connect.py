@@ -6,7 +6,6 @@ from fastapi import APIRouter, Request, Query
 from datetime import datetime
 
 import config
-import utils
 import app
 
 router = APIRouter()
@@ -32,7 +31,7 @@ def connect(
     if not (player := users.fetch_by_name(username)):
         return ""
 
-    if not utils.check_password(password, player.bcrypt):
+    if not app.utils.check_password(password, player.bcrypt):
         return ""
 
     users.update(

@@ -1,22 +1,22 @@
-FROM python:3.11-bullseye
+FROM python:3.12-slim-bookworm
 
 # Installing/Updating system dependencies
-RUN apt update -y
-RUN apt install postgresql git curl ffmpeg libavcodec-extra -y
+RUN apt update -y && \
+    apt install -y --no-install-recommends \
+    postgresql-client git curl ffmpeg libavcodec-extra \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install rust toolchain
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Update pip
-RUN pip install --upgrade pip
-
+# Switch to project directory
 WORKDIR /deck
 
 # Install python dependencies
-RUN pip install gunicorn
+RUN pip install --no-cache-dir gunicorn
 COPY requirements.txt ./
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY . .
@@ -31,6 +31,6 @@ CMD gunicorn \
         -b 0.0.0.0:80 \
         -w $WEB_WORKERS \
         -k uvicorn.workers.UvicornWorker \
-        --max-requests 50000 \
-        --max-requests-jitter 10000 \
+        --max-requests 10000 \
+        --max-requests-jitter 5000 \
         app:api

@@ -20,7 +20,6 @@ from fastapi import (
     Query
 )
 
-import utils
 import app
 
 router = APIRouter()
@@ -68,6 +67,42 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
         str(post_id or 0),
     ])
 
+def update_osz_filesize(set_id: int, has_video: bool = False) -> None:
+    updates = {}
+
+    if has_video:
+        updates['osz_filesize_novideo'] = get_osz_size(
+            set_id,
+            no_video=True
+        )
+
+    updates['osz_filesize'] = get_osz_size(
+        set_id,
+        no_video=False
+    )
+
+    beatmapsets.update(set_id, updates)
+
+def get_osz_size(set_id: int, no_video: bool = False) -> int:
+    r = app.session.requests.head(
+        f'https://osu.direct/api/d/{set_id}'
+        f'{"noVideo=" if no_video else ""}'
+    )
+
+    if not r.ok:
+        app.session.logger.error(
+            f"Failed to get osz size: {r.status_code}"
+        )
+        return 0
+
+    if not (filesize := r.headers.get('content-length')):
+        app.session.logger.error(
+            "Failed to get osz size: content-length header missing"
+        )
+        return 0
+
+    return int(filesize)
+
 @router.get('/osu-search.php')
 def search(
     session: Session = Depends(app.session.database.yield_session),
@@ -88,7 +123,7 @@ def search(
         if not (player := users.fetch_by_name(username, session=session)):
             return '-1\nFailed to authenticate user'
 
-        if not utils.check_password(password or legacy_password, player.bcrypt):
+        if not app.utils.check_password(password or legacy_password, player.bcrypt):
             return '-1\nFailed to authenticate user'
 
         if not status.exists(player.id):
@@ -165,7 +200,7 @@ def pickup_info(
         if not (player := users.fetch_by_name(username, session=session)):
             raise HTTPException(401)
 
-        if not utils.check_password(password, player.bcrypt):
+        if not app.utils.check_password(password, player.bcrypt):
             raise HTTPException(401)
 
         if not player.is_supporter:
@@ -197,12 +232,12 @@ def pickup_info(
         raise HTTPException(404)
 
     app.session.logger.info(
-        f'Got osu!direct pickup request for: "{beatmapset.full_name}" '
-        f'from "{player}"'
+        f'{player} -> '
+        f'Got osu!direct pickup request for: "{beatmapset.full_name}".'
     )
 
     if not beatmapset.osz_filesize:
-        utils.update_osz_filesize(
+        update_osz_filesize(
             beatmapset.id,
             beatmapset.has_video
         )

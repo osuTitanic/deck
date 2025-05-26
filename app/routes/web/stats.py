@@ -4,8 +4,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 from app.common.database.repositories import users
 from app.common.cache import leaderboards
+from app import utils
 
-import utils
 import hashlib
 import app
 

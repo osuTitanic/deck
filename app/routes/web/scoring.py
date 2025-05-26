@@ -11,6 +11,7 @@ from fastapi import (
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
+from concurrent.futures import Future
 from copy import copy
 
 from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
@@ -23,6 +24,7 @@ from app.common.cache import leaderboards, status
 from app.common.helpers import performance
 from app.common.constants import regexes
 from app.common import officer
+from app import utils
 
 from app.common.database.repositories import (
     notifications,
@@ -38,7 +40,6 @@ from app.common.database.repositories import (
 import hashlib
 import base64
 import config
-import utils
 import lzma
 import app
 
@@ -75,9 +76,10 @@ async def parse_score_data(request: Request) -> Score:
     form = await request.form()
 
     if score_data := query.get('score'):
-        # Legacy score was submitted
+        # Legacy score was submitted via. query argument
         return await parse_legacy_score_data(
-            score_data, query, form, ip
+            score_data, query,
+            form, ip
         )
 
     # NOTE: The form data can contain two "score" sections, where one
@@ -87,6 +89,7 @@ async def parse_score_data(request: Request) -> Score:
         officer.call(f'Got score submission without score data! ({ip})')
         raise HTTPException(400)
 
+    decryption_key = config.SCORE_SUBMISSION_KEY
     score_data = score_form[0]
     fun_spoiler = form.get('fs')
     client_hash = form.get('s')
@@ -109,8 +112,6 @@ async def parse_score_data(request: Request) -> Score:
 
         replay = await replay.read()
 
-    decryption_key = config.SCORE_SUBMISSION_KEY
-
     if osu_version := form.get('osuver'):
         # New score submission endpoint uses a different encryption key
         decryption_key = f"osu!-scoreburgr---------{osu_version}"
@@ -123,10 +124,10 @@ async def parse_score_data(request: Request) -> Score:
             fun_spoiler = decrypt_string(fun_spoiler, iv, decryption_key)
             score_data = decrypt_string(score_data, iv, decryption_key)
             processes = decrypt_string(processes, iv, decryption_key)
-        except (UnicodeDecodeError, TypeError) as e:
+        except Exception as e:
             # Most likely an invalid score encryption key
             officer.call(
-                f'Could not decrypt score data: {e} ({ip})',
+                f'Failed to decrypt score data: {e} ({ip})',
                 exc_info=e
             )
             raise HTTPException(400)
@@ -307,7 +308,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
                 f'"{score.username}" submitted duplicate replay from themselves '
                 f'({duplicate_score.replay_md5}).'
             )
-
             return 'error: no'
 
     if score.check_invalid_mods():
@@ -465,6 +465,8 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     )
 
     old_stats = copy(user_stats)
+    old_rank, old_pp = resolve_preferred_ranking(player, score.mode.value)
+    new_rank, new_pp = old_rank, old_pp
 
     user_stats.playcount += 1
     user_stats.playtime += score.elapsed_time
@@ -538,10 +540,11 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             user_stats.mode
         )
 
-        histories.update_rank(
-            user_stats,
-            player.country
-        )
+        if not config.FROZEN_RANK_UPDATES:
+            histories.update_rank(
+                user_stats,
+                player.country
+            )
 
         score.session.commit()
 
@@ -562,6 +565,11 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             session=score.session
         )
 
+        new_rank, new_pp = resolve_preferred_ranking(
+            player,
+            score.mode.value
+        )
+
     # Update preferred mode
     if player.preferred_mode != score.mode.value:
         recent_scores = scores.fetch_recent_all(
@@ -577,13 +585,21 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
                 score.session
             )
 
-    return user_stats, old_stats
+    return (
+        user_stats,
+        old_stats,
+        {
+            "old_rank": old_rank,
+            "old_pp": old_pp,
+            "new_rank": new_rank,
+            "new_pp": new_pp
+        }
+    )
 
 def unlock_achievements(
     score: Score,
     score_object: DBScore,
-    player: DBUser,
-    request: Request
+    player: DBUser
 ) -> List[str]:
     app.session.logger.debug('Checking achievements...')
 
@@ -627,15 +643,48 @@ def unlock_achievements(
 
     return achievement_response
 
+def resolve_preferred_ranking(user: DBUser, mode: int) -> Tuple[int, int]:
+    """Receive the preferred ranking type from cache (ppv2/ppv1/tscore/...)"""
+    ranking_mapping = {
+        'global': leaderboards.global_rank,
+        'rscore': leaderboards.score_rank,
+        'tscore': leaderboards.total_score_rank,
+        'clears': leaderboards.clears_rank,
+        'ppv1': leaderboards.ppv1_rank
+    }
+
+    preferred_rank_function = ranking_mapping.get(
+        user.preferred_ranking,
+        leaderboards.global_rank
+    )
+
+    preferred_rank = preferred_rank_function(
+        user.id,
+        mode
+    )
+
+    if user.preferred_ranking != 'ppv1':
+        return (
+            preferred_rank,
+            leaderboards.performance(user.id, mode)
+        )
+
+    return (
+        preferred_rank,
+        leaderboards.ppv1(user.id, mode)
+    )
+
 def response_charts(
     score: Score,
     score_id: int,
+    ranking: dict,
     old_stats: DBStats,
     new_stats: DBStats,
     old_rank: int,
     new_rank: int,
     achievement_response: List[str]
 ) -> List[Chart]:
+    """Generates the required charts for a score submission response"""
     beatmap_info = Chart()
     beatmap_info['beatmapId'] = score.beatmap.id
     beatmap_info['beatmapSetId'] = score.beatmap.set_id
@@ -653,12 +702,12 @@ def response_charts(
     overall_chart['achievements'] = ' '.join(achievement_response)
     overall_chart['achievements-new'] = '' # TODO
 
-    overall_chart.entry('rank', old_stats.rank, new_stats.rank)
+    overall_chart.entry('rank', ranking["old_rank"], ranking["new_rank"])
     overall_chart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
     overall_chart.entry('totalScore', old_stats.tscore, new_stats.tscore)
     overall_chart.entry('playCount', old_stats.playcount, new_stats.playcount)
     overall_chart.entry('maxCombo', old_stats.max_combo, new_stats.max_combo)
-    overall_chart.entry('pp', round(old_stats.pp), round(new_stats.pp))
+    overall_chart.entry('pp', round(ranking["old_pp"]), round(ranking["new_pp"]))
     overall_chart.entry(
         'accuracy',
         round(old_stats.acc, 4) * (100 if not score.is_legacy else 1),
@@ -713,6 +762,15 @@ def response_charts(
 
     return [beatmap_info, beatmap_ranking, overall_chart]
 
+def thread_callback(future: Future) -> None:
+    if not (e := future.exception()):
+        return
+
+    officer.call(
+        f'Failed to execute score submission task.',
+        exc_info=e
+    )
+
 @router.post("/osu-submit-modular-selector.php")
 @router.post('/osu-submit-modular.php')
 def score_submission(
@@ -761,8 +819,9 @@ def score_submission(
         return 'error: beatmap'
 
     if not status.exists(player.id):
+        # Bancho may be down most likely
         # Let the client resend the request
-        return ''
+        raise HTTPException(503)
 
     if score.user.stats:
         score.user.stats.sort(
@@ -818,63 +877,56 @@ def score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                    score.personal_best_pp.id,
-                    score.beatmap.id,
-                    mode=score.mode.value,
-                    session=score.session
-                ) \
-                if score.personal_best_score else 0
+                score.personal_best_pp.id,
+                score.beatmap.id,
+                mode=score.mode.value,
+                session=score.session
+            ) \
+            if score.personal_best_score else 0
 
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = score.client_hash
 
         if not config.ALLOW_RELAX and score.relaxing:
-            score_object.status_pp = -1
+            score_object.hidden = True
 
         score.session.add(score_object)
         score.session.flush()
 
         # Try to upload replay
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             upload_replay,
             score,
             score_object.id
-        ).add_done_callback(
-            utils.thread_callback
-        )
+        ).add_done_callback(thread_callback)
 
         score.session.commit()
 
-    new_stats, old_stats = update_stats(score, player)
+    new_stats, old_stats, ranking = update_stats(score, player)
+
+    # Reload stats on bancho
+    app.session.events.submit(
+        'user_update',
+        user_id=player.id,
+        mode=score.mode.value
+    )
 
     if not score.beatmap.is_ranked:
         score.session.close()
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
         return 'error: beatmap'
 
     if not config.ALLOW_RELAX and score.relaxing:
         score.session.close()
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
         return 'error: no'
 
     achievement_response: List[str] = []
 
-    # TODO: Enable achievements for relax?
     if score.passed and not score.relaxing:
         achievement_response = unlock_achievements(
             score,
             score_object,
-            player,
-            request
+            player
         )
 
     new_rank = scores.fetch_score_index_by_tscore(
@@ -887,6 +939,7 @@ def score_submission(
     response = response_charts(
         score,
         score_object.id,
+        ranking,
         old_stats,
         new_stats,
         old_rank,
@@ -902,21 +955,12 @@ def score_submission(
 
     # Send highlights on #announce
     if score.has_pb:
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             app.highlights.check,
             score_object.id, score.user,
             new_stats, old_stats,
             new_rank, old_rank
-        ).add_done_callback(
-            utils.thread_callback
-        )
-
-    # Reload stats on bancho
-    app.session.events.submit(
-        'user_update',
-        user_id=player.id,
-        mode=score.mode.value
-    )
+        ).add_done_callback(thread_callback)
 
     return "\n".join([chart.get() for chart in response])
 
@@ -958,7 +1002,9 @@ def legacy_score_submission(
         raise HTTPException(404)
 
     if not status.exists(player.id):
-        return ''
+        # Bancho may be down most likely
+        # Let the client resend the request
+        raise HTTPException(503)
 
     if score.user.stats:
         score.user.stats.sort(
@@ -980,7 +1026,7 @@ def legacy_score_submission(
     score.ppv1 = score.calculate_ppv1()
 
     if (error := perform_score_validation(score, player)) != None:
-        raise HTTPException(400, detail=error.body.decode())
+        raise HTTPException(400, detail=error)
 
     if score.relaxing:
         # Recalculate rx total score
@@ -1018,84 +1064,33 @@ def legacy_score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                    score.personal_best_pp.id,
-                    score.beatmap.id,
-                    mode=score.mode.value,
-                    session=score.session
-                ) \
-                if score.personal_best_score else 0
+                score.personal_best_pp.id,
+                score.beatmap.id,
+                mode=score.mode.value,
+                session=score.session
+            ) \
+            if score.personal_best_score else 0
 
         # Submit to database
         score_object = score.to_database()
         score_object.client_hash = ''
 
         if not config.ALLOW_RELAX and score.relaxing:
-            score_object.status_pp = -1
+            score_object.hidden = True
 
         score.session.add(score_object)
         score.session.flush()
 
         # Try to upload replay
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             upload_replay,
             score,
             score_object.id
-        ).add_done_callback(
-            utils.thread_callback
-        )
+        ).add_done_callback(thread_callback)
 
         score.session.commit()
 
-    new_stats, old_stats = update_stats(score, player)
-
-    if not score.beatmap.is_ranked:
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
-        score.session.close()
-        return
-
-    if not config.ALLOW_RELAX and score.relaxing:
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
-        score.session.close()
-        return
-
-    app.session.logger.info(
-        f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
-    )
-
-    if not score.passed:
-        app.session.events.submit(
-            'user_update',
-            user_id=player.id,
-            mode=score.mode.value
-        )
-        score.session.close()
-        return
-
-    achievement_response: List[str] = []
-    response: List[Chart] = []
-
-    if not score.relaxing:
-        achievement_response = unlock_achievements(
-            score,
-            score_object,
-            player,
-            request
-        )
-
-    beatmap_rank = scores.fetch_score_index_by_id(
-        score_object.id,
-        score.beatmap.id,
-        mode=score.mode.value,
-        session=score.session
-    )
+    new_stats, old_stats, ranking = update_stats(score, player)
 
     # Reload stats on bancho
     app.session.events.submit(
@@ -1104,7 +1099,41 @@ def legacy_score_submission(
         mode=score.mode.value
     )
 
-    if score.is_performance_pb:
+    if not score.beatmap.is_ranked:
+        score.session.close()
+        return ""
+
+    if not config.ALLOW_RELAX and score.relaxing:
+        score.session.close()
+        return ""
+
+    app.session.logger.info(
+        f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+    )
+
+    if not score.passed:
+        score.session.close()
+        return ""
+
+    achievement_response: List[str] = []
+    response: List[Chart] = []
+
+    if not score.relaxing:
+        achievement_response = unlock_achievements(
+            score,
+            score_object,
+            player
+        )
+
+    beatmap_rank = scores.fetch_score_index_by_id(
+        score_object.id,
+        score.beatmap.id,
+        mode=score.mode.value,
+        session=score.session
+    )
+    score.session.close()
+
+    if score.is_score_pb:
         response.append(str(beatmap_rank))
     else:
         response.append('0')
@@ -1113,21 +1142,18 @@ def legacy_score_submission(
         player.id,
         score.mode.value
     )
-
     response.append(str(round(difference)))
-    response.append(" ".join(achievement_response))
 
-    score.session.close()
+    if achievement_response:
+        response.append(" ".join(achievement_response))
 
     # Send highlights on #announce
     if score.has_pb:
-        app.session.executor.submit(
+        app.session.score_executor.submit(
             app.highlights.check,
             score_object.id, score.user,
             new_stats, old_stats,
             beatmap_rank, old_rank
-        ).add_done_callback(
-            utils.thread_callback
-        )
+        ).add_done_callback(thread_callback)
 
     return "\n".join(response)

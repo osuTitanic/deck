@@ -15,7 +15,7 @@ from app.common.database import (
     users
 )
 
-import utils
+import app.utils as utils
 import app
 
 router = APIRouter()
@@ -71,7 +71,7 @@ def ingame_rate(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
     )
 
-    return str(ratings.fetch_average(beatmap.md5, session))
+    return f'{ratings.fetch_average(beatmap.md5, session):.2f}'
 
 @router.get('/ingame-rate2.php')
 def ingame_rate_with_rating(
@@ -106,7 +106,7 @@ def ingame_rate_with_rating(
     if previous_rating:
         return '\n'.join([
             'alreadyvoted',
-            str(ratings.fetch_average(beatmap.md5, session))
+            f'{ratings.fetch_average(beatmap.md5, session):.2f}'
         ])
 
     if rating is None:
@@ -127,4 +127,4 @@ def ingame_rate_with_rating(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
     )
 
-    return str(ratings.fetch_average(beatmap.md5, session))
+    return f'{ratings.fetch_average(beatmap.md5, session):.2f}'

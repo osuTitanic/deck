@@ -44,8 +44,6 @@ import zipfile
 import hashlib
 import base64
 import config
-import utils
-import zlib
 import time
 import app
 import io
@@ -109,7 +107,7 @@ def authenticate_user(
         app.session.logger.warning(f'Failed to authenticate user: User not found')
         return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
-    if not utils.check_password(password, player.bcrypt):
+    if not app.utils.check_password(password, player.bcrypt):
         app.session.logger.warning(f'Failed to authenticate user: Invalid password')
         return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
 
@@ -376,6 +374,9 @@ def update_osz2_hashes(set_id: int, osz2_file: bytes, session: Session) -> None:
         session=session
     )
 
+def empty_zip_file() -> bytes:
+    return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+
 def update_beatmap_package(
     set_id: int,
     files: Dict[str, bytes],
@@ -627,6 +628,7 @@ def update_beatmap_metadata(
                 'status': status,
                 'filename': filename,
                 'last_update': datetime.now(),
+                'drain_length': 0, # TODO
                 'total_length': round(beatmap['length'] / 1000),
                 'md5': hashlib.md5(files[filename]).hexdigest(),
                 'version': beatmap['difficultyName'] or 'Normal',
@@ -636,6 +638,9 @@ def update_beatmap_metadata(
                 'cs': beatmap['difficulty']['circleSize'],
                 'od': beatmap['difficulty']['overallDifficulty'],
                 'ar': beatmap['difficulty']['approachRate'],
+                'count_normal': difficulty_attributes.n_circles or 0,
+                'count_slider': difficulty_attributes.n_sliders or 0,
+                'count_spinner': difficulty_attributes.n_spinners or 0,
                 'max_combo': difficulty_attributes.max_combo,
                 'diff': difficulty_attributes.stars
             },
@@ -669,7 +674,7 @@ def update_beatmap_thumbnail(set_id: int, files: dict, beatmaps: dict) -> None:
         app.session.logger.debug(f'Background file not found. Skipping...')
         return
 
-    thumbnail = utils.resize_and_crop_image(
+    thumbnail = app.utils.resize_and_crop_image(
         files[target_background],
         target_width=160,
         target_height=120
@@ -704,7 +709,7 @@ def update_beatmap_audio(set_id: int, files: dict, beatmaps: dict) -> None:
         app.session.logger.debug(f'Audio file not found. Skipping...')
         return
 
-    audio_snippet = utils.extract_audio_snippet(
+    audio_snippet = app.utils.extract_audio_snippet(
         files[audio_file],
         offset_ms=audio_offset
     )
@@ -1444,7 +1449,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         return error_response(1, legacy=True)
 
     previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
-    previous_osz = previous_osz or utils.empty_zip_file()
+    previous_osz = previous_osz or empty_zip_file()
 
     # Read all files of previous osz
     with ZipFile(io.BytesIO(previous_osz)) as zip_file:

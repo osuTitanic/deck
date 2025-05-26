@@ -8,7 +8,7 @@ from fastapi import (
     Query
 )
 
-import utils
+import app.utils as utils
 import app
 
 router = APIRouter()
@@ -28,7 +28,11 @@ def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
     )
 
     if (image := app.session.redis.get(f'avatar:{user_id}:{size}')):
-        return Response(image, media_type='image/png')
+        return Response(
+            image,
+            media_type='image/png',
+            headers={'Cache-Control': 'stale-while-revalidate, max-age=10'}
+        )
 
     if not (image := app.session.storage.get_avatar(user_id)):
         return default_avatar()
@@ -43,7 +47,11 @@ def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
         image = utils.resize_image(image, size)
         app.session.redis.set(f'avatar:{user_id}:{size}', image, ex=3600)
 
-    return Response(image, media_type='image/png')
+    return Response(
+        image,
+        media_type='image/png',
+        headers={'Cache-Control': 'stale-while-revalidate, max-age=10'}
+    )
 
 @router.get('/forum/download.php')
 def legacy_avatar(request: Request):

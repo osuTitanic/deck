@@ -17,7 +17,6 @@ from app.common.database import (
 
 router = APIRouter()
 
-import utils
 import app
 
 @router.get('/osu-rate.php')
@@ -31,7 +30,7 @@ def rate(
     if not (player := users.fetch_by_name(username, session)):
         return 'auth fail'
 
-    if not utils.check_password(password, player.bcrypt):
+    if not app.utils.check_password(password, player.bcrypt):
         return 'auth fail'
 
     if not status.exists(player.id):
@@ -53,7 +52,7 @@ def rate(
     if previous_rating:
         return '\n'.join([
             'alreadyvoted',
-            str(ratings.fetch_average(beatmap.md5, session))
+            f'{ratings.fetch_average(beatmap.md5, session):.2f}'
         ])
 
     if rating is None:
@@ -76,5 +75,5 @@ def rate(
 
     return '\n'.join([
         'ok',
-        str(ratings.fetch_average(beatmap.md5, session))
+        f'{ratings.fetch_average(beatmap.md5, session):.2f}'
     ])

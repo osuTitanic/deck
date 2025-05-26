@@ -823,12 +823,6 @@ def rhythm_game_4(score: DBScore) -> bool:
         ]
     )
 
-def get_by_name(name: str):
-    for achievement in achievements:
-        if achievement.name == name:
-            return achievement
-    return None
-
 def check(score: DBScore, session: Session, ignore_list: List[Achievement] = []) -> List[Achievement]:
     app.session.logger.debug('Checking for new achievements...')
 
@@ -859,7 +853,9 @@ def check(score: DBScore, session: Session, ignore_list: List[Achievement] = [])
 
             new_achievements.append(achievement)
 
-            app.session.logger.info(f'Player {score.user} unlocked achievement: {achievement.name}')
+            app.session.logger.info(
+                f'Player {score.user} unlocked achievement: {achievement.name}'
+            )
             app.highlights.submit(
                 score.user_id,
                 score.mode,

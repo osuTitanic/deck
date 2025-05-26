@@ -11,7 +11,6 @@ from fastapi import (
     Query
 )
 
-import utils
 import app
 
 router = APIRouter()
@@ -45,7 +44,7 @@ def screenshot(
     if not (player := users.fetch_by_name(username, session)):
         raise HTTPException(401)
 
-    if not utils.check_password(password, player.bcrypt):
+    if not app.utils.check_password(password, player.bcrypt):
         raise HTTPException(401)
 
     if not status.exists(player.id):
@@ -60,8 +59,8 @@ def screenshot(
             )
         
         is_valid_image = (
-            utils.has_jpeg_headers(screenshot_view) or
-            utils.has_png_headers(screenshot_view)
+            app.utils.has_jpeg_headers(screenshot_view) or
+            app.utils.has_png_headers(screenshot_view)
         )
 
         if not is_valid_image:

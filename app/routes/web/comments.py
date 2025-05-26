@@ -10,10 +10,10 @@ from fastapi import (
     Form
 )
 
-from app.common.cache import status
 from app.common.constants import CommentTarget, Permissions
 from app.common.database import DBComment
-from app.common.database.repositories import (
+from app.common.cache import status
+from app.common.database import (
     beatmaps,
     comments,
     groups,
@@ -22,7 +22,6 @@ from app.common.database.repositories import (
 
 router = APIRouter()
 
-import utils
 import app
 
 @router.post('/osu-comment.php')
@@ -44,7 +43,7 @@ def get_comments(
         app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
 
-    if not utils.check_password(password, user.bcrypt):
+    if not app.utils.check_password(password, user.bcrypt):
         app.session.logger.warning("Failed to submit comment: Authentication")
         raise HTTPException(401, detail="Auth")
 

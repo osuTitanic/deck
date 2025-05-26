@@ -31,7 +31,6 @@ from app.common.constants import (
 )
 
 import config
-import utils
 import app
 
 router = APIRouter()
@@ -75,7 +74,7 @@ def resolve_player(
     if not user:
         raise HTTPException(401)
 
-    if not utils.check_password(password, user.bcrypt):
+    if not app.utils.check_password(password, user.bcrypt):
         raise HTTPException(401)
 
     return user
@@ -197,12 +196,18 @@ def get_scores(
     #       make this work properly.
     has_osz = False
 
+    # Only send NC if the client supports it
     send_nc: bool = client_supports_nc(status.version(player.id))
 
-    # Fetch score count
+    mods = Mods(mods or 0)
     personal_best = None
-    score_count = 0
     friends = None
+    score_count = 0
+
+    if Mods.Nightcore in mods and Mods.DoubleTime in mods:
+        # Remove DT if NC is present, as titanic's database
+        # does not store both mods together
+        mods &= ~Mods.DoubleTime
 
     if ranking_type == RankingType.Friends:
         friends = relationships.fetch_target_ids(
