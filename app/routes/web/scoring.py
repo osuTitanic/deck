@@ -89,6 +89,7 @@ async def parse_score_data(request: Request) -> Score:
         officer.call(f'Got score submission without score data! ({ip})')
         raise HTTPException(400)
 
+    decryption_key = config.SCORE_SUBMISSION_KEY
     score_data = score_form[0]
     fun_spoiler = form.get('fs')
     client_hash = form.get('s')
@@ -111,8 +112,6 @@ async def parse_score_data(request: Request) -> Score:
 
         replay = await replay.read()
 
-    decryption_key = config.SCORE_SUBMISSION_KEY
-
     if osu_version := form.get('osuver'):
         # New score submission endpoint uses a different encryption key
         decryption_key = f"osu!-scoreburgr---------{osu_version}"
@@ -128,7 +127,7 @@ async def parse_score_data(request: Request) -> Score:
         except Exception as e:
             # Most likely an invalid score encryption key
             officer.call(
-                f'Could not decrypt score data: {e} ({ip})',
+                f'Failed to decrypt score data: {e} ({ip})',
                 exc_info=e
             )
             raise HTTPException(400)
@@ -767,8 +766,8 @@ def thread_callback(future: Future) -> None:
     if not (e := future.exception()):
         return
 
-    app.session.database.logger.error(
-        f'Failed to execute thread: {e}',
+    officer.call(
+        f'Failed to execute score submission task.',
         exc_info=e
     )
 
