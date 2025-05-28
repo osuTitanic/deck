@@ -25,6 +25,10 @@ COPY . .
 ARG WEB_WORKERS=4
 ENV WEB_WORKERS $WEB_WORKERS
 
+# Generate __pycache__ directories
+ENV PYTHONDONTWRITEBYTECODE=1
+RUN python -m compileall -q app
+
 CMD gunicorn \
         --access-logfile - \
         --preload \
