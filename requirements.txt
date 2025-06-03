@@ -8,7 +8,7 @@ psycopg2-binary==2.9.10
 py3rijndael==0.3.3
 python-dotenv==1.1.0
 python-multipart==0.0.20
-redis==6.1.0
+redis==6.2.0
 requests==2.32.3
 sendgrid==6.12.3
 sqlalchemy==2.0.41
