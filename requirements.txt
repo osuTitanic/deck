@@ -10,7 +10,7 @@ python-dotenv==1.1.0
 python-multipart==0.0.20
 redis==6.1.0
 requests==2.32.3
-sendgrid==6.12.2
+sendgrid==6.12.3
 sqlalchemy==2.0.41
 uvicorn==0.34.2
 pydub==0.25.1
