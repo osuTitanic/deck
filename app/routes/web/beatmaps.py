@@ -513,7 +513,8 @@ def resolve_beatmap_id(
 
     # Try to get the beatmap id from the filename
     if beatmap := beatmaps.fetch_by_file(filename, session):
-        beatmap_ids.remove(beatmap.id)
+        if beatmap.id in beatmap_ids:
+            beatmap_ids.remove(beatmap.id)
         return beatmap.id
 
     return beatmap_ids.pop(0)
