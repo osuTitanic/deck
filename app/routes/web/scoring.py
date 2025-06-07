@@ -341,7 +341,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
             f'Please review this case as soon as possible. ({replay_hash})'
         )
 
-    if score.replay and not validate_replay(score.replay):
+    if score.passed and not validate_replay(score.replay):
         officer.call(
             f'"{score.username}" submitted score with invalid replay.'
         )
