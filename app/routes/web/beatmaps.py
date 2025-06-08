@@ -648,6 +648,18 @@ def update_beatmap_metadata(
             session=session
         )
 
+    # Refresh beatmapset object & check for
+    # remaining inactive beatmaps
+    session.refresh(beatmapset)
+
+    for beatmap in beatmapset.beatmaps:
+        if beatmap.status != -3:
+            continue
+
+        # Remove inactive beatmap
+        plays.delete_by_beatmap_id(beatmap.id, session=session)
+        beatmaps.delete_by_id(beatmap.id, session=session)
+
     if is_bubbled(beatmapset, session):
         # Bubble should be popped when the beatmap
         # gets updated. It will re-gain 5 star priority
