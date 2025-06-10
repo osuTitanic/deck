@@ -29,6 +29,9 @@ ENV WEB_WORKERS $WEB_WORKERS
 ENV PYTHONDONTWRITEBYTECODE=1
 RUN python -m compileall -q app
 
+# Disable output buffering
+ENV PYTHONUNBUFFERED=1
+
 CMD gunicorn \
         --access-logfile - \
         --preload \
