@@ -13,7 +13,7 @@ sendgrid==6.12.3
 sqlalchemy==2.0.41
 uvicorn==0.34.3
 pydub==0.25.1
-rosu-pp-py==3.0.0
+rosu-pp-py==3.1.0
 
 # Custom fork of python-multipart to sanitize some weird characters
 git+https://github.com/osuTitanic/python-multipart.git@master
