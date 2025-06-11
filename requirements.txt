@@ -7,7 +7,6 @@ pillow==11.2.1
 psycopg2-binary==2.9.10
 py3rijndael==0.3.3
 python-dotenv==1.1.0
-python-multipart==0.0.20
 redis==6.2.0
 requests==2.32.4
 sendgrid==6.12.3
@@ -15,3 +14,6 @@ sqlalchemy==2.0.41
 uvicorn==0.34.3
 pydub==0.25.1
 rosu-pp-py==3.0.0
+
+# Custom fork of python-multipart to sanitize some weird characters
+git+https://github.com/osuTitanic/python-multipart.git@master
