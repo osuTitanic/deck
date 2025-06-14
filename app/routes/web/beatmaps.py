@@ -513,7 +513,8 @@ def resolve_beatmap_id(
 
     # Try to get the beatmap id from the filename
     if beatmap := beatmaps.fetch_by_file(filename, session):
-        beatmap_ids.remove(beatmap.id)
+        if beatmap.id in beatmap_ids:
+            beatmap_ids.remove(beatmap.id)
         return beatmap.id
 
     return beatmap_ids.pop(0)
@@ -628,8 +629,8 @@ def update_beatmap_metadata(
                 'status': status,
                 'filename': filename,
                 'last_update': datetime.now(),
-                'drain_length': 0, # TODO
-                'total_length': round(beatmap['length'] / 1000),
+                'drain_length': round(beatmap['drainLength'] / 1000),
+                'total_length': round(beatmap['totalLength'] / 1000),
                 'md5': hashlib.md5(files[filename]).hexdigest(),
                 'version': beatmap['difficultyName'] or 'Normal',
                 'mode': beatmap['ruleset']['onlineID'],
@@ -646,6 +647,18 @@ def update_beatmap_metadata(
             },
             session=session
         )
+
+    # Refresh beatmapset object & check for
+    # remaining inactive beatmaps
+    session.refresh(beatmapset)
+
+    for beatmap in beatmapset.beatmaps:
+        if beatmap.status != -3:
+            continue
+
+        # Remove inactive beatmap
+        plays.delete_by_beatmap_id(beatmap.id, session=session)
+        beatmaps.delete_by_id(beatmap.id, session=session)
 
     if is_bubbled(beatmapset, session):
         # Bubble should be popped when the beatmap
@@ -1089,7 +1102,7 @@ def upload_beatmap(
             return error_response(1)
 
         max_beatmap_length = max(
-            beatmap['length'] / 1000
+            beatmap['totalLength'] / 1000
             for beatmap in data['beatmaps'].values()
         )
 
@@ -1463,7 +1476,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         files[filename] = content
 
     max_beatmap_length = max(
-        beatmap['length'] / 1000
+        beatmap['totalLength'] / 1000
         for beatmap in request.beatmaps.values()
     )
 
@@ -1694,7 +1707,7 @@ def upload_osz(
             return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
 
     max_beatmap_length = max(
-        beatmap['length'] / 1000
+        beatmap['totalLength'] / 1000
         for beatmap in upload_request.beatmaps.values()
     )
 
