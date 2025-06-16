@@ -9,7 +9,7 @@ py3rijndael==0.3.3
 python-dotenv==1.1.0
 redis==6.2.0
 requests==2.32.4
-sendgrid==6.12.3
+sendgrid==6.12.4
 sqlalchemy==2.0.41
 uvicorn==0.34.3
 pydub==0.25.1
