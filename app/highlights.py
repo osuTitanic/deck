@@ -1,6 +1,6 @@
 
-from app.common.database.repositories import notifications, activities, scores, wrapper
-from app.common.constants import Mods, NotificationType
+from app.common.database import notifications, activities, scores, wrapper
+from app.common.constants import Mods, NotificationType, UserActivity
 from app.common.cache import leaderboards
 from app.common import officer
 from app.common.database import (
@@ -32,33 +32,22 @@ def on_check_fail(e: Exception) -> None:
 def submit(
     user_id: int,
     mode: int,
-    session: Session,
-    message: str,
-    *args: List[Tuple[str]],
-    submit_to_chat: bool = True,
+    type: UserActivity,
+    data: dict,
+    session: Session
 ) -> None:
-    # TODO: Refactor activities to use json entries
     activities.create(
-        user_id,
-        mode,
-        message,
-        '||'.join([a[0] for a in args]),
-        '||'.join([a[1] for a in args]),
+        user_id, mode,
+        type, data,
         session=session
     )
 
-    if not submit_to_chat:
-        return
-
-    irc_args = [
-        f'[{a[1]} {a[0].replace("(", "[").replace(")", "]")}]'
-        for a in args
-    ]
-
     app.session.events.submit(
-        'bot_message',
-        message=message.format(*irc_args),
-        target='#announce'
+        'bancho_event',
+        user_id=user_id,
+        mode=mode,
+        type=type.value,
+        data=data
     )
 
 def check_rank(
@@ -85,10 +74,14 @@ def check_rank(
         return submit(
             player.id,
             stats.mode,
-            session,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
-            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            submit_to_chat=False
+            UserActivity.RanksGained,
+            {
+                "username": player.name,
+                "ranks_gained": ranks_gained,
+                "rank": stats.rank,
+                "mode": mode_name
+            },
+            session
         )
 
     if previous_stats.rank < 100 <= stats.rank:
@@ -96,10 +89,14 @@ def check_rank(
         return submit(
             player.id,
             stats.mode,
-            session,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
-            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            submit_to_chat=False
+            UserActivity.RanksGained,
+            {
+                "username": player.name,
+                "ranks_gained": ranks_gained,
+                "rank": stats.rank,
+                "mode": mode_name
+            },
+            session
         )
 
     if stats.rank >= 10 and stats.rank != 1:
@@ -107,9 +104,14 @@ def check_rank(
         submit(
             player.id,
             stats.mode,
-            session,
-            '{} ' + f"has risen {ranks_gained} {'ranks' if ranks_gained != 1 else 'rank'}, now placed #{stats.rank} overall in {mode_name}.",
-            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
+            UserActivity.RanksGained,
+            {
+                "username": player.name,
+                "ranks_gained": ranks_gained,
+                "rank": stats.rank,
+                "mode": mode_name
+            },
+            session
         )
 
     if stats.rank == 1:
@@ -117,9 +119,12 @@ def check_rank(
         submit(
             player.id,
             stats.mode,
-            session,
-            '{} ' + f'has taken the lead as the top-ranked {mode_name} player.',
-            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}')
+            UserActivity.NumberOne,
+            {
+                "username": player.name,
+                "mode": mode_name
+            },
+            session
         )
 
         notifications.create(
@@ -151,11 +156,16 @@ def check_beatmap(
         submit(
             player.id,
             score.mode,
-            session,
-            '{} ' + f'achieved rank #{beatmap_rank} on' + ' {} ' + f'{f"with {mods} " if mods else ""}<{mode_name}> ({round(score.pp)}pp)',
-            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'),
-            submit_to_chat=(beatmap_rank <= 5)
+            UserActivity.BeatmapLeaderboardRank,
+            {
+                "username": player.name,
+                "beatmap": score.beatmap.full_name,
+                "beatmap_id": score.beatmap.id,
+                "beatmap_rank": beatmap_rank,
+                "mode": mode_name,
+                "mods": mods
+            },
+            session
         )
 
     if beatmap_rank != 1:
@@ -186,11 +196,15 @@ def check_beatmap(
         submit(
             second_place.user_id,
             score.mode,
-            session,
-            '{} ' + 'has lost first place on' + ' {} ' + f'<{mode_name}>',
-            (second_place.user.name, f'http://osu.{config.DOMAIN_NAME}/u/{second_place.user_id}'),
-            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
-            submit_to_chat=False
+            UserActivity.LostFirstPlace,
+            {
+                "username": second_place.user.name,
+                "beatmap": score.beatmap.full_name,
+                "beatmap_id": score.beatmap.id,
+                "mode": mode_name,
+                "mods": mods
+            },
+            session
         )
 
         second_place.user.stats.sort(
@@ -225,10 +239,15 @@ def check_pp(
         submit(
             player.id,
             score.mode,
-            session,
-            '{} ' + 'has set the new pp record on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
-            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}')
+            UserActivity.PPRecord,
+            {
+                "username": player.name,
+                "beatmap": score.beatmap.full_name,
+                "beatmap_id": score.beatmap.id,
+                "pp": round(score.pp, 2),
+                "mode": mode_name
+            },
+            session
         )
         return
 
@@ -256,11 +275,15 @@ def check_pp(
         submit(
             player.id,
             score.mode,
-            session,
-            '{} ' + 'got a new top play on' + ' {} ' + f'with {round(score.pp)}pp <{mode_name}>',
-            (player.name, f'http://osu.{config.DOMAIN_NAME}/u/{player.id}'),
-            (score.beatmap.full_name, f'http://osu.{config.DOMAIN_NAME}/b/{score.beatmap_id}'),
-            submit_to_chat=False
+            UserActivity.TopPlay,
+            {
+                "username": player.name,
+                "beatmap": score.beatmap.full_name,
+                "beatmap_id": score.beatmap.id,
+                "pp": round(score.pp, 2),
+                "mode": mode_name
+            },
+            session
         )
 
 @wrapper.exception_wrapper(on_check_fail)
