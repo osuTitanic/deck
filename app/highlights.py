@@ -163,7 +163,8 @@ def check_beatmap(
                 "beatmap_id": score.beatmap.id,
                 "beatmap_rank": beatmap_rank,
                 "mode": mode_name,
-                "mods": mods
+                "mods": mods,
+                "pp": round(score.pp or 0)
             },
             session
         )
@@ -201,8 +202,7 @@ def check_beatmap(
                 "username": second_place.user.name,
                 "beatmap": score.beatmap.full_name,
                 "beatmap_id": score.beatmap.id,
-                "mode": mode_name,
-                "mods": mods
+                "mode": mode_name
             },
             session
         )
@@ -244,7 +244,7 @@ def check_pp(
                 "username": player.name,
                 "beatmap": score.beatmap.full_name,
                 "beatmap_id": score.beatmap.id,
-                "pp": round(score.pp, 2),
+                "pp": round(score.pp or 0),
                 "mode": mode_name
             },
             session
@@ -280,7 +280,7 @@ def check_pp(
                 "username": player.name,
                 "beatmap": score.beatmap.full_name,
                 "beatmap_id": score.beatmap.id,
-                "pp": round(score.pp, 2),
+                "pp": round(score.pp),
                 "mode": mode_name
             },
             session
