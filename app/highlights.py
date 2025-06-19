@@ -34,13 +34,17 @@ def submit(
     mode: int,
     type: UserActivity,
     data: dict,
-    session: Session
+    session: Session,
+    submit_to_chat: bool = False
 ) -> None:
     activities.create(
         user_id, mode,
         type, data,
         session=session
     )
+    
+    if not submit_to_chat:
+        return
 
     app.session.events.submit(
         'bancho_event',
@@ -96,7 +100,8 @@ def check_rank(
                 "rank": stats.rank,
                 "mode": mode_name
             },
-            session
+            session,
+            submit_to_chat=True
         )
 
     if stats.rank >= 10 and stats.rank != 1:
@@ -111,7 +116,8 @@ def check_rank(
                 "rank": stats.rank,
                 "mode": mode_name
             },
-            session
+            session,
+            submit_to_chat=True
         )
 
     if stats.rank == 1:
@@ -124,7 +130,8 @@ def check_rank(
                 "username": player.name,
                 "mode": mode_name
             },
-            session
+            session,
+            submit_to_chat=True
         )
 
         notifications.create(
@@ -166,7 +173,8 @@ def check_beatmap(
                 "mods": mods,
                 "pp": round(score.pp or 0)
             },
-            session
+            session,
+            submit_to_chat=(beatmap_rank <= 4)
         )
 
     if beatmap_rank != 1:
@@ -247,7 +255,8 @@ def check_pp(
                 "pp": round(score.pp or 0),
                 "mode": mode_name
             },
-            session
+            session,
+            submit_to_chat=True
         )
         return
 
