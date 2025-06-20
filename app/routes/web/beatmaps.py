@@ -1554,6 +1554,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     )
 
 @router.post('/osu-bmsubmit-getid5.php')
+@router.post('/osu-bmsubmit-getid4.php')
 def update_beatmap_files_endpoint(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
@@ -1636,11 +1637,11 @@ def update_beatmap_files_endpoint(
 def upload_osz(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
-    set_id: int = Query(..., alias='s'),
     ticket: str = Query(..., alias='c'),
     osz_filename: str = Query(..., alias='of'),
     osz_ticket: str = Query(..., alias='oc'),
     file: UploadFile = File(..., alias='osu'),
+    set_id: int | None = Query(None, alias='s'),
     is_first: bool = Depends(integer_boolean('r')),
     session: Session = Depends(app.session.database.yield_session)
 ) -> Response:
@@ -1658,7 +1659,10 @@ def upload_osz(
     if not (upload_request := beatmap_helper.get_upload_request(user.id)):
         app.session.logger.warning(f'Failed to upload osz file: Upload request not found')
         return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
-    
+
+    # Ensure set_id has a value - some clients don't send it
+    set_id = set_id or upload_request.set_id
+
     if set_id != upload_request.set_id:
         app.session.logger.warning(f'Failed to upload osz file: Invalid set id')
         return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
