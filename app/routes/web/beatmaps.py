@@ -1555,6 +1555,9 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
 
 @router.post('/osu-bmsubmit-getid5.php')
 @router.post('/osu-bmsubmit-getid4.php')
+@router.post('/osu-bmsubmit-getid3.php')
+@router.post('/osu-bmsubmit-getid2.php')
+@router.post('/osu-bmsubmit-getid.php')
 def update_beatmap_files_endpoint(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
