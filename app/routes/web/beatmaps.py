@@ -1771,6 +1771,8 @@ def upload_osz_novideo(osz_filename: str = Query(..., alias='file')):
     return Response(status_code=200)
 
 @router.post('/osu-bmsubmit-post3.php')
+@router.post('/osu-bmsubmit-post2.php')
+@router.post('/osu-bmsubmit-post.php')
 def legacy_forum_post(
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),
