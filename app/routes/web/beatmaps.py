@@ -1558,7 +1558,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
 def update_beatmap_files_endpoint(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
-    set_id: int = Query(..., alias='s'),
+    set_id: int = Query(-1, alias='s'),
     action: SendAction = Query(..., alias='r'),
     has_video: bool = Depends(integer_boolean('v')),
     has_storyboard: bool = Depends(integer_boolean('sb')),
