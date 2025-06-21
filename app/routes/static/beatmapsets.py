@@ -1,7 +1,5 @@
 
-from __future__ import annotations
-from app.common.database import beatmapsets
-
+from app.common.database.repositories import beatmapsets
 from fastapi.responses import StreamingResponse
 from fastapi import (
     HTTPException,

@@ -1,5 +1,4 @@
 
-from __future__ import annotations
 from typing import List, Callable, Tuple, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime

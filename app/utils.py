@@ -1,6 +1,4 @@
 
-from __future__ import annotations
-
 from pydub import AudioSegment
 from functools import cache
 from PIL import Image

@@ -1,6 +1,4 @@
 
-from __future__ import annotations
-
 from app.common.database.repositories import users
 from sqlalchemy.orm import Session
 from fastapi import (

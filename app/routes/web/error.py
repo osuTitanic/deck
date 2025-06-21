@@ -1,6 +1,4 @@
 
-from __future__ import annotations
-
 from app.common.database import users
 from app.common import officer
 from sqlalchemy.orm import Session
