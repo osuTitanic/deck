@@ -9,6 +9,7 @@ from . import favourites
 from . import benchmark
 from . import beatmaps
 from . import comments
+from . import seasonal
 from . import updates
 from . import scoring
 from . import connect
@@ -33,6 +34,7 @@ router.include_router(favourites.router)
 router.include_router(benchmark.router)
 router.include_router(beatmaps.router)
 router.include_router(comments.router)
+router.include_router(seasonal.router)
 router.include_router(updates.router)
 router.include_router(scoring.router)
 router.include_router(connect.router)
