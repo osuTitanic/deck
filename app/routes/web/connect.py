@@ -21,26 +21,18 @@ def resolve_country(request: Request) -> str:
 @router.get('/bancho_connect.php')
 def connect(
     request: Request,
+    retry: bool = Query(False),
+    version: str = Query(..., alias='v'),
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
-    version: str = Query(..., alias='v')
+    framework: str = Query("dotnet30", alias="fx"),
+    failure: str | None = Query(None, alias='fail')
 ) -> str:
     if not (match := regexes.OSU_VERSION.match(version)):
-        return ""
-
-    if not (player := users.fetch_by_name(username)):
-        return ""
-
-    if not app.utils.check_password(password, player.bcrypt):
-        return ""
-
-    users.update(
-        player.id,
-        {'latest_activity': datetime.now()}
-    )
+        return "XX"
 
     app.session.logger.info(
-        f'Player "{player.name}" with version "{version}" is about to connect to bancho.'
+        f'Player "{username}" with version "{version}" is about to connect to bancho.'
     )
 
     date = int(match.group('date'))
