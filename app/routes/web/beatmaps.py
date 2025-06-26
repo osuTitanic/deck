@@ -49,28 +49,6 @@ import io
 
 router = APIRouter()
 
-def comma_list(parameter: str, cast=str) -> Callable:
-    async def wrapper(request: Request) -> List[Any]:
-        try:
-            query = request.query_params.get(parameter, '')
-            return [cast(value) for value in query.split(',')]
-        except ValueError:
-            raise HTTPException(400, 'Invalid query parameter')
-    return wrapper
-
-def integer_boolean(parameter: str) -> Callable:
-    async def wrapper(request: Request) -> bool:
-        query = request.query_params.get(parameter, '0')
-        return query == '1'
-    return wrapper
-
-def integer_boolean_form(parameter: str) -> Callable:
-    async def wrapper(request: Request) -> bool:
-        form = await request.form()
-        query = form.get(parameter, '0')
-        return query == '1'
-    return wrapper
-
 def error_response(
     error_code: int,
     message: str = "",
@@ -910,6 +888,73 @@ def post_to_webhook(beatmapset: DBBeatmapset) -> None:
     embed.add_field(name="Link", value=f"http://osu.{config.DOMAIN_NAME}/s/{beatmapset.id}")
     officer.event(embeds=[embed])
 
+def comma_list(parameter: str, cast=str) -> Callable:
+    async def wrapper(request: Request) -> List[Any]:
+        try:
+            query = request.query_params.get(parameter, '')
+            return [cast(value) for value in query.split(',')]
+        except ValueError:
+            raise HTTPException(400, 'Invalid query parameter')
+    return wrapper
+
+def integer_boolean_query(parameter: str) -> Callable:
+    async def wrapper(request: Request) -> bool:
+        query = request.query_params.get(parameter, '0')
+        return query == '1'
+    return wrapper
+
+def integer_boolean_form(parameter: str) -> Callable:
+    async def wrapper(request: Request) -> bool:
+        form = await request.form()
+        query = form.get(parameter, '0')
+        return query == '1'
+    return wrapper
+
+def integer_boolean(parameter: str) -> Callable:
+    async def wrapper(request: Request) -> bool:
+        query = request.query_params.get(parameter)
+
+        if query is not None:
+            return query == '1'
+
+        # Try to use form data as a backup
+        form = await request.form()
+        query = form.get(parameter)
+        return query == '1'
+    return wrapper
+
+def query_or_form(alias: str) -> Callable:
+    async def wrapper(request: Request) -> str:
+        query = request.query_params.get(alias)
+
+        if query is not None:
+            return query
+
+        form = await request.form()
+
+        if alias not in form:
+            raise HTTPException(
+                status_code=400,
+                detail=f'Missing required parameter: {alias}'
+            )
+
+        return form[alias]
+    return wrapper
+
+def file(*aliases) -> Callable:
+    async def wrapper(request: Request) -> UploadFile:
+        form = await request.form()
+
+        for alias in aliases:
+            if alias in form:
+                return form[alias]
+
+        raise HTTPException(
+            status_code=400,
+            detail=f'Missing required file parameter: {", ".join(aliases)}'
+        )
+    return wrapper
+
 @router.get('/osu-osz2-bmsubmit-getid.php')
 def validate_upload_request(
     session: Session = Depends(app.session.database.yield_session),
@@ -1008,12 +1053,12 @@ def validate_upload_request(
 @router.post('/osu-osz2-bmsubmit-upload.php')
 def upload_beatmap(
     session: Session = Depends(app.session.database.yield_session),
+    submission_file: UploadFile = Depends(file('0', 'osz2')),
     full_submit: bool = Depends(integer_boolean('t')),
-    submission_file: UploadFile = File(..., alias='0'),
-    osz2_hash: str = Query(..., alias='z'),
-    username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='h'),
-    set_id: int = Query(..., alias='s')
+    osz2_hash: str = Depends(query_or_form('z')),
+    username: str = Depends(query_or_form('u')),
+    password: str = Depends(query_or_form('h')),
+    set_id: int = Depends(query_or_form('s'))
 ) -> Response:
     if not config.OSZ2_SERVICE_URL:
         app.session.logger.warning('The osz2-service url was not found. Aborting...')
@@ -1562,8 +1607,8 @@ def update_beatmap_files_endpoint(
     password: str = Query(..., alias='p'),
     set_id: int = Query(-1, alias='s'),
     action: SendAction = Query(..., alias='r'),
-    has_video: bool = Depends(integer_boolean('v')),
-    has_storyboard: bool = Depends(integer_boolean('sb')),
+    has_video: bool = Depends(integer_boolean_query('v')),
+    has_storyboard: bool = Depends(integer_boolean_query('sb')),
     beatmap_file: UploadFile = File(..., alias='osu'),
     session: Session = Depends(app.session.database.yield_session)
 ) -> Response:
@@ -1644,7 +1689,7 @@ def upload_osz(
     osz_ticket: str = Query(..., alias='oc'),
     file: UploadFile = File(..., alias='osu'),
     set_id: int | None = Query(None, alias='s'),
-    is_first: bool = Depends(integer_boolean('r')),
+    is_first: bool = Depends(integer_boolean_query('r')),
     session: Session = Depends(app.session.database.yield_session)
 ) -> Response:
     error, user = authenticate_user(
