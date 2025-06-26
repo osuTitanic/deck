@@ -35,6 +35,10 @@ def connect(
         f'Player "{username}" with version "{version}" is about to connect to bancho.'
     )
 
+    # NOTE: It's possible to respond with "420" here to
+    #       indicate that the server is busy. osu! will
+    #       proceed to show: "Server is busy, please wait..."
+
     date = int(match.group('date'))
 
     if date <= 20130815:
