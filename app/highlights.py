@@ -1,7 +1,8 @@
 
-from app.common.database import notifications, activities, scores, wrapper
+from app.common.database.repositories import notifications, scores, wrapper
 from app.common.constants import Mods, NotificationType, UserActivity
 from app.common.cache import leaderboards
+from app.common.helpers import activity
 from sqlalchemy.orm import Session
 from app.common import officer
 from app.common.database import (
@@ -13,46 +14,6 @@ from app.common.database import (
 
 import config
 import app
-
-def on_submit_fail(e: Exception) -> None:
-    officer.call(
-        f'Failed to submit highlight: "{e}"',
-        exc_info=e
-    )
-
-def on_check_fail(e: Exception) -> None:
-    officer.call(
-        f'Failed to check highlights: "{e}"',
-        exc_info=e
-    )
-
-@wrapper.exception_wrapper(on_submit_fail)
-def submit(
-    user_id: int,
-    mode: int,
-    type: UserActivity,
-    data: dict,
-    session: Session,
-    is_announcement: bool = False,
-    is_hidden: bool = False
-) -> None:
-    app.session.events.submit(
-        'bancho_event',
-        user_id=user_id,
-        mode=mode,
-        type=type.value,
-        data=data,
-        is_announcement=is_announcement
-    )
-
-    if is_hidden:
-        return
-
-    activities.create(
-        user_id, mode,
-        type, data,
-        session=session
-    )
 
 def check_rank(
     stats: DBStats,
@@ -75,7 +36,7 @@ def check_rank(
 
     if previous_stats.rank < 1000 <= stats.rank:
         # Player has risen to the top 1000
-        return submit(
+        return activity.submit(
             player.id,
             stats.mode,
             UserActivity.RanksGained,
@@ -90,7 +51,7 @@ def check_rank(
 
     if previous_stats.rank < 100 <= stats.rank:
         # Player has risen to the top 100
-        return submit(
+        return activity.submit(
             player.id,
             stats.mode,
             UserActivity.RanksGained,
@@ -106,7 +67,7 @@ def check_rank(
 
     if stats.rank >= 10 and stats.rank != 1:
         # Player has risen to the top 10 or above
-        submit(
+        activity.submit(
             player.id,
             stats.mode,
             UserActivity.RanksGained,
@@ -122,7 +83,7 @@ def check_rank(
 
     if stats.rank == 1:
         # Player is now #1
-        submit(
+        activity.submit(
             player.id,
             stats.mode,
             UserActivity.NumberOne,
@@ -160,7 +121,7 @@ def check_beatmap(
     mods = Mods(score.mods).short if score.mods > 0 else ""
 
     if beatmap_rank <= 1000:
-        submit(
+        activity.submit(
             player.id,
             score.mode,
             UserActivity.BeatmapLeaderboardRank,
@@ -202,7 +163,7 @@ def check_beatmap(
     second_place = top_scores[1]
 
     if second_place.user_id != player.id:
-        submit(
+        activity.submit(
             second_place.user_id,
             score.mode,
             UserActivity.LostFirstPlace,
@@ -244,7 +205,7 @@ def check_pp(
 
     if score.id == result.id:
         # Player has set the new pp record
-        submit(
+        return activity.submit(
             player.id,
             score.mode,
             UserActivity.PPRecord,
@@ -258,7 +219,6 @@ def check_pp(
             session,
             is_announcement=True
         )
-        return
 
     # Check player's current top plays
     query = session.query(DBScore) \
@@ -281,7 +241,7 @@ def check_pp(
 
     if score.id == result.id:
         # Player got a new top play
-        submit(
+        activity.submit(
             player.id,
             score.mode,
             UserActivity.TopPlay,
@@ -294,6 +254,12 @@ def check_pp(
             },
             session
         )
+
+def on_check_fail(e: Exception) -> None:
+    officer.call(
+        f'Failed to check highlights: "{e}"',
+        exc_info=e
+    )
 
 @wrapper.exception_wrapper(on_check_fail)
 def check(
