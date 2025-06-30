@@ -121,7 +121,7 @@ def check_beatmap(
 
     activity_type = (
         UserActivity.BeatmapLeaderboardRank
-        if beatmap_rank <= 1000 else
+        if beatmap_rank <= 1000 and score.status_score == 3 else
         UserActivity.ScoreSubmitted
     )
 
@@ -203,6 +203,10 @@ def check_pp(
     mode_name: str,
     session: Session
 ) -> None:
+    if score.status_pp != 3:
+        # Score is not visible on global rankings
+        return
+
     # Get current pp record for mode
     result = scores.fetch_pp_record(
         score.mode,
