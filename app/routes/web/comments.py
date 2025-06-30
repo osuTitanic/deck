@@ -9,8 +9,9 @@ from fastapi import (
     Form
 )
 
-from app.common.constants import CommentTarget, Permissions
+from app.common.constants import CommentTarget, Permissions, UserActivity
 from app.common.database import DBComment
+from app.common.helpers import activity
 from app.common.cache import status
 from app.common.database import (
     beatmaps,
@@ -141,6 +142,19 @@ def get_comments(
 
         app.session.logger.info(
             f'<{user.name} ({user.id})> -> Submitted comment on {target.name}: "{content}".'
+        )
+
+        activity.submit(
+            user.id, beatmap.mode,
+            UserActivity.BeatmapCommented,
+            {
+                'username': user.name,
+                'beatmap_id': beatmap.id,
+                'beatmap_name': beatmap.full_name,
+                'comment': content
+            },
+            is_hidden=True,
+            session=session
         )
 
         return f"{time}|{content}\n"
