@@ -1,14 +1,15 @@
 
 from typing import List, Callable, Tuple, Dict, Any
 from sqlalchemy.orm import Session
+from collections import Counter
 from datetime import datetime
 from zipfile import ZipFile
 
-from app.common.constants import SendAction, BeatmapGenre, BeatmapLanguage
-from app.common.database.objects import DBUser, DBBeatmapset
+from app.common.constants import SendAction, BeatmapGenre, BeatmapLanguage, UserActivity
+from app.common.database.objects import DBUser, DBBeatmapset, DBBeatmap
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.webhooks import Embed, Image, Author
-from app.common.helpers import performance
+from app.common.helpers import performance, activity
 from app.common.streams import StreamIn
 from app.common.cache import status
 from app.common import officer
@@ -873,7 +874,22 @@ def create_beatmap_topic(
     app.session.logger.info(f'Created beatmap topic for beatmapset ({topic.id})')
     return topic.id
 
-def post_to_webhook(beatmapset: DBBeatmapset) -> None:
+def broadcast_upload_activity(beatmapset: DBBeatmapset, session: Session) -> None:
+    # Post to userpage & #announce channel
+    activity.submit(
+        beatmapset.creator_id,
+        resolve_primary_mode(beatmapset.beatmaps),
+        UserActivity.BeatmapUploaded,
+        {
+            'username': beatmapset.creator,
+            'beatmapset_id': beatmapset.id,
+            'beatmapset_name': beatmapset.full_name
+        },
+        is_announcement=True,
+        session=session
+    )
+
+    # Post to webhook
     embed = Embed(title=f'{beatmapset.artist} - {beatmapset.title}')
     embed.thumbnail = Image(url=f'http://osu.{config.DOMAIN_NAME}/mt/{beatmapset.id}')
     embed.author = Author(
@@ -887,6 +903,11 @@ def post_to_webhook(beatmapset: DBBeatmapset) -> None:
     embed.add_field(name="Creator", value=beatmapset.creator, inline=True)
     embed.add_field(name="Link", value=f"http://osu.{config.DOMAIN_NAME}/s/{beatmapset.id}")
     officer.event(embeds=[embed])
+    # TODO: Move webhook logic into activity module
+
+def resolve_primary_mode(beatmaps: List[DBBeatmap]) -> int:
+    counter = Counter([beatmap.mode for beatmap in beatmaps])
+    return counter.most_common(1)[0][0] if counter else 0
 
 def comma_list(parameter: str, cast=str) -> Callable:
     async def wrapper(request: Request) -> List[Any]:
@@ -1195,8 +1216,8 @@ def upload_beatmap(
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
     if previous_status == -3:
-        # Post to discord webhook
-        post_to_webhook(beatmapset)
+        # Post to discord webhook & #announce
+        broadcast_upload_activity(beatmapset)
 
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
@@ -1802,8 +1823,8 @@ def upload_osz(
     )
 
     if previous_status == -3:
-        # Post to discord webhook
-        post_to_webhook(beatmapset)
+        # Post to discord webhook & #announce
+        broadcast_upload_activity(beatmapset)
 
     return "ok"
 
