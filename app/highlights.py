@@ -36,15 +36,6 @@ def submit(
     is_announcement: bool = False,
     is_hidden: bool = False
 ) -> None:
-    activities.create(
-        user_id, mode, type,
-        data, is_hidden,
-        session=session
-    )
-
-    if is_hidden:
-        return
-
     app.session.events.submit(
         'bancho_event',
         user_id=user_id,
@@ -52,6 +43,15 @@ def submit(
         type=type.value,
         data=data,
         is_announcement=is_announcement
+    )
+
+    if is_hidden:
+        return
+
+    activities.create(
+        user_id, mode,
+        type, data,
+        session=session
     )
 
 def check_rank(
