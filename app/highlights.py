@@ -113,37 +113,47 @@ def check_beatmap(
     mode_name: str,
     session: Session
 ) -> None:
+    # Get short-from mods string (e.g. HDHR)
+    mods = (
+        Mods(score.mods).short
+        if score.mods > 0 else ""
+    )
+
+    activity_type = (
+        UserActivity.BeatmapLeaderboardRank
+        if beatmap_rank <= 1000 else
+        UserActivity.ScoreSubmitted
+    )
+
+    activity.submit(
+        player.id, score.mode,
+        activity_type,
+        {
+            "username": player.name,
+            "beatmap": score.beatmap.full_name,
+            "beatmap_id": score.beatmap.id,
+            "beatmap_rank": beatmap_rank,
+            "mode": mode_name,
+            "mods": mods,
+            "pp": round(score.pp or 0)
+        },
+        session=session,
+        is_hidden=(beatmap_rank > 1000 or score.status_score != 3),
+        is_announcement=(beatmap_rank <= 4 and score.status_score == 3),
+    )
+
     if score.status_score != 3:
         # Score is not visible on global rankings
         return
 
-    # Get short-from mods string (e.g. HDHR)
-    mods = Mods(score.mods).short if score.mods > 0 else ""
-
-    if beatmap_rank <= 1000:
-        activity.submit(
-            player.id,
-            score.mode,
-            UserActivity.BeatmapLeaderboardRank,
-            {
-                "username": player.name,
-                "beatmap": score.beatmap.full_name,
-                "beatmap_id": score.beatmap.id,
-                "beatmap_rank": beatmap_rank,
-                "mode": mode_name,
-                "mods": mods,
-                "pp": round(score.pp or 0)
-            },
-            session,
-            is_announcement=(beatmap_rank <= 4)
-        )
-
     if beatmap_rank != 1:
+        # Score is not #1 on the beatmap
         return
 
     if old_rank == beatmap_rank:
+        # User already had #1 on the beatmap
         return
-    
+
     leaderboards.update_leader_scores(
         player.stats[score.mode],
         player.country.lower(),
