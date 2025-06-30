@@ -2,6 +2,7 @@
 from app.common.database import notifications, activities, scores, wrapper
 from app.common.constants import Mods, NotificationType, UserActivity
 from app.common.cache import leaderboards
+from sqlalchemy.orm import Session
 from app.common import officer
 from app.common.database import (
     DBBeatmap,
@@ -9,9 +10,6 @@ from app.common.database import (
     DBStats,
     DBUser
 )
-
-from sqlalchemy.orm import Session
-from typing import List, Tuple
 
 import config
 import app
@@ -35,15 +33,16 @@ def submit(
     type: UserActivity,
     data: dict,
     session: Session,
-    submit_to_chat: bool = False
+    is_announcement: bool = False,
+    is_hidden: bool = False
 ) -> None:
     activities.create(
-        user_id, mode,
-        type, data,
+        user_id, mode, type,
+        data, is_hidden,
         session=session
     )
-    
-    if not submit_to_chat:
+
+    if is_hidden:
         return
 
     app.session.events.submit(
@@ -51,7 +50,8 @@ def submit(
         user_id=user_id,
         mode=mode,
         type=type.value,
-        data=data
+        data=data,
+        is_announcement=is_announcement
     )
 
 def check_rank(
@@ -101,7 +101,7 @@ def check_rank(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
 
     if stats.rank >= 10 and stats.rank != 1:
@@ -117,7 +117,7 @@ def check_rank(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
 
     if stats.rank == 1:
@@ -131,7 +131,7 @@ def check_rank(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
 
         notifications.create(
@@ -174,7 +174,7 @@ def check_beatmap(
                 "pp": round(score.pp or 0)
             },
             session,
-            submit_to_chat=(beatmap_rank <= 4)
+            is_announcement=(beatmap_rank <= 4)
         )
 
     if beatmap_rank != 1:
@@ -256,7 +256,7 @@ def check_pp(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
         return
 

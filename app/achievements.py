@@ -866,7 +866,8 @@ def check(score: DBScore, session: Session, ignore_list: List[Achievement] = [])
                     "beatmap": score.beatmap.full_name,
                     "beatmap_id": score.beatmap.id
                 },
-                session
+                session,
+                is_announcement=True
             )
         except TimeoutError as e:
             app.session.logger.error(
