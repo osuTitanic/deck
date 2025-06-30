@@ -1,5 +1,7 @@
 
 from app.common.database import screenshots, users
+from app.common.constants import UserActivity
+from app.common.helpers import activity
 from app.common.cache import status
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -84,6 +86,15 @@ def screenshot(
 
         app.session.storage.upload_screenshot(id, screenshot)
         app.session.logger.info(f'{player.name} uploaded a screenshot ({id})')
+
+        activity.submit(
+            player.id, None,
+            UserActivity.ScreenshotUploaded,
+            {'username': player.name},
+            is_hidden=True,
+            session=session
+        )
+
         return str(id)
 
 @router.post('/osu-ss.php')

@@ -1,5 +1,7 @@
 
 from app.common.cache import status
+from app.common.helpers import activity
+from app.common.constants import UserActivity
 from app.common.database import DBStats, DBScore
 from app.common.database.repositories import (
     histories,
@@ -73,6 +75,20 @@ def get_replay(
             score.id,
             {'replay_views': DBScore.replay_views + 1},
             session
+        )
+        activity.submit(
+            player.id, score.mode,
+            UserActivity.ReplayWatched,
+            {
+                'username': player.name,
+                'score_id': score.id,
+                'target_id': score.user.id,
+                'target_name': score.user.name,
+                'beatmap_id': score.beatmap.id,
+                'beatmap_name': score.beatmap.full_name,
+            },
+            is_hidden=True,
+            session=session
         )
 
     return Response(replay)
