@@ -1,5 +1,7 @@
 
-from app.common.database.repositories import users
+from app.common.constants import UserActivity
+from app.common.helpers import activity
+from app.common.database import users
 from sqlalchemy.orm import Session
 from fastapi import (
     HTTPException,
@@ -56,6 +58,26 @@ def osu_coins(
         update_coins(player.id, amount)
 
     if action == "recharge":
-        set_coins(player.id, 99)
+        amount = 99
+        set_coins(player.id, amount)
 
-    return str(get_coins(player.id))
+    activity_type = (
+        UserActivity.OsuCoinsUsed
+        if action == "use" else
+        UserActivity.OsuCoinsReceived
+    )
+    coins = get_coins(player.id)
+
+    activity.submit(
+        player.id, None,
+        activity_type,
+        {
+            'username': player.name,
+            'amount': amount,
+            'coins': coins
+        },
+        is_hidden=True,
+        session=session
+    )
+    
+    return str(coins)
