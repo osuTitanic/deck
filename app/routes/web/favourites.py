@@ -8,12 +8,10 @@ from fastapi import (
     Query
 )
 
+from app.common.database import beatmapsets, favourites, users
+from app.common.constants import UserActivity
+from app.common.helpers import activity
 from app.common.cache import status
-from app.common.database.repositories import (
-    beatmapsets,
-    favourites,
-    users
-)
 
 import app
 
@@ -43,18 +41,30 @@ def add_favourite(
         app.session.logger.warning("Failed to add favourite: Too many favourites")
         return 'You have too many favourite maps. Please go to your profile and delete some first.'
 
-    if not (beatmap_set := beatmapsets.fetch_one(set_id, session)):
+    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
         app.session.logger.warning("Failed to add favourite: Beatmap not found")
         raise HTTPException(404)
 
-    if not favourites.create(player.id, beatmap_set.id, session):
+    if not favourites.create(player.id, beatmapset.id, session):
         app.session.logger.warning("Failed to add favourite: Already favourited")
         return 'You have already favourited this map...'
 
     count += 1
 
     app.session.logger.info(
-        f'<{player.name} ({player.id})> -> Added favourite on set: {beatmap_set.id}'
+        f'<{player.name} ({player.id})> -> Added favourite on set: {beatmapset.id}'
+    )
+
+    activity.submit(
+        player.id, None,
+        UserActivity.BeatmapFavouriteAdded,
+        {
+            'username': player.name,
+            'beatmapset_id': beatmapset.id,
+            'beatmapset_name': beatmapset.full_name
+        },
+        is_hidden=True,
+        session=session
     )
 
     return f'Added to favourites! You have a total of {count} favourite{"s" if count > 1 else ""}'
