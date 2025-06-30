@@ -905,6 +905,32 @@ def broadcast_upload_activity(beatmapset: DBBeatmapset, session: Session) -> Non
     officer.event(embeds=[embed])
     # TODO: Move webhook logic into activity module
 
+def broadcast_update_activity(beatmapset: DBBeatmapset, session: Session) -> None:
+    last_activity = activity.activities.fetch_last(
+        beatmapset.creator_id,
+        session
+    )
+
+    is_duplicate = (
+        last_activity is not None and
+        last_activity.type in (UserActivity.BeatmapUploaded, UserActivity.BeatmapUpdated) and
+        last_activity.data['beatmapset_id'] == beatmapset.id
+    )
+
+    # Post to userpage
+    activity.submit(
+        beatmapset.creator_id,
+        resolve_primary_mode(beatmapset.beatmaps),
+        UserActivity.BeatmapUpdated,
+        {
+            'username': beatmapset.creator,
+            'beatmapset_id': beatmapset.id,
+            'beatmapset_name': beatmapset.full_name
+        },
+        is_hidden=is_duplicate,
+        session=session
+    )
+
 def resolve_primary_mode(beatmaps: List[DBBeatmap]) -> int:
     counter = Counter([beatmap.mode for beatmap in beatmaps])
     return counter.most_common(1)[0][0] if counter else 0
@@ -1215,14 +1241,14 @@ def upload_beatmap(
         app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
-    if previous_status == -3:
-        # Post to discord webhook & #announce
-        broadcast_upload_activity(beatmapset, session)
-
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
         f'(http://osu.{config.DOMAIN_NAME}/s/{set_id})'
     )
+
+    # Depending on if the beatmap is new or updated, different event types should be used
+    broadcast_type = broadcast_upload_activity if previous_status == -3 else broadcast_update_activity
+    broadcast_type(beatmapset, session)
 
     return Response('0')
 
@@ -1822,9 +1848,9 @@ def upload_osz(
         f'{user.name} uploaded an osz file for beatmapset ({set_id})'
     )
 
-    if previous_status == -3:
-        # Post to discord webhook & #announce
-        broadcast_upload_activity(beatmapset, session)
+    # Depending on if the beatmap is new or updated, different event types should be used
+    broadcast_type = broadcast_upload_activity if previous_status == -3 else broadcast_update_activity
+    broadcast_type(beatmapset, session)
 
     return "ok"
 
