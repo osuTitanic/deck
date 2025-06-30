@@ -1178,7 +1178,7 @@ def upload_beatmap(
         package_filesize = calculate_package_size(files)
         size_limit = calculate_size_limit(max_beatmap_length)
 
-        if package_filesize > size_limit:
+        if package_filesize > size_limit and not user.is_admin:
             app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
             return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
@@ -1217,7 +1217,7 @@ def upload_beatmap(
 
     if previous_status == -3:
         # Post to discord webhook & #announce
-        broadcast_upload_activity(beatmapset)
+        broadcast_upload_activity(beatmapset, session)
 
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
@@ -1824,7 +1824,7 @@ def upload_osz(
 
     if previous_status == -3:
         # Post to discord webhook & #announce
-        broadcast_upload_activity(beatmapset)
+        broadcast_upload_activity(beatmapset, session)
 
     return "ok"
 
