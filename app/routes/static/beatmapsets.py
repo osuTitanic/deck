@@ -67,7 +67,7 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     if not set_id_string.replace('n', '').isdigit():
         raise HTTPException(404)
 
-    set_id = int(set_id_string)
+    set_id = int(set_id_string.replace('n', ''))
     no_video = 'n' in set_id_string
 
     if not (beatmapset := beatmapsets.fetch_one(set_id)):
