@@ -881,29 +881,15 @@ def broadcast_upload_activity(beatmapset: DBBeatmapset, session: Session) -> Non
         resolve_primary_mode(beatmapset.beatmaps),
         UserActivity.BeatmapUploaded,
         {
+            'title': beatmapset.title,
+            'artist': beatmapset.artist,
             'username': beatmapset.creator,
             'beatmapset_id': beatmapset.id,
-            'beatmapset_name': beatmapset.full_name
+            'beatmapset_name': beatmapset.full_name,
         },
         is_announcement=True,
         session=session
     )
-
-    # Post to webhook
-    embed = Embed(title=f'{beatmapset.artist} - {beatmapset.title}')
-    embed.thumbnail = Image(url=f'http://osu.{config.DOMAIN_NAME}/mt/{beatmapset.id}')
-    embed.author = Author(
-        name=f"{beatmapset.creator} uploaded a new beatmap!",
-        url=f'http://osu.{config.DOMAIN_NAME}/u/{beatmapset.creator_id}',
-        icon_url=f'http://osu.{config.DOMAIN_NAME}/a/{beatmapset.creator_id}'
-    )
-    embed.color = 0x66c453
-    embed.add_field(name="Title", value=beatmapset.title, inline=True)
-    embed.add_field(name="Artist", value=beatmapset.artist, inline=True)
-    embed.add_field(name="Creator", value=beatmapset.creator, inline=True)
-    embed.add_field(name="Link", value=f"http://osu.{config.DOMAIN_NAME}/s/{beatmapset.id}")
-    officer.event(embeds=[embed])
-    # TODO: Move webhook logic into activity module
 
 def broadcast_update_activity(beatmapset: DBBeatmapset, session: Session) -> None:
     last_activity = activity.activities.fetch_last(
