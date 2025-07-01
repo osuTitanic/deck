@@ -530,8 +530,8 @@ def update_beatmap_metadata(
     ]
 
     video_file_extensions = [
-        ".wmv", ".flv", ".mp4",
-        ".avi", ".m4v", ".mpg"
+        "wmv", "flv", "mp4",
+        "avi", "m4v", "mpg"
     ]
 
     # Map is in "wip", until the user posts it to the forums
