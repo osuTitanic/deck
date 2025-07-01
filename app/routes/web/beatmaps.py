@@ -387,7 +387,8 @@ def update_beatmap_package(
 
     # Get total length of all video files
     video_file_extensions = [
-        ".wmv", ".flv", ".mp4", ".avi", ".m4v"
+        ".wmv", ".flv", ".mp4",
+        ".avi", ".m4v", ".mpg"
     ]
 
     video_files = [
