@@ -49,6 +49,7 @@ def osu_coins(
 
     checksum_string = f"{username}{count}osuycoins".encode()
     coins_checksum = hashlib.md5(checksum_string).hexdigest()
+    amount = 0
 
     if coins_checksum != checksum:
         raise HTTPException(400)
@@ -68,6 +69,7 @@ def osu_coins(
     )
     coins = get_coins(player.id)
 
+    # Submit to activity queue
     activity.submit(
         player.id, None,
         activity_type,
