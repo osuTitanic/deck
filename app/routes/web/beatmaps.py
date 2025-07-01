@@ -1134,7 +1134,7 @@ def upload_beatmap(
     osz2_file = submission_file.file.read()
 
     if len(osz2_file) > 100_000_000: # 100mb
-        app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large')
+        app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large ({len(osz2_file)} bytes)')
         return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
     if not full_submit:
@@ -1193,7 +1193,10 @@ def upload_beatmap(
         size_limit = calculate_size_limit(max_beatmap_length)
 
         if package_filesize > size_limit and not user.is_admin:
-            app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+            app.session.logger.warning(
+                f'Failed to upload beatmap: Beatmap package is too large '
+                f'({package_filesize} / {size_limit} bytes)'
+            )
             return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
         previous_status = beatmapset.status
@@ -1567,7 +1570,10 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     size_limit = calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
-        app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+        app.session.logger.warning(
+            f'Failed to upload beatmap: Beatmap package is too large '
+            f'({package_filesize} / {size_limit} bytes)'
+        )
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
     has_full_submit = not all(
@@ -1662,6 +1668,7 @@ def update_beatmap_files_endpoint(
     beatmap_filename = beatmap_file.filename
 
     if len(beatmap_file_contents) > 15_000_000: # 15mb
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap file is too large ({len(beatmap_file_contents)} bytes)')
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
     # Parse beatmap file
