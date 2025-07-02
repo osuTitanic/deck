@@ -365,7 +365,8 @@ def update_beatmap_package(
     allowed_file_extensions = [
         ".osu", ".osz", ".osb", ".osk", ".png", ".mp3", ".jpeg",
         ".wav", ".png", ".wav", ".ogg", ".jpg", ".wmv", ".flv",
-        ".mp3", ".flac", ".mp4", ".avi", ".ini", ".jpg", ".m4v"
+        ".mp3", ".flac", ".mp4", ".avi", ".ini", ".jpg", ".m4v",
+        ".mpg", ".mov", ".webm", ".mkv", ".ogv", ".mpeg", ".3gp"
     ]
 
     buffer = io.BytesIO()
@@ -388,7 +389,9 @@ def update_beatmap_package(
     # Get total length of all video files
     video_file_extensions = [
         ".wmv", ".flv", ".mp4",
-        ".avi", ".m4v", ".mpg"
+        ".avi", ".m4v", ".mpg",
+        ".mov", ".webm", ".mkv",
+        ".ogv", ".mpeg", ".3gp"
     ]
 
     video_files = [
@@ -532,7 +535,9 @@ def update_beatmap_metadata(
 
     video_file_extensions = [
         "wmv", "flv", "mp4",
-        "avi", "m4v", "mpg"
+        "avi", "m4v", "mpg",
+        "mov", "webm", "mkv",
+        "ogv", "mpeg", "3gp"
     ]
 
     # Map is in "wip", until the user posts it to the forums
