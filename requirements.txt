@@ -3,7 +3,7 @@ boto3<2
 boto3-type-annotations-with-docs==0.3.1
 fastapi==0.115.14
 geoip2==5.1.0
-pillow==11.2.1
+pillow==11.3.0
 psycopg2-binary==2.9.10
 py3rijndael==0.3.3
 python-dotenv==1.1.1
