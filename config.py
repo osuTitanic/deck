@@ -44,9 +44,10 @@ ALLOW_RELAX = eval(os.environ.get('ALLOW_RELAX', 'True').capitalize())
 S3_ENABLED = eval(os.environ.get('ENABLE_S3', 'True').capitalize())
 DEBUG = eval(os.environ.get('DEBUG', 'False').capitalize())
 
+SCORE_SUBMISSION_KEY = os.environ.get('SCORE_SUBMISSION_KEY', 'h89f2-890h2h89b34g-h80g134n90133')
 SCORE_RESPONSE_LIMIT = int(os.environ.get('SCORE_RESPONSE_LIMIT', 50))
-SCORE_SUBMISSION_KEY = os.environ.get('SCORE_SUBMISSION_KEY')
 
+SEASONAL_BACKGROUNDS = os.environ.get('SEASONAL_BACKGROUNDS', '').split(',')
 MENUICON_IMAGE = os.environ.get('MENUICON_IMAGE')
 MENUICON_URL = os.environ.get('MENUICON_URL')
 
@@ -58,4 +59,4 @@ BANCHO_IP = os.environ.get('PUBLIC_BANCHO_IP', None)
 DOMAIN_NAME = os.environ.get('DOMAIN_NAME')
 DATA_PATH = os.path.abspath('.data')
 
-VERSION = '1.7.8'
+VERSION = '1.7.9'

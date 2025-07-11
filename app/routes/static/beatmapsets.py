@@ -1,7 +1,5 @@
 
-from __future__ import annotations
-from app.common.database import beatmapsets
-
+from app.common.database.repositories import beatmapsets
 from fastapi.responses import StreamingResponse
 from fastapi import (
     HTTPException,
@@ -60,13 +58,17 @@ def beatmap_preview(filename: str):
         headers=cache_headers
     )
 
-@router.get('/d/{id}')
-def beatmap_osz(id: str):
-    if not id.replace('n', '').isdigit():
-        raise HTTPException(400)
+@router.get('/d/{filename}')
+@router.get('/bss/{filename}')
+def beatmap_osz(filename: str) -> StreamingResponse:
+    # Handle filenames such as "1 Kenji Ninuma - DISCO PRINCE.osz"
+    set_id_string = filename.split(' ')[0]
 
-    set_id = int(id.replace('n', ''))
-    no_video = 'n' in id
+    if not set_id_string.replace('n', '').isdigit():
+        raise HTTPException(404)
+
+    set_id = int(set_id_string.replace('n', ''))
+    no_video = 'n' in set_id_string
 
     if not (beatmapset := beatmapsets.fetch_one(set_id)):
         raise HTTPException(404)

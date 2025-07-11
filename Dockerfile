@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 # Installing/Updating system dependencies
 RUN apt update -y && \

@@ -955,7 +955,7 @@ def score_submission(
     score.session.close()
 
     # Send highlights on #announce
-    if score.has_pb:
+    if score.passed:
         app.session.score_executor.submit(
             app.highlights.check,
             score_object.id, score.user,
@@ -1149,7 +1149,7 @@ def legacy_score_submission(
         response.append(" ".join(achievement_response))
 
     # Send highlights on #announce
-    if score.has_pb:
+    if score.passed:
         app.session.score_executor.submit(
             app.highlights.check,
             score_object.id, score.user,

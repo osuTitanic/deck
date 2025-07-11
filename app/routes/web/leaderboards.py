@@ -1,9 +1,7 @@
 
-from __future__ import annotations
-from typing import Callable
-
 from sqlalchemy.orm import Session
 from datetime import datetime
+from typing import Callable
 from fastapi import (
     HTTPException,
     APIRouter,

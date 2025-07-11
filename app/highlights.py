@@ -1,7 +1,9 @@
 
-from app.common.database import notifications, activities, scores, wrapper
+from app.common.database.repositories import notifications, scores, wrapper
 from app.common.constants import Mods, NotificationType, UserActivity
 from app.common.cache import leaderboards
+from app.common.helpers import activity
+from sqlalchemy.orm import Session
 from app.common import officer
 from app.common.database import (
     DBBeatmap,
@@ -10,49 +12,8 @@ from app.common.database import (
     DBUser
 )
 
-from sqlalchemy.orm import Session
-from typing import List, Tuple
-
 import config
 import app
-
-def on_submit_fail(e: Exception) -> None:
-    officer.call(
-        f'Failed to submit highlight: "{e}"',
-        exc_info=e
-    )
-
-def on_check_fail(e: Exception) -> None:
-    officer.call(
-        f'Failed to check highlights: "{e}"',
-        exc_info=e
-    )
-
-@wrapper.exception_wrapper(on_submit_fail)
-def submit(
-    user_id: int,
-    mode: int,
-    type: UserActivity,
-    data: dict,
-    session: Session,
-    submit_to_chat: bool = False
-) -> None:
-    activities.create(
-        user_id, mode,
-        type, data,
-        session=session
-    )
-    
-    if not submit_to_chat:
-        return
-
-    app.session.events.submit(
-        'bancho_event',
-        user_id=user_id,
-        mode=mode,
-        type=type.value,
-        data=data
-    )
 
 def check_rank(
     stats: DBStats,
@@ -75,7 +36,7 @@ def check_rank(
 
     if previous_stats.rank < 1000 <= stats.rank:
         # Player has risen to the top 1000
-        return submit(
+        return activity.submit(
             player.id,
             stats.mode,
             UserActivity.RanksGained,
@@ -90,7 +51,7 @@ def check_rank(
 
     if previous_stats.rank < 100 <= stats.rank:
         # Player has risen to the top 100
-        return submit(
+        return activity.submit(
             player.id,
             stats.mode,
             UserActivity.RanksGained,
@@ -101,12 +62,12 @@ def check_rank(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
 
     if stats.rank >= 10 and stats.rank != 1:
         # Player has risen to the top 10 or above
-        submit(
+        activity.submit(
             player.id,
             stats.mode,
             UserActivity.RanksGained,
@@ -117,12 +78,12 @@ def check_rank(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
 
     if stats.rank == 1:
         # Player is now #1
-        submit(
+        activity.submit(
             player.id,
             stats.mode,
             UserActivity.NumberOne,
@@ -131,7 +92,7 @@ def check_rank(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
 
         notifications.create(
@@ -152,37 +113,47 @@ def check_beatmap(
     mode_name: str,
     session: Session
 ) -> None:
+    # Get short-from mods string (e.g. HDHR)
+    mods = (
+        Mods(score.mods).short
+        if score.mods > 0 else ""
+    )
+
+    activity_type = (
+        UserActivity.BeatmapLeaderboardRank
+        if beatmap_rank <= 1000 and score.status_score == 3 else
+        UserActivity.ScoreSubmitted
+    )
+
+    activity.submit(
+        player.id, score.mode,
+        activity_type,
+        {
+            "username": player.name,
+            "beatmap": score.beatmap.full_name,
+            "beatmap_id": score.beatmap.id,
+            "beatmap_rank": beatmap_rank,
+            "mode": mode_name,
+            "mods": mods,
+            "pp": round(score.pp or 0)
+        },
+        session=session,
+        is_hidden=(beatmap_rank > 1000 or score.status_score != 3),
+        is_announcement=(beatmap_rank <= 4 and score.status_score == 3),
+    )
+
     if score.status_score != 3:
         # Score is not visible on global rankings
         return
 
-    # Get short-from mods string (e.g. HDHR)
-    mods = Mods(score.mods).short if score.mods > 0 else ""
-
-    if beatmap_rank <= 1000:
-        submit(
-            player.id,
-            score.mode,
-            UserActivity.BeatmapLeaderboardRank,
-            {
-                "username": player.name,
-                "beatmap": score.beatmap.full_name,
-                "beatmap_id": score.beatmap.id,
-                "beatmap_rank": beatmap_rank,
-                "mode": mode_name,
-                "mods": mods,
-                "pp": round(score.pp or 0)
-            },
-            session,
-            submit_to_chat=(beatmap_rank <= 4)
-        )
-
     if beatmap_rank != 1:
+        # Score is not #1 on the beatmap
         return
 
     if old_rank == beatmap_rank:
+        # User already had #1 on the beatmap
         return
-    
+
     leaderboards.update_leader_scores(
         player.stats[score.mode],
         player.country.lower(),
@@ -202,7 +173,7 @@ def check_beatmap(
     second_place = top_scores[1]
 
     if second_place.user_id != player.id:
-        submit(
+        activity.submit(
             second_place.user_id,
             score.mode,
             UserActivity.LostFirstPlace,
@@ -232,6 +203,10 @@ def check_pp(
     mode_name: str,
     session: Session
 ) -> None:
+    if score.status_pp != 3:
+        # Score is not visible on global rankings
+        return
+
     # Get current pp record for mode
     result = scores.fetch_pp_record(
         score.mode,
@@ -244,7 +219,7 @@ def check_pp(
 
     if score.id == result.id:
         # Player has set the new pp record
-        submit(
+        return activity.submit(
             player.id,
             score.mode,
             UserActivity.PPRecord,
@@ -256,9 +231,8 @@ def check_pp(
                 "mode": mode_name
             },
             session,
-            submit_to_chat=True
+            is_announcement=True
         )
-        return
 
     # Check player's current top plays
     query = session.query(DBScore) \
@@ -281,7 +255,7 @@ def check_pp(
 
     if score.id == result.id:
         # Player got a new top play
-        submit(
+        activity.submit(
             player.id,
             score.mode,
             UserActivity.TopPlay,
@@ -294,6 +268,12 @@ def check_pp(
             },
             session
         )
+
+def on_check_fail(e: Exception) -> None:
+    officer.call(
+        f'Failed to check highlights: "{e}"',
+        exc_info=e
+    )
 
 @wrapper.exception_wrapper(on_check_fail)
 def check(

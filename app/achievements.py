@@ -8,6 +8,7 @@ from app.common.constants import ScoreStatus, Grade, UserActivity
 from app.common.database.objects import DBScore, DBBeatmap
 from app.common.database.repositories import scores
 from app.common.cache import leaderboards
+from app.common.helpers import activity
 from app.common.constants import Mods
 
 import config
@@ -856,7 +857,7 @@ def check(score: DBScore, session: Session, ignore_list: List[Achievement] = [])
             app.session.logger.info(
                 f'Player {score.user} unlocked achievement: {achievement.name}'
             )
-            app.highlights.submit(
+            activity.submit(
                 score.user_id,
                 score.mode,
                 UserActivity.AchievementUnlocked,
@@ -866,7 +867,8 @@ def check(score: DBScore, session: Session, ignore_list: List[Achievement] = [])
                     "beatmap": score.beatmap.full_name,
                     "beatmap_id": score.beatmap.id
                 },
-                session
+                session,
+                is_announcement=True
             )
         except TimeoutError as e:
             app.session.logger.error(

@@ -8,6 +8,8 @@ from fastapi import (
     Query
 )
 
+from app.common.constants import UserActivity
+from app.common.helpers import activity
 from app.common.cache import status
 from app.common.database import (
     beatmaps,
@@ -71,6 +73,19 @@ def rate(
 
     app.session.logger.info(
         f'<{player.name} ({player.id})> -> Submitted rating of {rating} on "{beatmap.full_name}".'
+    )
+
+    activity.submit(
+        player.id, beatmap.mode,
+        UserActivity.BeatmapRated,
+        {
+            'username': player.name,
+            'beatmap_id': beatmap.id,
+            'beatmap_name': beatmap.full_name,
+            'rating': rating
+        },
+        is_hidden=True,
+        session=session
     )
 
     return '\n'.join([

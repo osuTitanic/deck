@@ -1,17 +1,18 @@
 bcrypt==4.3.0
 boto3<2
 boto3-type-annotations-with-docs==0.3.1
-fastapi==0.115.12
+fastapi==0.116.0
 geoip2==5.1.0
 pillow==11.3.0
 psycopg2-binary==2.9.10
 py3rijndael==0.3.3
-python-dotenv==1.1.0
+python-dotenv==1.1.1
 redis==6.2.0
 requests==2.32.4
 sendgrid==6.12.4
 sqlalchemy==2.0.41
-uvicorn==0.34.3
+uvicorn==0.35.0
 pydub==0.25.1
 rosu-pp-py==3.1.0
 python-multipart==0.0.20
+audioop-lts==0.2.1; python_version >= "3.13"

@@ -1,15 +1,15 @@
 
-from __future__ import annotations
 from typing import List, Callable, Tuple, Dict, Any
 from sqlalchemy.orm import Session
+from collections import Counter
 from datetime import datetime
 from zipfile import ZipFile
 
-from app.common.constants import SendAction, BeatmapGenre, BeatmapLanguage
-from app.common.database.objects import DBUser, DBBeatmapset
+from app.common.constants import SendAction, BeatmapGenre, BeatmapLanguage, UserActivity
+from app.common.database.objects import DBUser, DBBeatmapset, DBBeatmap
 from app.common.helpers import beatmaps as beatmap_helper
 from app.common.webhooks import Embed, Image, Author
-from app.common.helpers import performance
+from app.common.helpers import performance, activity
 from app.common.streams import StreamIn
 from app.common.cache import status
 from app.common import officer
@@ -49,28 +49,6 @@ import app
 import io
 
 router = APIRouter()
-
-def comma_list(parameter: str, cast=str) -> Callable:
-    async def wrapper(request: Request) -> List[Any]:
-        try:
-            query = request.query_params.get(parameter, '')
-            return [cast(value) for value in query.split(',')]
-        except ValueError:
-            raise HTTPException(400, 'Invalid query parameter')
-    return wrapper
-
-def integer_boolean(parameter: str) -> Callable:
-    async def wrapper(request: Request) -> bool:
-        query = request.query_params.get(parameter, '0')
-        return query == '1'
-    return wrapper
-
-def integer_boolean_form(parameter: str) -> Callable:
-    async def wrapper(request: Request) -> bool:
-        form = await request.form()
-        query = form.get(parameter, '0')
-        return query == '1'
-    return wrapper
 
 def error_response(
     error_code: int,
@@ -387,7 +365,8 @@ def update_beatmap_package(
     allowed_file_extensions = [
         ".osu", ".osz", ".osb", ".osk", ".png", ".mp3", ".jpeg",
         ".wav", ".png", ".wav", ".ogg", ".jpg", ".wmv", ".flv",
-        ".mp3", ".flac", ".mp4", ".avi", ".ini", ".jpg", ".m4v"
+        ".mp3", ".flac", ".mp4", ".avi", ".ini", ".jpg", ".m4v",
+        ".mpg", ".mov", ".webm", ".mkv", ".ogv", ".mpeg", ".3gp"
     ]
 
     buffer = io.BytesIO()
@@ -409,7 +388,10 @@ def update_beatmap_package(
 
     # Get total length of all video files
     video_file_extensions = [
-        ".wmv", ".flv", ".mp4", ".avi", ".m4v"
+        ".wmv", ".flv", ".mp4",
+        ".avi", ".m4v", ".mpg",
+        ".mov", ".webm", ".mkv",
+        ".ogv", ".mpeg", ".3gp"
     ]
 
     video_files = [
@@ -552,7 +534,10 @@ def update_beatmap_metadata(
     ]
 
     video_file_extensions = [
-        ".wmv", ".flv", ".mp4", ".avi", ".m4v"
+        "wmv", "flv", "mp4",
+        "avi", "m4v", "mpg",
+        "mov", "webm", "mkv",
+        "ogv", "mpeg", "3gp"
     ]
 
     # Map is in "wip", until the user posts it to the forums
@@ -896,20 +881,119 @@ def create_beatmap_topic(
     app.session.logger.info(f'Created beatmap topic for beatmapset ({topic.id})')
     return topic.id
 
-def post_to_webhook(beatmapset: DBBeatmapset) -> None:
-    embed = Embed(title=f'{beatmapset.artist} - {beatmapset.title}')
-    embed.thumbnail = Image(url=f'http://osu.{config.DOMAIN_NAME}/mt/{beatmapset.id}')
-    embed.author = Author(
-        name=f"{beatmapset.creator} uploaded a new beatmap!",
-        url=f'http://osu.{config.DOMAIN_NAME}/u/{beatmapset.creator_id}',
-        icon_url=f'http://osu.{config.DOMAIN_NAME}/a/{beatmapset.creator_id}'
+def broadcast_upload_activity(beatmapset: DBBeatmapset, session: Session) -> None:
+    # Post to userpage & #announce channel
+    activity.submit(
+        beatmapset.creator_id,
+        resolve_primary_mode(beatmapset.beatmaps),
+        UserActivity.BeatmapUploaded,
+        {
+            'title': beatmapset.title,
+            'artist': beatmapset.artist,
+            'username': beatmapset.creator,
+            'beatmapset_id': beatmapset.id,
+            'beatmapset_name': beatmapset.full_name,
+        },
+        is_announcement=True,
+        session=session
     )
-    embed.color = 0x66c453
-    embed.add_field(name="Title", value=beatmapset.title, inline=True)
-    embed.add_field(name="Artist", value=beatmapset.artist, inline=True)
-    embed.add_field(name="Creator", value=beatmapset.creator, inline=True)
-    embed.add_field(name="Link", value=f"http://osu.{config.DOMAIN_NAME}/s/{beatmapset.id}")
-    officer.event(embeds=[embed])
+
+def broadcast_update_activity(beatmapset: DBBeatmapset, session: Session) -> None:
+    last_activity = activity.activities.fetch_last(
+        beatmapset.creator_id,
+        session
+    )
+
+    is_duplicate = (
+        last_activity is not None and
+        last_activity.type in (UserActivity.BeatmapUploaded, UserActivity.BeatmapUpdated) and
+        last_activity.data['beatmapset_id'] == beatmapset.id
+    )
+
+    # Post to userpage
+    activity.submit(
+        beatmapset.creator_id,
+        resolve_primary_mode(beatmapset.beatmaps),
+        UserActivity.BeatmapUpdated,
+        {
+            'username': beatmapset.creator,
+            'beatmapset_id': beatmapset.id,
+            'beatmapset_name': beatmapset.full_name
+        },
+        is_hidden=is_duplicate,
+        session=session
+    )
+
+def resolve_primary_mode(beatmaps: List[DBBeatmap]) -> int:
+    counter = Counter([beatmap.mode for beatmap in beatmaps])
+    return counter.most_common(1)[0][0] if counter else 0
+
+def comma_list(parameter: str, cast=str) -> Callable:
+    async def wrapper(request: Request) -> List[Any]:
+        try:
+            query = request.query_params.get(parameter, '')
+            return [cast(value) for value in query.split(',')]
+        except ValueError:
+            raise HTTPException(400, 'Invalid query parameter')
+    return wrapper
+
+def integer_boolean_query(parameter: str) -> Callable:
+    async def wrapper(request: Request) -> bool:
+        query = request.query_params.get(parameter, '0')
+        return query == '1'
+    return wrapper
+
+def integer_boolean_form(parameter: str) -> Callable:
+    async def wrapper(request: Request) -> bool:
+        form = await request.form()
+        query = form.get(parameter, '0')
+        return query == '1'
+    return wrapper
+
+def integer_boolean(parameter: str) -> Callable:
+    async def wrapper(request: Request) -> bool:
+        query = request.query_params.get(parameter)
+
+        if query is not None:
+            return query == '1'
+
+        # Try to use form data as a backup
+        form = await request.form()
+        query = form.get(parameter)
+        return query == '1'
+    return wrapper
+
+def query_or_form(alias: str) -> Callable:
+    async def wrapper(request: Request) -> str:
+        query = request.query_params.get(alias)
+
+        if query is not None:
+            return query
+
+        form = await request.form()
+
+        if alias not in form:
+            raise HTTPException(
+                status_code=400,
+                detail=f'Missing required parameter: {alias}'
+            )
+
+        return form[alias]
+    return wrapper
+
+def file(*aliases) -> Callable:
+    async def wrapper(request: Request) -> UploadFile:
+        form = await request.form()
+
+        for alias in aliases:
+            if alias in form:
+                return form[alias]
+
+        raise HTTPException(
+            status_code=400,
+            detail=f'Missing required file parameter: {", ".join(aliases)}'
+        )
+    return wrapper
 
 @router.get('/osu-osz2-bmsubmit-getid.php')
 def validate_upload_request(
@@ -1009,12 +1093,12 @@ def validate_upload_request(
 @router.post('/osu-osz2-bmsubmit-upload.php')
 def upload_beatmap(
     session: Session = Depends(app.session.database.yield_session),
+    submission_file: UploadFile = Depends(file('0', 'osz2')),
     full_submit: bool = Depends(integer_boolean('t')),
-    submission_file: UploadFile = File(..., alias='0'),
-    osz2_hash: str = Query(..., alias='z'),
-    username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='h'),
-    set_id: int = Query(..., alias='s')
+    osz2_hash: str = Depends(query_or_form('z')),
+    username: str = Depends(query_or_form('u')),
+    password: str = Depends(query_or_form('h')),
+    set_id: int = Depends(query_or_form('s'))
 ) -> Response:
     if not config.OSZ2_SERVICE_URL:
         app.session.logger.warning('The osz2-service url was not found. Aborting...')
@@ -1055,7 +1139,7 @@ def upload_beatmap(
     osz2_file = submission_file.file.read()
 
     if len(osz2_file) > 100_000_000: # 100mb
-        app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large')
+        app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large ({len(osz2_file)} bytes)')
         return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
     if not full_submit:
@@ -1113,8 +1197,11 @@ def upload_beatmap(
         package_filesize = calculate_package_size(files)
         size_limit = calculate_size_limit(max_beatmap_length)
 
-        if package_filesize > size_limit:
-            app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+        if package_filesize > size_limit and not user.is_admin:
+            app.session.logger.warning(
+                f'Failed to upload beatmap: Beatmap package is too large '
+                f'({package_filesize} / {size_limit} bytes)'
+            )
             return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
         previous_status = beatmapset.status
@@ -1150,14 +1237,14 @@ def upload_beatmap(
         app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
-    if previous_status == -3:
-        # Post to discord webhook
-        post_to_webhook(beatmapset)
-
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
         f'(http://osu.{config.DOMAIN_NAME}/s/{set_id})'
     )
+
+    # Depending on if the beatmap is new or updated, different event types should be used
+    broadcast_type = broadcast_upload_activity if previous_status == -3 else broadcast_update_activity
+    broadcast_type(beatmapset, session)
 
     return Response('0')
 
@@ -1488,7 +1575,10 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     size_limit = calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
-        app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
+        app.session.logger.warning(
+            f'Failed to upload beatmap: Beatmap package is too large '
+            f'({package_filesize} / {size_limit} bytes)'
+        )
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
     has_full_submit = not all(
@@ -1554,13 +1644,17 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     )
 
 @router.post('/osu-bmsubmit-getid5.php')
+@router.post('/osu-bmsubmit-getid4.php')
+@router.post('/osu-bmsubmit-getid3.php')
+@router.post('/osu-bmsubmit-getid2.php')
+@router.post('/osu-bmsubmit-getid.php')
 def update_beatmap_files_endpoint(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
-    set_id: int = Query(..., alias='s'),
+    set_id: int = Query(-1, alias='s'),
     action: SendAction = Query(..., alias='r'),
-    has_video: bool = Depends(integer_boolean('v')),
-    has_storyboard: bool = Depends(integer_boolean('sb')),
+    has_video: bool = Depends(integer_boolean_query('v')),
+    has_storyboard: bool = Depends(integer_boolean_query('sb')),
     beatmap_file: UploadFile = File(..., alias='osu'),
     session: Session = Depends(app.session.database.yield_session)
 ) -> Response:
@@ -1579,6 +1673,7 @@ def update_beatmap_files_endpoint(
     beatmap_filename = beatmap_file.filename
 
     if len(beatmap_file_contents) > 15_000_000: # 15mb
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap file is too large ({len(beatmap_file_contents)} bytes)')
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
     # Parse beatmap file
@@ -1636,12 +1731,12 @@ def update_beatmap_files_endpoint(
 def upload_osz(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
-    set_id: int = Query(..., alias='s'),
     ticket: str = Query(..., alias='c'),
     osz_filename: str = Query(..., alias='of'),
     osz_ticket: str = Query(..., alias='oc'),
     file: UploadFile = File(..., alias='osu'),
-    is_first: bool = Depends(integer_boolean('r')),
+    set_id: int | None = Query(None, alias='s'),
+    is_first: bool = Depends(integer_boolean_query('r')),
     session: Session = Depends(app.session.database.yield_session)
 ) -> Response:
     error, user = authenticate_user(
@@ -1658,7 +1753,10 @@ def upload_osz(
     if not (upload_request := beatmap_helper.get_upload_request(user.id)):
         app.session.logger.warning(f'Failed to upload osz file: Upload request not found')
         return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
-    
+
+    # Ensure set_id has a value - some clients don't send it
+    set_id = set_id or upload_request.set_id
+
     if set_id != upload_request.set_id:
         app.session.logger.warning(f'Failed to upload osz file: Invalid set id')
         return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
@@ -1750,9 +1848,9 @@ def upload_osz(
         f'{user.name} uploaded an osz file for beatmapset ({set_id})'
     )
 
-    if previous_status == -3:
-        # Post to discord webhook
-        post_to_webhook(beatmapset)
+    # Depending on if the beatmap is new or updated, different event types should be used
+    broadcast_type = broadcast_upload_activity if previous_status == -3 else broadcast_update_activity
+    broadcast_type(beatmapset, session)
 
     return "ok"
 
@@ -1764,6 +1862,8 @@ def upload_osz_novideo(osz_filename: str = Query(..., alias='file')):
     return Response(status_code=200)
 
 @router.post('/osu-bmsubmit-post3.php')
+@router.post('/osu-bmsubmit-post2.php')
+@router.post('/osu-bmsubmit-post.php')
 def legacy_forum_post(
     username: str = Form(..., alias='u'),
     password: str = Form(..., alias='p'),

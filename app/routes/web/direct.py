@@ -1,6 +1,4 @@
 
-from __future__ import annotations
-
 from app.common.database import DBBeatmapset, DBUser
 from app.common.constants import DisplayMode
 from app.common.cache import status
