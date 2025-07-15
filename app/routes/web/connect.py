@@ -37,7 +37,7 @@ def connect(
 
     date = int(match.group('date'))
 
-    if date <= 20130815:
+    if date <= 20130915:
         return config.BANCHO_IP or ""
 
     return resolve_country(request)
