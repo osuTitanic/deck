@@ -62,8 +62,9 @@ def get_screenshot(id: int, checksum: str) -> Response:
         image,
         media_type=f"image/{file_extension}",
         headers={
+            'Cache-Control': 'public, max-age=1209600, immutable',
             'Date': ss.created_at.strftime('%a, %d %b %Y %H:%M:%S GMT'),
             'Content-Disposition': f'inline; filename="{id}.{file_extension}"',
-            'Content-Length': f'{len(image)}',
+            'Content-Length': f'{len(image)}'
         }
     )
