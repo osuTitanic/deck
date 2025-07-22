@@ -11,16 +11,16 @@ import app
 
 router = APIRouter()
 
-@router.get('/mt/{id}')
-@router.get('/thumb/{id}')
-@router.get('/images/map-thumb/{id}')
-def beatmap_thumbnail(id: str):
-    id = id.removesuffix('.jpg')
+@router.get('/mt/{filename}')
+@router.get('/thumb/{filename}')
+@router.get('/images/map-thumb/{filename}')
+def beatmap_thumbnail(filename: str):
+    key = filename.split('.', maxsplit=1)[0]
 
-    if not (image := app.session.storage.get_background(id)):
-        return
+    if not (image := app.session.storage.get_background(key)):
+        raise HTTPException(404)
 
-    set_id = int(id.removesuffix('l'))
+    set_id = int(key.removesuffix('l'))
 
     # Cache beatmapsets from bancho
     cache_response = set_id < 1000000000
@@ -39,12 +39,16 @@ def beatmap_thumbnail(id: str):
 @router.get('/preview/{filename}')
 @router.get('/mp3/preview/{filename}')
 def beatmap_preview(filename: str):
-    set_id = int(filename.replace('.mp3', ''))
+    key = filename.split('.', maxsplit=1)[0]
 
-    if not (mp3 := app.session.storage.get_mp3(set_id)):
-        return
+    if not key.isdigit():
+        raise HTTPException(404)
+
+    if not (mp3 := app.session.storage.get_mp3(key)):
+        raise HTTPException(404)
 
     # Cache beatmapsets from bancho
+    set_id = int(key)
     cache_response = set_id < 1000000000
     cache_expiry = 3600*24
     cache_headers = (
@@ -62,13 +66,14 @@ def beatmap_preview(filename: str):
 @router.get('/bss/{filename}')
 def beatmap_osz(filename: str) -> StreamingResponse:
     # Handle filenames such as "1 Kenji Ninuma - DISCO PRINCE.osz"
-    set_id_string = filename.split(' ')[0]
+    key = filename.split(' ')[0]
+    set_id_string = key.removesuffix('n')
 
-    if not set_id_string.replace('n', '').isdigit():
+    if not set_id_string.isdigit():
         raise HTTPException(404)
 
-    set_id = int(set_id_string.replace('n', ''))
-    no_video = 'n' in set_id_string
+    set_id = int(set_id_string)
+    no_video = 'n' in key
 
     if not (beatmapset := beatmapsets.fetch_one(set_id)):
         raise HTTPException(404)
