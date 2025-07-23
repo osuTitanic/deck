@@ -23,7 +23,7 @@ COPY . .
 
 # Get config for deployment
 ARG WEB_WORKERS=4
-ENV WEB_WORKERS $WEB_WORKERS
+ENV WEB_WORKERS=$WEB_WORKERS
 
 # Generate __pycache__ directories
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -33,11 +33,11 @@ RUN python -m compileall -q app
 ENV PYTHONUNBUFFERED=1
 
 CMD gunicorn \
-        --access-logfile - \
-        --preload \
-        -b 0.0.0.0:80 \
-        -w $WEB_WORKERS \
-        -k uvicorn.workers.UvicornWorker \
-        --max-requests 10000 \
-        --max-requests-jitter 5000 \
-        app:api
+    --access-logfile - \
+    --preload \
+    -b 0.0.0.0:80 \
+    -w $WEB_WORKERS \
+    -k uvicorn.workers.UvicornWorker \
+    --max-requests 10000 \
+    --max-requests-jitter 5000 \
+    app:api
