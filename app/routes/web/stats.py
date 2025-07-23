@@ -34,16 +34,33 @@ def legacy_user_stats(
         app.session.logger.warning('Failed to send stats: User not found!')
         raise HTTPException(404)
 
-    # TODO: Check if user is online?
+    avatar_checksum = resolve_avatar_checksum(user_id)
     current_rank = leaderboards.global_rank(user_id, mode=0)
     current_acc = leaderboards.accuracy(user_id, mode=0)
     current_score = leaderboards.score(user_id, mode=0)
 
     return '|'.join([
-        str(current_score),
-        str(current_acc),
+        f"{current_score}",
+        f"{current_acc}",
         "", # TODO
         "", # TODO
-        str(current_rank),
-        str(user_id) # Avatar Filename
+        f"{current_rank}",
+        f"{user_id}_{avatar_checksum}.png" # Avatar Filename
     ])
+
+def resolve_avatar_checksum(user_id: int) -> str:
+    cached_checksum = app.session.redis.get(f'bancho:avatar_hash:{user_id}')
+
+    if cached_checksum:
+        return cached_checksum.decode('utf-8')
+
+    checksum = (
+        users.fetch_avatar_checksum(user_id) or "unknown"
+    )
+
+    app.session.redis.set(
+        f'bancho:avatar_hash:{user_id}',
+        checksum, ex=60 * 60 * 24
+    )
+
+    return checksum
