@@ -45,8 +45,8 @@ def legacy_user_stats(
     return '|'.join([
         f"{current_score_capped}",
         f"{current_acc}",
-        "", # TODO
-        "", # TODO
+        f"{current_score}", # NOTE: This field is usually empty & unused
+        f"{user_id}",       #       Same goes for this field
         f"{current_rank}",
         f"{user_id}_{avatar_checksum}.png" # Avatar Filename
     ])
