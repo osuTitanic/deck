@@ -1796,10 +1796,10 @@ def upload_osz(
         if filename not in files:
             app.session.logger.warning(f'Failed to upload osz file: Missing beatmap file')
             return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
-        
+
         ticket_hash = hashlib.md5(content).hexdigest()
         file_hash = hashlib.md5(files[filename]).hexdigest()
-        
+
         if ticket_hash != file_hash:
             app.session.logger.warning(f'Failed to upload osz file: Beatmap hash mismatch')
             return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
@@ -1822,6 +1822,10 @@ def upload_osz(
 
     beatmapset = beatmapsets.fetch_one(set_id, session)
     previous_status = beatmapset.status
+
+    if beatmapset.creator_id != user.id:
+        app.session.logger.warning(f'Failed to upload osz file: User does not own the beatmapset')
+        return bancho_message("The beatmap you're trying to submit isn't owned by you.", user)
 
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
