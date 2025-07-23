@@ -40,7 +40,7 @@ def legacy_user_stats(
     current_score = leaderboards.score(user_id, mode=0)
 
     # Cap score to a signed 32-bit integer to prevent overflow
-    current_score_capped = min(current_score, 2**32 // 2)
+    current_score_capped = min(current_score, 2147483647)
 
     return '|'.join([
         f"{current_score_capped}",
