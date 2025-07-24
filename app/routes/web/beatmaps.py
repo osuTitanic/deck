@@ -346,7 +346,7 @@ def update_beatmaps(
         return current_beatmap_ids + new_beatmap_ids
 
     for beatmap_id in new_beatmap_ids:
-        collaborations.create_collaboration(
+        collaborations.create(
             beatmap_id, user.id,
             is_beatmap_author=True,
             allow_resource_updates=True,
