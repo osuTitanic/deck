@@ -508,7 +508,6 @@ def resolve_beatmap_id(
     beatmap_ids: List[int],
     beatmap: dict,
     filename: str,
-    is_owner: bool,
     session: Session
 ) -> int:
     # Newer .osu version have the beatmap id in the metadata
@@ -521,9 +520,6 @@ def resolve_beatmap_id(
         if beatmap.id in beatmap_ids:
             beatmap_ids.remove(beatmap.id)
         return beatmap.id
-
-    if not is_owner:
-        return None
 
     return beatmap_ids.pop(0)
 
@@ -719,8 +715,7 @@ def update_beatmap_metadata(
             beatmap_ids,
             beatmap,
             filename,
-            session=session,
-            is_owner=beatmapset.creator_id == user.id
+            session=session
         )
         assert beatmap_id is not None
 
