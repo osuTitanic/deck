@@ -8,13 +8,12 @@ from zipfile import ZipFile
 from app.common.constants import SendAction, BeatmapGenre, BeatmapLanguage, UserActivity
 from app.common.database.objects import DBUser, DBBeatmapset, DBBeatmap
 from app.common.helpers import beatmaps as beatmap_helper
-from app.common.webhooks import Embed, Image, Author
 from app.common.helpers import performance, activity
 from app.common.streams import StreamIn
 from app.common.cache import status
 from app.common import officer
-
 from app.common.database import (
+    collaborations,
     nominations,
     beatmapsets,
     favourites,
@@ -282,10 +281,11 @@ def create_beatmapset(
     return set.id, [beatmap.id for beatmap in new_beatmaps]
 
 def update_beatmaps(
+    user: DBUser,
     beatmap_ids: List[int],
     beatmapset: DBBeatmapset,
     session: Session
-) -> List[int]:
+) -> List[int] | None:
     """Create/Delete beatmaps based on the amount of beatmaps the client requested"""
     # Get current beatmaps
     current_beatmap_ids = [
@@ -306,6 +306,13 @@ def update_beatmaps(
         ]
 
         for beatmap_id in deleted_maps:
+            is_collaborator = beatmapset.creator_id != user.id
+
+            if is_collaborator:
+                app.session.logger.warning(f'User {user.name} tried to delete beatmap {beatmap_id} without permission')
+                return None
+
+            collaborations.delete_by_beatmap(beatmap_id, session=session)
             plays.delete_by_beatmap_id(beatmap_id, session=session)
             beatmaps.delete_by_id(beatmap_id, session=session)
 
@@ -327,7 +334,24 @@ def update_beatmaps(
         for _ in range(required_maps)
     ]
 
-    app.session.logger.debug(f'Created {required_maps} new beatmaps')
+    app.session.logger.debug(
+        f'Created {required_maps} new beatmaps'
+    )
+
+    # Add collaborator permissions, if user is not the creator
+    is_collaborator = beatmapset.creator_id != user.id
+
+    if not is_collaborator:
+        # Return new beatmap ids to the client
+        return current_beatmap_ids + new_beatmap_ids
+
+    for beatmap_id in new_beatmap_ids:
+        collaborations.create_collaboration(
+            beatmap_id, user.id,
+            is_beatmap_author=True,
+            allow_resource_updates=True,
+            session=session
+        )
 
     # Return new beatmap ids to the client
     return current_beatmap_ids + new_beatmap_ids
@@ -482,12 +506,11 @@ def resolve_beatmapset(
 
 def resolve_beatmap_id(
     beatmap_ids: List[int],
-    beatmap_data: dict,
+    beatmap: dict,
     filename: str,
+    is_owner: bool,
     session: Session
 ) -> int:
-    beatmap = beatmap_data[filename]
-
     # Newer .osu version have the beatmap id in the metadata
     if (beatmap_id := beatmap.get('onlineID', -1)) != -1:
         if beatmap_id in beatmap_ids:
@@ -499,28 +522,127 @@ def resolve_beatmap_id(
             beatmap_ids.remove(beatmap.id)
         return beatmap.id
 
+    if not is_owner:
+        return None
+
     return beatmap_ids.pop(0)
 
 def validate_beatmap_owner(
     beatmap_data: dict,
     metadata: dict,
-    user: DBUser,
+    allowed_usernames: List[str]
 ) -> bool:
-    if user.is_bat:
-        # Allow BAT members to upload any beatmap
-        return True
-
-    if metadata.get('Creator') != user.name:
+    if metadata.get('Creator') not in allowed_usernames:
         return False
 
     for beatmap in beatmap_data.values():
-        if beatmap['metadata']['author']['username'] != user.name:
+        if beatmap['metadata']['author']['username'] not in allowed_usernames:
             return False
 
     return True
 
+def beatmap_update_permissions(
+    user: DBUser,
+    beatmapset: DBBeatmapset,
+    session: Session
+) -> Tuple[List[DBBeatmap], bool]:
+    if user.id == beatmapset.creator_id:
+        # User is the creator of the beatmapset
+        return [beatmap for beatmap in beatmapset.beatmaps], True
+
+    collaboration_entries = collaborations.fetch_by_beatmaps(
+        [beatmap.id for beatmap in beatmapset.beatmaps],
+        session=session
+    )
+
+    affected_collaborations = [
+        entry for entry in collaboration_entries
+        if entry.user_id == user.id
+    ]
+
+    if not affected_collaborations:
+        # User is not a collaborator on any of the beatmaps
+        return [], False
+
+    can_update_resources = any([
+        entry.allow_resource_updates
+        for entry in affected_collaborations
+    ])
+
+    return [entry.beatmap for entry in affected_collaborations], can_update_resources
+
+def adjust_files_for_collaboration(
+    files: Dict[str, bytes],
+    original_files: Dict[str, bytes],
+    allowed_beatmaps: List[DBBeatmap],
+    can_update_resources: bool
+) -> Dict[str, bytes]:
+    # Making sure that both files and original_files are not empty
+    assert original_files and files
+
+    allowed_filenames = [
+        beatmap.filename
+        for beatmap in allowed_beatmaps
+    ]
+
+    beatmap_files = {
+        filename: data for filename, data in files.items()
+        if filename in allowed_filenames
+    }
+    
+    original_beatmap_files = {
+        filename: data for filename, data in original_files.items()
+        if filename.endswith('.osu')
+    }
+
+    resource_files = {
+        filename: data for filename, data in files.items()
+        if not filename.endswith('.osu')
+    }
+
+    original_resource_files = {
+        filename: data for filename, data in original_files.items()
+        if not filename.endswith('.osu')
+    }
+
+    if not can_update_resources:
+        # User is only allowed to update their own beatmap files
+        result_files = {}
+        result_files.update(original_beatmap_files)
+        result_files.update(original_resource_files)
+        result_files.update(beatmap_files)
+        return result_files
+    
+    new_beatmap_files = {
+        filename: data for filename, data in files.items()
+        if filename.endswith('.osu') and filename not in original_beatmap_files
+    }
+
+    # User is able to to update resources (e.g. images, audio, etc.)
+    # as well as upload new beatmap files
+    result_files = {}
+    result_files.update(original_beatmap_files)
+    result_files.update(resource_files)
+    result_files.update(beatmap_files)
+    result_files.update(new_beatmap_files)
+    return result_files
+
+def existing_files(beatmapset_id: int) -> Dict[str, bytes]:
+    previous_osz = app.session.storage.get_osz_internal(beatmapset_id)
+    previous_osz = previous_osz or empty_zip_file()
+
+    # Read all files of previous osz
+    with ZipFile(io.BytesIO(previous_osz)) as zip_file:
+        files = {
+            filename: zip_file.read(filename)
+            for filename in zip_file.namelist()
+        }
+
+    return files
+
 def update_beatmap_metadata(
     beatmapset: DBBeatmapset,
+    user: DBUser,
     files: dict,
     metadata: dict,
     beatmap_data: dict,
@@ -593,20 +715,20 @@ def update_beatmap_metadata(
     assert len(beatmap_ids) == len(beatmap_data)
 
     for filename, beatmap in beatmap_data.items():
+        beatmap_id = resolve_beatmap_id(
+            beatmap_ids,
+            beatmap,
+            filename,
+            session=session,
+            is_owner=beatmapset.creator_id == user.id
+        )
+        assert beatmap_id is not None
+
         difficulty_attributes = performance.calculate_difficulty(
             files[filename],
             beatmap['ruleset']['onlineID']
         )
-
-        beatmap_id = resolve_beatmap_id(
-            beatmap_ids,
-            beatmap_data,
-            filename,
-            session=session
-        )
-
         assert difficulty_attributes is not None
-        assert beatmap_id is not None
 
         beatmaps.update(
             beatmap_id,
@@ -725,7 +847,10 @@ def update_beatmap_files(files: dict, session: Session) -> None:
             continue
 
         beatmap_id = beatmaps.fetch_id_by_filename(filename, session)
-        assert beatmap_id is not None
+
+        if not beatmap_id:
+            app.session.logger.warning(f'Beatmap file "{filename}" not found in database. Skipping...')
+            continue
 
         app.session.storage.upload_beatmap_file(
             beatmap_id,
@@ -1027,8 +1152,14 @@ def validate_upload_request(
     if beatmapset := resolve_beatmapset(set_id, beatmap_ids, session):
         # User wants to update an existing beatmapset
         set_id = beatmapset.id
+        
+        allowed_beatmaps, can_update_resources = beatmap_update_permissions(
+            user,
+            beatmapset,
+            session=session
+        )
 
-        if beatmapset.creator_id != user.id:
+        if not allowed_beatmaps:
             app.session.logger.warning(f'Failed to update beatmapset: User does not own the beatmapset')
             return error_response(1)
 
@@ -1044,12 +1175,20 @@ def validate_upload_request(
             app.session.logger.warning(f'Failed to update beatmapset: Beatmapset is graveyarded')
             return error_response(4)
 
+        if not can_update_resources and len(beatmap_ids) != len(beatmapset.beatmaps):
+            app.session.logger.warning(f'Failed to update beatmapset: User is not allowed to add additional beatmaps')
+            return error_response(5, 'You are not allowed to add additional beatmaps to this beatmapset.')
+
         # Create/Remove new beatmaps if necessary
         beatmap_ids = update_beatmaps(
+            user,
             beatmap_ids,
             beatmapset,
             session=session
         )
+
+        if beatmap_ids is None:
+            return error_response(5, 'Please ask the owner of this beatmapset to delete your beatmap.')
 
         # Get "bubbled" status
         bubbled = is_bubbled(
@@ -1120,7 +1259,13 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmapset not found')
         return error_response(5, 'The beatmapset you are trying to upload to does not exist. Please try again!')
 
-    if beatmapset.creator_id != user.id:
+    allowed_beatmaps, can_update_resources = beatmap_update_permissions(
+        user,
+        beatmapset,
+        session=session
+    )
+
+    if not allowed_beatmaps:
         app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
         return error_response(1)
 
@@ -1176,12 +1321,35 @@ def upload_beatmap(
             for filename, content in data['files'].items()
         }
 
+        if beatmapset.creator_id != user.id:
+            # User was invited for a beatmap collaboration
+            # We want to make sure they can only update the
+            # files that they are allowed to update
+            files = adjust_files_for_collaboration(
+                files,
+                existing_files(beatmapset.id),
+                allowed_beatmaps,
+                can_update_resources
+            )
+
         # Check if the user is trying to upload someone else's beatmap
-        if duplicate_beatmap_files(files, user.id, session):
+        if duplicate_beatmap_files(files, beatmapset.creator_id, session):
             app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
             return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
 
-        if not validate_beatmap_owner(data['beatmaps'], data['metadata'], user):
+        allowed_usernames = {
+            beatmapset.creator_user.name,
+            user.name
+        }
+
+        allowed_usernames.update(
+            username
+            for beatmap in beatmapset.beatmaps
+            for usernames in collaborations.fetch_usernames(beatmap.id, session=session)
+            for username in usernames
+        )
+
+        if not validate_beatmap_owner(data['beatmaps'], data['metadata'], allowed_usernames):
             app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
             return error_response(1)
 
@@ -1209,6 +1377,7 @@ def upload_beatmap(
         # Update metadata for beatmapset and beatmaps
         update_beatmap_metadata(
             beatmapset,
+            user,
             files,
             data['metadata'],
             data['beatmaps'],
@@ -1540,23 +1709,21 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         app.session.logger.warning(f'Failed to process upload request: Beatmapset is graveyarded')
         return error_response(4, legacy=True)
 
-    if duplicate_beatmap_files(request.files, user.id, session):
+    if duplicate_beatmap_files(request.files, beatmapset.creator_id, session):
         app.session.logger.warning(f'Failed to process upload request: Duplicate beatmap files')
         return "It seems like one of your beatmaps was already uploaded by someone else. Please try again!"
     
-    if not validate_beatmap_owner(request.beatmaps, request.metadata, user):
+    allowed_names = {
+        beatmapset.creator_user.name,
+        user.name
+    }
+
+    if not validate_beatmap_owner(request.beatmaps, request.metadata, allowed_names):
         app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
         return error_response(1, legacy=True)
 
-    previous_osz = app.session.storage.get_osz_internal(beatmapset.id)
-    previous_osz = previous_osz or empty_zip_file()
-
     # Read all files of previous osz
-    with ZipFile(io.BytesIO(previous_osz)) as zip_file:
-        files = {
-            filename: zip_file.read(filename)
-            for filename in zip_file.namelist()
-        }
+    files = existing_files(beatmapset.id)
 
     # Add updated maps to the files
     for filename, content in request.files.items():
@@ -1593,10 +1760,14 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
 
     # Create/Remove new beatmaps if necessary
     beatmap_ids = update_beatmaps(
+        user,
         beatmap_ids,
         beatmapset,
         session=session
     )
+
+    if beatmap_ids is None:
+        return error_response(5, 'Please ask the owner of this beatmapset to delete your beatmap.')
 
     # Update relationships
     session.refresh(beatmapset)
@@ -1604,6 +1775,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
         beatmapset,
+        user,
         files,
         request.metadata,
         request.beatmaps,
@@ -1830,6 +2002,7 @@ def upload_osz(
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
         beatmapset,
+        user,
         files,
         upload_request.metadata,
         upload_request.beatmaps,
