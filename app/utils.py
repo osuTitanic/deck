@@ -1,10 +1,13 @@
 
 from pydub import AudioSegment
 from functools import cache
+from typing import Callable
+from functools import wraps
 from PIL import Image
 
 import config
 import bcrypt
+import time
 import app
 import io
 import os
@@ -175,3 +178,14 @@ def extract_audio_snippet(
     snippet_buffer = io.BytesIO()
     snippet.export(snippet_buffer, format='mp3', bitrate=bitrate)
     return snippet_buffer.getvalue()
+
+def measure_time(func: Callable) -> Callable:
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        app.session.logger.info(f'"{func.__name__}" took {elapsed_time:.4f} seconds')
+        return result
+    return wrapper    
