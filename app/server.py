@@ -1,6 +1,6 @@
 
+from app import session, utils, routes, profiling
 from contextlib import asynccontextmanager
-from app import session, utils, routes
 from fastapi import FastAPI
 
 import config
@@ -10,6 +10,7 @@ async def lifespan(app: FastAPI):
     session.database.engine.dispose()
     session.database.wait_for_connection()
     session.redis.ping()
+    profiling.setup()
     utils.setup()
     yield
     session.achievement_executor.shutdown(wait=True)
