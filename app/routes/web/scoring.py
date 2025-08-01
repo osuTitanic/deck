@@ -184,6 +184,7 @@ async def parse_legacy_score_data(
         )
         raise HTTPException(400)
 
+@utils.measure_time
 def validate_replay(replay_bytes: bytes) -> bool:
     """Validate the replay contents"""
     app.session.logger.debug('Validating replay...')
@@ -228,6 +229,7 @@ def validate_replay(replay_bytes: bytes) -> bool:
 
     return True
 
+@utils.measure_time
 def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
     """Validate the score submission requests and return an error if the validation fails"""
     app.session.logger.debug('Performing score validation...')
@@ -449,6 +451,7 @@ def calculate_weighted_acc(scores: List[DBScore]) -> float:
     bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(scores)))
     return (weighted_acc * bonus_acc) / 100
 
+@utils.measure_time
 def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     """Update the users and beatmaps stats. It will return the old & new stats for the user"""
     app.session.logger.debug('Updating user stats...')
@@ -582,6 +585,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         }
     )
 
+@utils.measure_time
 def unlock_achievements(
     score: Score,
     score_object: DBScore,
@@ -629,6 +633,7 @@ def unlock_achievements(
 
     return achievement_response
 
+@utils.measure_time
 def resolve_preferred_ranking(user: DBUser, mode: int) -> Tuple[int, int]:
     """Receive the preferred ranking type from cache (ppv2/ppv1/tscore/...)"""
     ranking_mapping = {
@@ -759,6 +764,7 @@ def thread_callback(future: Future) -> None:
 
 @router.post("/osu-submit-modular-selector.php")
 @router.post('/osu-submit-modular.php')
+@utils.measure_time
 def score_submission(
     request: Request,
     # This will get sent when the "FlashLightImageHack" flag is triggered
