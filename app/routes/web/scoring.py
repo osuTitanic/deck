@@ -507,9 +507,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
     vn_scores = [score for score in best_scores if (score.mods & 128) == 0 and (score.mods & 8192) == 0]
 
+    # Update max combo, if higher
     if score.beatmap.is_ranked and score.has_pb:
         if score.max_combo > user_stats.max_combo:
-            # Update max combo, if higher
             user_stats.max_combo = score.max_combo
 
     if best_scores:
@@ -531,6 +531,23 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         # Update ppv1
         user_stats.ppv1 = performance.calculate_weighted_ppv1(best_scores)
 
+        # Update score grades
+        grades = scores.fetch_grades(
+            user_stats.user_id,
+            user_stats.mode,
+            session=score.session
+        )
+
+        stats.update(
+            user_stats.user_id,
+            user_stats.mode,
+            {
+                f'{grade.lower()}_count': count
+                for grade, count in grades.items()
+            },
+            session=score.session
+        )
+
         leaderboards.update(
             user_stats,
             player.country.lower()
@@ -548,23 +565,6 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             )
 
         score.session.commit()
-
-        # Update score grades
-        grades = scores.fetch_grades(
-            user_stats.user_id,
-            user_stats.mode,
-            session=score.session
-        )
-
-        stats.update(
-            user_stats.user_id,
-            user_stats.mode,
-            {
-                f'{grade.lower()}_count': count
-                for grade, count in grades.items()
-            },
-            session=score.session
-        )
 
         new_rank, new_pp = resolve_preferred_ranking(
             player,
