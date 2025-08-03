@@ -373,22 +373,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
             )
             return 'error: ban'
 
-    multiaccounting_lock = app.session.redis.get(f'multiaccounting:{player.id}')
-
-    if multiaccounting_lock != None and int(multiaccounting_lock) > 0:
-        officer.call(
-            f'"{score.username}" submitted a score while multiaccounting.'
-        )
-
-        if not player.is_verified:
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                autoban=True,
-                reason='Multiaccounting'
-            )
-            return 'error: ban'
-
 def upload_replay(score: Score, score_id: int) -> None:
     if score.passed and score.status_pp > ScoreStatus.Exited:
         app.session.logger.debug('Uploading replay...')
