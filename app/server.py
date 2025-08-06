@@ -1,6 +1,7 @@
 
-from app import session, utils, routes, profiling
 from contextlib import asynccontextmanager
+from app import session, utils, routes
+from app.common import profiling
 from fastapi import FastAPI
 
 import config
