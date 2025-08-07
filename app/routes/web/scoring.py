@@ -487,8 +487,6 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         session=score.session
     )
 
-    rx_scores = [score for score in best_scores if (score.mods & 128) != 0]
-    ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
     vn_scores = [score for score in best_scores if (score.mods & 128) == 0 and (score.mods & 8192) == 0]
 
     # Update max combo, if higher
@@ -500,8 +498,6 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         # Update pp
         user_stats.pp = calculate_weighted_pp(best_scores)
         user_stats.pp_vn = calculate_weighted_pp(vn_scores)
-        user_stats.pp_rx = calculate_weighted_pp(rx_scores)
-        user_stats.pp_ap = calculate_weighted_pp(ap_scores)
 
         # Update acc
         user_stats.acc = calculate_weighted_acc(best_scores)
