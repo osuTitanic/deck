@@ -21,17 +21,29 @@ def default_avatar():
     return Response(image, media_type='image/png')
 
 @router.get('/a/{filename}')
-def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
-    # Workaround for older clients
-    user_id = int(
-        filename.replace('_000.png', '').replace('_000.jpg', '')
+def avatar(
+    filename: str,
+    size: Optional[int] = Query(128, alias='s'),
+    checksum: Optional[str] = Query(None, alias='c')
+) -> Response:
+    # Workaround for older clients that use file extensions
+    user_id_string = filename.split('_')[0]
+
+    if not user_id_string.isdigit():
+        return default_avatar()
+
+    # If a checksum is provided, we can cache the avatar
+    cache_header = (
+        {'Cache-Control': 'public, max-age=86400'}
+        if checksum is not None else {}
     )
+    user_id = int(user_id_string)
 
     if (image := app.session.redis.get(f'avatar:{user_id}:{size}')):
         return Response(
             image,
             media_type='image/png',
-            headers={'Cache-Control': 'stale-while-revalidate, max-age=10'}
+            headers=cache_header
         )
 
     if not (image := app.session.storage.get_avatar(user_id)):
@@ -50,14 +62,12 @@ def avatar(filename: str, size: Optional[int] = Query(128, alias='s')):
     return Response(
         image,
         media_type='image/png',
-        headers={'Cache-Control': 'stale-while-revalidate, max-age=10'}
+        headers=cache_header
     )
 
 @router.get('/forum/download.php')
 def legacy_avatar(request: Request):
-    args = request.query_params
-
-    if not (filename := args.get('avatar')):
-        return default_avatar()
-
-    return avatar(str(filename), size=128)
+    return avatar(
+        request.query_params.get('avatar', ''),
+        size=128
+    )

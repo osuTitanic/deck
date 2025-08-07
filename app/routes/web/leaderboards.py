@@ -139,7 +139,7 @@ def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
         str(score.perfect),
         str(resolve_mods(score, False)), # All clients using legacy score string don't support NC
         str(score.user_id),
-        str(score.user_id), # Avatar Filename
+        str(score.user.avatar_filename),
         str(score.submitted_at)
     ])
 

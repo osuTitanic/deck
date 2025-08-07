@@ -2,7 +2,7 @@
 from app.common.cache import status
 from app.common.helpers import activity
 from app.common.constants import UserActivity
-from app.common.database import DBStats, DBScore
+from app.common.database import DBStats, DBScore, DBUser
 from app.common.database.repositories import (
     histories,
     scores,
@@ -60,35 +60,62 @@ def get_replay(
         app.session.logger.warning(f'Failed to get replay "{score_id}": Not found on storage')
         raise HTTPException(404)
 
-    if player and player.id != score.user.id:
-        histories.update_replay_views(
-            score.user.id,
-            score.mode,
-            session
-        )
-        stats.update(
-            score.user.id, score.mode,
-            {'replay_views': DBStats.replay_views + 1},
-            session
-        )
-        scores.update(
-            score.id,
-            {'replay_views': DBScore.replay_views + 1},
-            session
-        )
-        activity.submit(
-            player.id, score.mode,
-            UserActivity.ReplayWatched,
-            {
-                'username': player.name,
-                'score_id': score.id,
-                'target_id': score.user.id,
-                'target_name': score.user.name,
-                'beatmap_id': score.beatmap.id,
-                'beatmap_name': score.beatmap.full_name,
-            },
-            is_hidden=True,
+    if player is not None:
+        increase_replay_views(
+            player, score,
             session=session
         )
 
     return Response(replay)
+
+def increase_replay_views(
+    viewer: DBUser,
+    score: DBScore,
+    session: Session
+) -> None:
+    if viewer.id == score.user.id:
+        # Don't increase views for the player
+        # watching their own replay
+        return
+
+    cooldown = app.session.redis.get(
+        f"replay_cooldown:{viewer.id}:{score.user.id}"
+    )
+
+    if cooldown is not None:
+        # Cooldown is active, do not increase views
+        return
+
+    histories.update_replay_views(
+        score.user.id,
+        score.mode,
+        session
+    )
+    stats.update(
+        score.user.id, score.mode,
+        {'replay_views': DBStats.replay_views + 1},
+        session
+    )
+    scores.update(
+        score.id,
+        {'replay_views': DBScore.replay_views + 1},
+        session
+    )
+    activity.submit(
+        viewer.id, score.mode,
+        UserActivity.ReplayWatched,
+        {
+            'username': viewer.name,
+            'score_id': score.id,
+            'target_id': score.user.id,
+            'target_name': score.user.name,
+            'beatmap_id': score.beatmap.id,
+            'beatmap_name': score.beatmap.full_name,
+        },
+        is_hidden=True,
+        session=session
+    )
+    app.session.redis.setex(
+        f"replay_cooldown:{viewer.id}:{score.user.id}",
+        time=60, value=1
+    )

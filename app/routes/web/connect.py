@@ -22,18 +22,14 @@ def resolve_country(request: Request) -> str:
 def connect(
     request: Request,
     retry: bool = Query(False),
-    version: str = Query(..., alias='v'),
-    username: str = Query(..., alias='u'),
-    password: str = Query(..., alias='h'),
+    version: str = Query("b20130815", alias='v'),
+    username: str | None = Query(None, alias='u'),
+    password: str | None = Query(None, alias='h'),
     framework: str = Query("dotnet30", alias="fx"),
     failure: str | None = Query(None, alias='fail')
 ) -> str:
     if not (match := regexes.OSU_VERSION.match(version)):
         return "XX"
-
-    app.session.logger.info(
-        f'Player "{username}" with version "{version}" is about to connect to bancho.'
-    )
 
     # NOTE: It's possible to respond with "420" here to
     #       indicate that the server is busy. osu! will
@@ -41,7 +37,7 @@ def connect(
 
     date = int(match.group('date'))
 
-    if date <= 20130815:
+    if date <= 20130915:
         return config.BANCHO_IP or ""
 
     return resolve_country(request)

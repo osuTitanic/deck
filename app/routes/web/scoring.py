@@ -373,22 +373,6 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
             )
             return 'error: ban'
 
-    multiaccounting_lock = app.session.redis.get(f'multiaccounting:{player.id}')
-
-    if multiaccounting_lock != None and int(multiaccounting_lock) > 0:
-        officer.call(
-            f'"{score.username}" submitted a score while multiaccounting.'
-        )
-
-        if not player.is_verified:
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                autoban=True,
-                reason='Multiaccounting'
-            )
-            return 'error: ban'
-
 def upload_replay(score: Score, score_id: int) -> None:
     if score.passed and score.status_pp > ScoreStatus.Exited:
         app.session.logger.debug('Uploading replay...')
@@ -507,9 +491,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
     vn_scores = [score for score in best_scores if (score.mods & 128) == 0 and (score.mods & 8192) == 0]
 
+    # Update max combo, if higher
     if score.beatmap.is_ranked and score.has_pb:
         if score.max_combo > user_stats.max_combo:
-            # Update max combo, if higher
             user_stats.max_combo = score.max_combo
 
     if best_scores:
@@ -531,6 +515,23 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         # Update ppv1
         user_stats.ppv1 = performance.calculate_weighted_ppv1(best_scores)
 
+        # Update score grades
+        grades = scores.fetch_grades(
+            user_stats.user_id,
+            user_stats.mode,
+            session=score.session
+        )
+
+        stats.update(
+            user_stats.user_id,
+            user_stats.mode,
+            {
+                f'{grade.lower()}_count': count
+                for grade, count in grades.items()
+            },
+            session=score.session
+        )
+
         leaderboards.update(
             user_stats,
             player.country.lower()
@@ -549,42 +550,10 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
         score.session.commit()
 
-        # Update score grades
-        grades = scores.fetch_grades(
-            user_stats.user_id,
-            user_stats.mode,
-            session=score.session
-        )
-
-        stats.update(
-            user_stats.user_id,
-            user_stats.mode,
-            {
-                f'{grade.lower()}_count': count
-                for grade, count in grades.items()
-            },
-            session=score.session
-        )
-
         new_rank, new_pp = resolve_preferred_ranking(
             player,
             score.mode.value
         )
-
-    # Update preferred mode
-    if player.preferred_mode != score.mode.value:
-        recent_scores = scores.fetch_recent_all(
-            player.id,
-            limit=30,
-            session=score.session
-        )
-
-        if len({s.mode for s in recent_scores}) == 1:
-            users.update(
-                player.id,
-                {'preferred_mode': score.mode.value},
-                score.session
-            )
 
     return (
         user_stats,
