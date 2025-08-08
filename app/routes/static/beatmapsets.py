@@ -85,7 +85,7 @@ def beatmap_osz(filename: str) -> StreamingResponse:
         raise HTTPException(404)
 
     return StreamingResponse(
-        response.iter_content(6400),
+        response.iter_content(65536),
         media_type='application/octet-stream',
         headers={
             'Content-Disposition': f'attachment; filename="{set_id} {beatmapset.artist} - {beatmapset.title}.osz"',
