@@ -23,7 +23,7 @@ FROM python:3.13-slim-bookworm
 # Installing runtime dependencies
 RUN apt update -y && \
     apt install -y --no-install-recommends \
-    ffmpeg libavcodec-extra \
+    ffmpeg libavcodec-extra tini \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder
@@ -44,6 +44,9 @@ COPY . .
 ENV PYTHONDONTWRITEBYTECODE=1
 RUN python -m compileall -q app
 
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
 CMD gunicorn \
     --access-logfile - \
     --preload \
@@ -52,4 +55,6 @@ CMD gunicorn \
     -k uvicorn.workers.UvicornWorker \
     --max-requests 10000 \
     --max-requests-jitter 5000 \
+    --graceful-timeout 5 \
+    --timeout 10 \
     app:api
