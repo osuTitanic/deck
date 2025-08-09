@@ -41,7 +41,7 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
         set.artist  if set.artist else "",
         set.title   if set.title else "",
         set.creator if set.creator else "",
-        set.status,
+        str(set.status),
         str(average_rating),
         str(set.last_update),
         str(set.id),
