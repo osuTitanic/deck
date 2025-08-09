@@ -36,23 +36,12 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
         if ratings else 0
     )
 
-    status = {
-        -3: "3",
-        -2: "3",
-        -1: "3",
-        0: "3",
-        1: "1",
-        2: "2",
-        3: "1",
-        4: "2"
-    }[set.status]
-
     return "|".join([
         f'{set.id} {set.artist} - {set.title}.osz',
         set.artist  if set.artist else "",
         set.title   if set.title else "",
         set.creator if set.creator else "",
-        status,
+        set.status,
         str(average_rating),
         str(set.last_update),
         str(set.id),
