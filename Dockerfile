@@ -23,7 +23,7 @@ FROM python:3.13-slim-bookworm
 # Installing runtime dependencies
 RUN apt update -y && \
     apt install -y --no-install-recommends \
-    ffmpeg libavcodec-extra tini \
+    ffmpeg libavcodec-extra tini curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder
