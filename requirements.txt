@@ -15,4 +15,4 @@ uvicorn==0.35.0
 pydub==0.25.1
 rosu-pp-py==3.1.0
 python-multipart==0.0.20
-audioop-lts==0.2.1; python_version >= "3.13"
+audioop-lts==0.2.2; python_version >= "3.13"
