@@ -1000,10 +1000,10 @@ def legacy_score_submission(
 
     if score.relaxing:
         # Recalculate rx total score
-        object = score.to_database()
-        object.beatmap = score.beatmap
-        object.user = score.user
-        score.total_score = calculate_rx_score(object)
+        score.total_score = calculate_rx_score(
+            score.to_database(),
+            score.beatmap
+        )
 
     if score.version <= 0:
         # Client didn't provide a version
