@@ -571,8 +571,10 @@ def unlock_achievements(
     score_object: DBScore,
     player: DBUser
 ) -> List[str]:
-    app.session.logger.debug('Checking achievements...')
+    if player.is_bot:
+        return []
 
+    app.session.logger.debug('Checking achievements...')
     unlocked_achievements = achievements.fetch_many(player.id, score.session)
     ignore_list = [a.filename for a in unlocked_achievements]
 
@@ -775,10 +777,6 @@ def score_submission(
         app.session.logger.warning(f'Failed to submit score: Restricted')
         return 'error: ban'
 
-    if player.is_bot:
-        app.session.logger.warning(f'Failed to submit score: Bot account')
-        return 'error: inactive'
-
     score.beatmap = beatmaps.fetch_by_checksum(
         score.file_checksum,
         score.session
@@ -827,7 +825,7 @@ def score_submission(
         # Try to get it from bancho instead
         score.version = status.version(player.id) or 0
 
-    if score.beatmap.is_ranked:
+    if score.beatmap.is_ranked and not player.is_bot:
         score.personal_best_pp = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
@@ -1014,7 +1012,7 @@ def legacy_score_submission(
         # Prevent "Taiko" mod plays from being submitted
         raise HTTPException(400)
 
-    if score.beatmap.is_ranked:
+    if score.beatmap.is_ranked and not player.is_bot:
         score.personal_best_pp = scores.fetch_personal_best(
             score.beatmap.id,
             score.user.id,
