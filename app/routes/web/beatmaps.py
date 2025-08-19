@@ -1346,7 +1346,7 @@ def upload_beatmap(
         allowed_names.update(
             username
             for beatmap in beatmapset.beatmaps
-            for usernames in collaborations.fetch_usernames(beatmap.id, session=session)
+            for usernames in collaborations.fetch_usernames(beatmap.id, session)
             for username in usernames
         )
 
