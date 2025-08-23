@@ -189,7 +189,12 @@ def validate_replay(replay_bytes: bytes) -> bool:
     app.session.logger.debug('Validating replay...')
 
     try:
-        replay = lzma.decompress(replay_bytes).decode()
+        replay_bytes = utils.lzma_decompress(
+            replay_bytes,
+            memlimit=1024 * 1024 * 50,
+            max_length=1024 * 1024 * 50
+        )
+        replay = replay_bytes.decode()
         frames = replay.split(',')
 
         if len(frames) < 100:

@@ -7,6 +7,7 @@ from PIL import Image
 
 import config
 import bcrypt
+import lzma
 import time
 import app
 import io
@@ -188,4 +189,31 @@ def measure_time(func: Callable) -> Callable:
         elapsed_time = end_time - start_time
         app.session.logger.info(f'"{func.__name__}" took {elapsed_time:.4f} seconds')
         return result
-    return wrapper    
+    return wrapper
+
+def lzma_decompress(data, format=lzma.FORMAT_AUTO, memlimit=None, filters=None, max_length: int = -1):
+    """Modified 'lzma.decompress' function, that allows to set a max_length"""
+    chunks = []
+
+    while True:
+        try:
+            decomp = lzma.LZMADecompressor(format, memlimit, filters)
+            res = decomp.decompress(data, max_length)
+        except lzma.LZMAError:
+            if chunks:
+                # Leftover data is not a valid LZMA/XZ stream; ignore it.
+                break
+            else:
+                # Error on the first iteration; bail out.
+                raise
+
+        if not decomp.eof:
+            raise lzma.LZMAError("Compressed data ended before the end-of-stream marker was reached")
+
+        chunks.append(res)
+        data = decomp.unused_data
+
+        if not data:
+            break
+
+    return b"".join(chunks)
