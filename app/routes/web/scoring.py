@@ -842,7 +842,7 @@ def score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                score.personal_best_pp.id,
+                score.personal_best_score.id,
                 score.beatmap.id,
                 mode=score.mode.value,
                 session=score.session
@@ -1033,7 +1033,7 @@ def legacy_score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                score.personal_best_pp.id,
+                score.personal_best_score.id,
                 score.beatmap.id,
                 mode=score.mode.value,
                 session=score.session
