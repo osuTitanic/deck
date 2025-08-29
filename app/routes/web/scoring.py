@@ -503,8 +503,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
 
     if best_scores:
         # Update pp
-        user_stats.pp = calculate_weighted_pp(best_scores)
-        user_stats.pp_vn = calculate_weighted_pp(vn_scores)
+        user_stats.pp = calculate_weighted_pp(vn_scores)
         user_stats.pp_rx = calculate_weighted_pp(rx_scores)
         user_stats.pp_ap = calculate_weighted_pp(ap_scores)
 
