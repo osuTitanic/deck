@@ -84,12 +84,16 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     if not (response := app.session.storage.api.osz(set_id, no_video)):
         raise HTTPException(404)
 
+    estimated_size = (
+        beatmapset.osz_filesize_novideo if no_video else beatmapset.osz_filesize
+    )
+
     return StreamingResponse(
         response.iter_content(65536),
         media_type='application/octet-stream',
         headers={
             'Content-Disposition': f'attachment; filename="{set_id} {beatmapset.artist} - {beatmapset.title}.osz"',
-            'Content-Length': response.headers.get('Content-Length', f'{beatmapset.osz_filesize}'),
+            'Content-Length': response.headers.get('Content-Length', f'{estimated_size}'),
             'Last-Modified': beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
         }
     )
