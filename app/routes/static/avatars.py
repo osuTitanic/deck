@@ -12,6 +12,7 @@ import app.utils as utils
 import app
 
 router = APIRouter()
+allowed_sizes = (25, 128, 256)
 
 @router.get('/a/')
 def default_avatar():
@@ -48,12 +49,6 @@ def avatar(
 
     if not (image := app.session.storage.get_avatar(user_id)):
         return default_avatar()
-
-    allowed_sizes = (
-        25,
-        128,
-        256
-    )
 
     if size is not None and size in allowed_sizes:
         image = utils.resize_image(image, size)

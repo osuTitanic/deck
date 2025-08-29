@@ -1,6 +1,6 @@
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim-bookworm AS builder
 
-# Installing/Updating system dependencies
+# Installing build dependencies
 RUN apt update -y && \
     apt install -y --no-install-recommends \
     postgresql-client git curl ffmpeg libavcodec-extra \
@@ -14,23 +14,38 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /deck
 
 # Install python dependencies
-RUN pip install --no-cache-dir gunicorn
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir gunicorn
 
-# Copy source code
-COPY . .
+FROM python:3.13-slim-bookworm
+
+# Installing runtime dependencies
+RUN apt update -y && \
+    apt install -y --no-install-recommends \
+    ffmpeg libavcodec-extra tini curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed Python packages from builder
+COPY --from=builder /usr/local /usr/local
 
 # Get config for deployment
 ARG WEB_WORKERS=4
 ENV WEB_WORKERS=$WEB_WORKERS
 
+# Disable output buffering
+ENV PYTHONUNBUFFERED=1
+
+# Copy source code
+WORKDIR /deck
+COPY . .
+
 # Generate __pycache__ directories
 ENV PYTHONDONTWRITEBYTECODE=1
 RUN python -m compileall -q app
 
-# Disable output buffering
-ENV PYTHONUNBUFFERED=1
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 CMD gunicorn \
     --access-logfile - \
@@ -40,4 +55,6 @@ CMD gunicorn \
     -k uvicorn.workers.UvicornWorker \
     --max-requests 10000 \
     --max-requests-jitter 5000 \
+    --graceful-timeout 5 \
+    --timeout 10 \
     app:api

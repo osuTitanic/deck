@@ -4,7 +4,8 @@ from fastapi.responses import StreamingResponse
 from fastapi import (
     HTTPException,
     APIRouter,
-    Response
+    Response,
+    Query
 )
 
 import app
@@ -14,20 +15,19 @@ router = APIRouter()
 @router.get('/mt/{filename}')
 @router.get('/thumb/{filename}')
 @router.get('/images/map-thumb/{filename}')
-def beatmap_thumbnail(filename: str):
+def beatmap_thumbnail(
+    filename: str,
+    checksum: str | None = Query(None, alias='c')
+) -> Response:
     key = filename.split('.', maxsplit=1)[0]
 
     if not (image := app.session.storage.get_background(key)):
         raise HTTPException(404)
 
-    set_id = int(key.removesuffix('l'))
-
-    # Cache beatmapsets from bancho
-    cache_response = set_id < 1000000000
-    cache_expiry = 3600*24
+    # Cache beatmapsets, if a checksum is given
     cache_headers = (
-        {'Cache-Control': f'public, max-age={cache_expiry}'}
-        if cache_response else {}
+        {'Cache-Control': f'public, max-age={3600*24}'}
+        if checksum else {}
     )
 
     return Response(
@@ -38,7 +38,10 @@ def beatmap_thumbnail(filename: str):
 
 @router.get('/preview/{filename}')
 @router.get('/mp3/preview/{filename}')
-def beatmap_preview(filename: str):
+def beatmap_preview(
+    filename: str,
+    checksum: str | None = Query(None, alias='c')
+) -> Response:
     key = filename.split('.', maxsplit=1)[0]
 
     if not key.isdigit():
@@ -47,13 +50,10 @@ def beatmap_preview(filename: str):
     if not (mp3 := app.session.storage.get_mp3(key)):
         raise HTTPException(404)
 
-    # Cache beatmapsets from bancho
-    set_id = int(key)
-    cache_response = set_id < 1000000000
-    cache_expiry = 3600*24
+    # Cache beatmapsets, if a checksum is given
     cache_headers = (
-        {'Cache-Control': f'public, max-age={cache_expiry}'}
-        if cache_response else {}
+        {'Cache-Control': f'public, max-age={3600*24}'}
+        if checksum else {}
     )
 
     return Response(
@@ -84,11 +84,16 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     if not (response := app.session.storage.api.osz(set_id, no_video)):
         raise HTTPException(404)
 
+    estimated_size = (
+        beatmapset.osz_filesize_novideo if no_video else beatmapset.osz_filesize
+    )
+
     return StreamingResponse(
-        response.iter_content(6400),
+        response.iter_content(65536),
         media_type='application/octet-stream',
         headers={
             'Content-Disposition': f'attachment; filename="{set_id} {beatmapset.artist} - {beatmapset.title}.osz"',
-            'Content-Length': response.headers.get('Content-Length', 0)
+            'Content-Length': response.headers.get('Content-Length', f'{estimated_size}'),
+            'Last-Modified': beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
         }
     )

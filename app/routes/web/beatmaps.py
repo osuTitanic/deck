@@ -22,6 +22,7 @@ from app.common.database import (
     ratings,
     topics,
     groups,
+    names,
     users,
     posts,
     plays
@@ -1336,19 +1337,26 @@ def upload_beatmap(
             app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
             return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
 
-        allowed_usernames = {
+        allowed_names = {
             beatmapset.creator_user.name,
             user.name
         }
 
-        allowed_usernames.update(
+        # Allow usernames of collaborators
+        allowed_names.update(
             username
             for beatmap in beatmapset.beatmaps
-            for usernames in collaborations.fetch_usernames(beatmap.id, session=session)
+            for usernames in collaborations.fetch_usernames(beatmap.id, session)
             for username in usernames
         )
 
-        if not validate_beatmap_owner(data['beatmaps'], data['metadata'], allowed_usernames):
+        # Allow past usernames
+        allowed_names.update(
+            name_change.name
+            for name_change in names.fetch_all_reserved(user.id, session)
+        )
+
+        if not validate_beatmap_owner(data['beatmaps'], data['metadata'], allowed_names) and not user.is_bat:
             app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
             return error_response(1)
 
@@ -1717,7 +1725,13 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         user.name
     }
 
-    if not validate_beatmap_owner(request.beatmaps, request.metadata, allowed_names):
+    # Allow past usernames
+    allowed_names.update(
+        name_change.name
+        for name_change in names.fetch_all_reserved(user.id, session)
+    )
+
+    if not validate_beatmap_owner(request.beatmaps, request.metadata, allowed_names) and not user.is_bat:
         app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
         return error_response(1, legacy=True)
 

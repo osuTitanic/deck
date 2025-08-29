@@ -210,6 +210,7 @@ def check_pp(
     # Get current pp record for mode
     result = scores.fetch_pp_record(
         score.mode,
+        exclude_loved=not config.APPROVED_MAP_REWARDS,
         session=session
     )
 

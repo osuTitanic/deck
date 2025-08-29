@@ -189,7 +189,12 @@ def validate_replay(replay_bytes: bytes) -> bool:
     app.session.logger.debug('Validating replay...')
 
     try:
-        replay = lzma.decompress(replay_bytes).decode()
+        replay_bytes = utils.lzma_decompress(
+            replay_bytes,
+            memlimit=1024 * 1024 * 50,
+            max_length=1024 * 1024 * 50
+        )
+        replay = replay_bytes.decode()
         frames = replay.split(',')
 
         if len(frames) < 100:
@@ -457,7 +462,6 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
     user_stats.playtime += score.elapsed_time
     user_stats.tscore += score.total_score
     user_stats.total_hits += score.total_hits
-
     score.session.commit()
 
     histories.update_plays(
@@ -487,23 +491,14 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
         session=score.session
     )
 
-    rx_scores = [score for score in best_scores if (score.mods & 128) != 0]
-    ap_scores = [score for score in best_scores if (score.mods & 8192) != 0]
-    vn_scores = [score for score in best_scores if (score.mods & 128) == 0 and (score.mods & 8192) == 0]
-
     # Update max combo, if higher
     if score.beatmap.is_ranked and score.has_pb:
         if score.max_combo > user_stats.max_combo:
             user_stats.max_combo = score.max_combo
 
     if best_scores:
-        # Update pp
+        # Update pp & acc
         user_stats.pp = calculate_weighted_pp(best_scores)
-        user_stats.pp_vn = calculate_weighted_pp(vn_scores)
-        user_stats.pp_rx = calculate_weighted_pp(rx_scores)
-        user_stats.pp_ap = calculate_weighted_pp(ap_scores)
-
-        # Update acc
         user_stats.acc = calculate_weighted_acc(best_scores)
 
         # Update rscore
@@ -777,7 +772,7 @@ def score_submission(
 
     if player.is_bot:
         app.session.logger.warning(f'Failed to submit score: Bot account')
-        return 'error: inactive'
+        return 'error: no'
 
     score.beatmap = beatmaps.fetch_by_checksum(
         score.file_checksum,
@@ -962,6 +957,10 @@ def legacy_score_submission(
         app.session.logger.warning(f'Failed to submit score: Restricted')
         raise HTTPException(401)
 
+    if player.is_bot:
+        app.session.logger.warning(f'Failed to submit score: Bot account')
+        return ""
+
     score.beatmap = beatmaps.fetch_by_checksum(
         score.file_checksum,
         score.session
@@ -1000,10 +999,10 @@ def legacy_score_submission(
 
     if score.relaxing:
         # Recalculate rx total score
-        object = score.to_database()
-        object.beatmap = score.beatmap
-        object.user = score.user
-        score.total_score = calculate_rx_score(object)
+        score.total_score = calculate_rx_score(
+            score.to_database(),
+            score.beatmap
+        )
 
     if score.version <= 0:
         # Client didn't provide a version

@@ -12,7 +12,6 @@ def bancho_status_message() -> PlainTextResponse:
     would be displayed on the client side. I will be using it here, to display
     a custom message that can be customized later on in the frontend.
     """
-
     if not (message := app.session.redis.get('bancho:statusmessage')):
         return PlainTextResponse(status_code=200)
 

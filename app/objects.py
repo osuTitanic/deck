@@ -232,6 +232,9 @@ class Score:
         if not config.ALLOW_RELAX and self.relaxing:
             return ScoreStatus.Hidden
 
+        if self.relaxing:
+            return ScoreStatus.Submitted if self.passed else ScoreStatus.Exited
+
         if not self.passed:
             return ScoreStatus.Exited if self.exited else ScoreStatus.Failed
 
