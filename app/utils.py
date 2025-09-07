@@ -11,6 +11,7 @@ import lzma
 import time
 import app
 import io
+import re
 import os
 
 REQUIRED_STORAGE_KEYS = [
@@ -100,6 +101,11 @@ def download_to_s3(bucket: str, key: str, url: str) -> None:
         key,
         bucket
     )
+
+unsafe_characters_pattern = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
+
+def sanitize_filename(filename: str) -> str:
+    return re.sub(unsafe_characters_pattern, "", filename)
 
 @cache
 def check_password(password: str, bcrypt_hash: str) -> bool:

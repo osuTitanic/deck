@@ -1,4 +1,5 @@
 
+from app.utils import sanitize_filename
 from app.common.database.repositories import beatmapsets
 from fastapi.responses import StreamingResponse
 from fastapi import (
@@ -87,12 +88,16 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     estimated_size = (
         beatmapset.osz_filesize_novideo if no_video else beatmapset.osz_filesize
     )
+    
+    beatmap_filename = sanitize_filename(
+        f'{set_id} {beatmapset.artist} - {beatmapset.title}.osz'
+    )
 
     return StreamingResponse(
         response.iter_content(65536),
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename="{set_id} {beatmapset.artist} - {beatmapset.title}.osz"',
+            'Content-Disposition': f'attachment; filename="{beatmap_filename}"',
             'Content-Length': response.headers.get('Content-Length', f'{estimated_size}'),
             'Last-Modified': beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
         }

@@ -1,6 +1,7 @@
 
 from app.common.database import DBBeatmapset, DBUser
 from app.common.constants import DisplayMode
+from app.utils import sanitize_filename
 from app.common.cache import status
 from app.common import officer
 from app.common.database import (
@@ -37,7 +38,7 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
     )
 
     return "|".join([
-        f'{set.id} {set.artist} - {set.title}.osz',
+        sanitize_filename(f'{set.id} {set.artist} - {set.title}.osz'),
         set.artist  if set.artist else "",
         set.title   if set.title else "",
         set.creator if set.creator else "",
