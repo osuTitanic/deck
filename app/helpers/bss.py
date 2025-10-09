@@ -5,10 +5,10 @@ from app.common.database.repositories import wrapper
 from app.helpers.bss_tickets import *
 from app.helpers.bss_osz2 import *
 
+from zipfile import ZipFile, ZipInfo
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
-from zipfile import ZipFile
 from slider import Beatmap
 from typing import List
 from osz2 import *
@@ -129,8 +129,11 @@ def create_osz_package(files: List[File]) -> bytes:
     osz = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
 
     for file in files:
-        # TODO: Use ZipInfo to set file date(s)
-        osz.writestr(file.filename, file.content)
+        # Create ZipInfo to set file metadata
+        zip_info = ZipInfo(filename=file.filename)
+        zip_info.compress_type = zipfile.ZIP_DEFLATED
+        zip_info.date_time = file.date_modified.timetuple()[:6]
+        osz.writestr(zip_info, file.content)
 
     osz.close()
     result = buffer.getvalue()
