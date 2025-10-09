@@ -31,7 +31,6 @@ class InternalOsz2(Osz2Package):
 
 def process_on_fail(e: Exception) -> None:
     officer.call(f'Failed to process osz/osu file: "{e}"')
-    raise e
 
 @wrapper.exception_wrapper(process_on_fail)
 def decrypt_osz2(osz2_file: bytes) -> InternalOsz2 | None:
