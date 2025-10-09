@@ -16,8 +16,7 @@ pydub==0.25.1
 rosu-pp-py==3.1.0
 python-multipart==0.0.20
 audioop-lts==0.2.2; python_version >= "3.13"
-osz2==1.0.4
-bsdiff4==1.2.6
+osz2==1.0.6
 
 # Use OliBomby's fork of slider until the PR is merged
 git+https://github.com/OliBomby/slider@bg
