@@ -2,17 +2,20 @@
 from app.common.constants import BeatmapGenre, BeatmapLanguage
 from app.common.database import DBBeatmapset, DBBeatmap
 from app.common.database.repositories import wrapper
-from app.common.database.repositories import *
 from app.helpers.bss_tickets import *
 from app.common import officer
 
 from typing import List, Dict, Iterable
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from datetime import datetime
+from zipfile import ZipFile
 from slider import Beatmap
 from osz2 import *
 
 import statistics
+import hashlib
+import zipfile
 import bsdiff4
 import gzip
 import io
@@ -215,7 +218,7 @@ def calculate_beatmap_median_bpm(beatmap: Beatmap) -> float:
 
     return statistics.median(bpm_values)
 
-def maximum_beatmap_length(beatmaps: List[DBBeatmap]) -> int:
+def maximum_beatmap_length(beatmaps: List[Beatmap]) -> int:
     """Retrieve the maximum total length of all beatmaps in milliseconds"""
     if not beatmaps:
         return 0
@@ -224,6 +227,56 @@ def maximum_beatmap_length(beatmaps: List[DBBeatmap]) -> int:
         calculate_beatmap_total_length(beatmap)
         for beatmap in beatmaps
     )
+
+def calculate_size_limit(beatmap_length: int) -> int:
+    # The file size limit is 10MB plus an additional 10MB for
+    # every minute of beatmap length, and it caps at 100MB.
+    return min(
+        10_000_000 + (10_000_000 * (beatmap_length / 60)),
+        100_000_000
+    )
+
+def create_osz_package(files: List[File]) -> bytes:
+    """Create an .osz package from a list of files"""
+    buffer = io.BytesIO()
+    osz = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
+
+    for file in files:
+        # TODO: Use ZipInfo to set file date(s)
+        osz.writestr(file.filename, file.content)
+
+    osz.close()
+    result = buffer.getvalue()
+
+    del buffer
+    del osz
+    return result
+
+def calculate_osz_size(files: List[File]) -> int:
+    """Calculate the size of an .osz package from a list of files"""
+    return len(create_osz_package(files))
+
+def osz_to_files(osz_data: bytes) -> List[File]:
+    with ZipFile(io.BytesIO(osz_data)) as zip_file:
+        files = []
+
+        for info in zip_file.infolist():
+            content = zip_file.read(info.filename)
+            content_hash = hashlib.md5(content).digest()
+
+            files.append(
+                File(
+                    filename=info.filename,
+                    content=content,
+                    offset=info.header_offset,
+                    size=info.file_size,
+                    hash=content_hash,
+                    date_created=datetime(*info.date_time),
+                    date_modified=datetime(*info.date_time)
+                )
+            )
+
+    return files
 
 LanguageDict = {
     BeatmapLanguage(language_id).name.lower(): BeatmapLanguage(language_id)

@@ -3,7 +3,6 @@ from typing import Dict, List, Callable, Tuple, Any
 from sqlalchemy.orm import Session
 from collections import Counter
 from datetime import datetime
-from zipfile import ZipFile
 from slider import Beatmap
 from osz2 import *
 
@@ -27,92 +26,12 @@ from fastapi import (
     Form
 )
 
-import zipfile
 import hashlib
 import config
 import time
 import app
-import io
 
 router = APIRouter()
-
-def error_response(
-    error_code: int,
-    message: str = "",
-    legacy: bool = False
-) -> Response:
-    if not legacy:
-        return Response(f'{error_code}\n{message}')
-
-    message_dict = {
-        1: "The beatmap you're trying to submit isn't owned by you.",
-        2: "The beatmap you're trying to submit is no longer available.",
-        3: "The beatmap is already ranked. You cannot update ranked maps.",
-        4: "The beatmap is currently in the beatmap graveyard. You can ungraveyard your map by visiting the beatmaps section of your user profile.",
-        5: "An error occurred while processing your beatmap."
-    }
-
-    fallback_message = message_dict.get(
-        error_code,
-        'An unknown error occurred.'
-    )
-
-    return Response(message or fallback_message)
-
-def authenticate_user(
-    username: str,
-    password: str,
-    session: Session,
-    legacy: bool = False
-) -> Tuple[Response, DBUser]:
-    """Authenticate the user with the given username and password"""
-    player = users.fetch_by_name(username, session=session)
-
-    if not player:
-        app.session.logger.warning(f'Failed to authenticate user: User not found')
-        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
-
-    if not app.utils.check_password(password, player.bcrypt):
-        app.session.logger.warning(f'Failed to authenticate user: Invalid password')
-        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
-
-    if player.silence_end and player.silence_end > datetime.now():
-        app.session.logger.warning(f'Failed to authenticate user: User is silenced')
-        return error_response(5, 'You are not allowed to upload beatmaps while silenced.', legacy), None
-
-    if player.restricted:
-        app.session.logger.warning(f'Failed to authenticate user: User is restricted')
-        return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.', legacy), None
-
-    if not status.exists(player.id):
-        app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho')
-        return error_response(5, 'You are not connected to bancho, please try again!', legacy), None
-
-    return None, player
-
-def bancho_message(message: str, user: DBUser) -> Response:
-    """Send a message to the user via. the announce packet in bancho"""
-    app.session.events.submit(
-        'user_announcement',
-        user_id=user.id,
-        message=message,
-    )
-    return Response(message, 400)
-
-def is_full_submit(set_id: int, osz2_hash: str) -> bool:
-    """Determine if the client should upload the full osz2 or a patch file"""
-    if not osz2_hash:
-        # Client has no osz2 it can patch
-        return True
-
-    osz2_file = app.session.storage.get_osz2_internal(set_id)
-
-    if not osz2_file:
-        # We don't have an osz2 we can patch
-        return True
-
-    # Check if osz2 file is outdated
-    return osz2_hash != hashlib.md5(osz2_file).hexdigest()
 
 def comma_list(parameter: str, cast=str) -> Callable:
     async def wrapper(request: Request) -> List[Any]:
@@ -180,53 +99,6 @@ def file(*aliases) -> Callable:
             detail=f'Missing required file parameter: {", ".join(aliases)}'
         )
     return wrapper
-
-def broadcast_upload_activity(beatmapset: DBBeatmapset, session: Session) -> None:
-    # Post to userpage & #announce channel
-    activity.submit(
-        beatmapset.creator_id,
-        resolve_primary_mode(beatmapset.beatmaps),
-        UserActivity.BeatmapUploaded,
-        {
-            'title': beatmapset.title,
-            'artist': beatmapset.artist,
-            'username': beatmapset.creator,
-            'beatmapset_id': beatmapset.id,
-            'beatmapset_name': beatmapset.full_name,
-        },
-        is_announcement=True,
-        session=session
-    )
-
-def broadcast_update_activity(beatmapset: DBBeatmapset, session: Session) -> None:
-    last_activity = activity.activities.fetch_last(
-        beatmapset.creator_id,
-        session
-    )
-
-    is_duplicate = (
-        last_activity is not None and
-        last_activity.type in (UserActivity.BeatmapUploaded, UserActivity.BeatmapUpdated) and
-        last_activity.data['beatmapset_id'] == beatmapset.id
-    )
-
-    # Post to userpage
-    activity.submit(
-        beatmapset.creator_id,
-        resolve_primary_mode(beatmapset.beatmaps),
-        UserActivity.BeatmapUpdated,
-        {
-            'username': beatmapset.creator,
-            'beatmapset_id': beatmapset.id,
-            'beatmapset_name': beatmapset.full_name
-        },
-        is_hidden=is_duplicate,
-        session=session
-    )
-
-def resolve_primary_mode(beatmaps: List[DBBeatmap]) -> int:
-    counter = Counter([beatmap.mode for beatmap in beatmaps])
-    return counter.most_common(1)[0][0] if counter else 0
 
 @router.get('/osu-osz2-bmsubmit-getid.php')
 def validate_upload_request(
@@ -478,8 +350,8 @@ def upload_beatmap(
             app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
             return error_response(5, 'Your beatmap is too short. Please try to make it longer and try again!')
 
-        package_filesize = calculate_package_size(osz2.files)
-        size_limit = calculate_size_limit(max_beatmap_length)
+        package_filesize = bss.calculate_osz_size(osz2.files)
+        size_limit = bss.calculate_size_limit(max_beatmap_length)
 
         if package_filesize > size_limit and not user.is_admin:
             app.session.logger.warning(
@@ -874,8 +746,8 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
         return "Your beatmap is too short. Please try to make it longer and try again!"
 
-    package_filesize = calculate_package_size(files)
-    size_limit = calculate_size_limit(max_beatmap_length)
+    package_filesize = bss.calculate_osz_size(files)
+    size_limit = bss.calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
         app.session.logger.warning(
@@ -1083,7 +955,7 @@ def upload_osz(
 
     # Read osz file contents
     osz_data = file.file.read()
-    files = osz_to_files(osz_data)
+    files = bss.osz_to_files(osz_data)
 
     osz_map_files = [
         file.filename
@@ -1130,8 +1002,8 @@ def upload_osz(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
         return bancho_message("Your beatmap is too short. Please try to make it longer and try again!", user)
 
-    package_filesize = calculate_package_size(files)
-    size_limit = calculate_size_limit(max_beatmap_length)
+    package_filesize = bss.calculate_osz_size(files)
+    size_limit = bss.calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap package is too large')
@@ -1291,6 +1163,131 @@ def legacy_forum_post(
 
     # TODO: Handle "bumprequest"
     return Response(f'{topic.id}')
+
+def error_response(
+    error_code: int,
+    message: str = "",
+    legacy: bool = False
+) -> Response:
+    if not legacy:
+        return Response(f'{error_code}\n{message}')
+
+    message_dict = {
+        1: "The beatmap you're trying to submit isn't owned by you.",
+        2: "The beatmap you're trying to submit is no longer available.",
+        3: "The beatmap is already ranked. You cannot update ranked maps.",
+        4: "The beatmap is currently in the beatmap graveyard. You can ungraveyard your map by visiting the beatmaps section of your user profile.",
+        5: "An error occurred while processing your beatmap."
+    }
+
+    fallback_message = message_dict.get(
+        error_code,
+        'An unknown error occurred.'
+    )
+
+    return Response(message or fallback_message)
+
+def authenticate_user(
+    username: str,
+    password: str,
+    session: Session,
+    legacy: bool = False
+) -> Tuple[Response, DBUser]:
+    """Authenticate the user with the given username and password"""
+    player = users.fetch_by_name(username, session=session)
+
+    if not player:
+        app.session.logger.warning(f'Failed to authenticate user: User not found')
+        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
+
+    if not app.utils.check_password(password, player.bcrypt):
+        app.session.logger.warning(f'Failed to authenticate user: Invalid password')
+        return error_response(5, 'Authentication failed. Please check your login credentials.', legacy), None
+
+    if player.silence_end and player.silence_end > datetime.now():
+        app.session.logger.warning(f'Failed to authenticate user: User is silenced')
+        return error_response(5, 'You are not allowed to upload beatmaps while silenced.', legacy), None
+
+    if player.restricted:
+        app.session.logger.warning(f'Failed to authenticate user: User is restricted')
+        return error_response(5, 'You are banned. Please contact support if you believe this is a mistake.', legacy), None
+
+    if not status.exists(player.id):
+        app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho')
+        return error_response(5, 'You are not connected to bancho, please try again!', legacy), None
+
+    return None, player
+
+def bancho_message(message: str, user: DBUser) -> Response:
+    """Send a message to the user via. the announce packet in bancho"""
+    app.session.events.submit(
+        'user_announcement',
+        user_id=user.id,
+        message=message,
+    )
+    return Response(message, 400)
+
+def is_full_submit(set_id: int, osz2_hash: str) -> bool:
+    """Determine if the client should upload the full osz2 or a patch file"""
+    if not osz2_hash:
+        # Client has no osz2 it can patch
+        return True
+
+    osz2_file = app.session.storage.get_osz2_internal(set_id)
+
+    if not osz2_file:
+        # We don't have an osz2 we can patch
+        return True
+
+    # Check if osz2 file is outdated
+    return osz2_hash != hashlib.md5(osz2_file).hexdigest()
+
+def broadcast_upload_activity(beatmapset: DBBeatmapset, session: Session) -> None:
+    # Post to userpage & #announce channel
+    activity.submit(
+        beatmapset.creator_id,
+        resolve_primary_mode(beatmapset.beatmaps),
+        UserActivity.BeatmapUploaded,
+        {
+            'title': beatmapset.title,
+            'artist': beatmapset.artist,
+            'username': beatmapset.creator,
+            'beatmapset_id': beatmapset.id,
+            'beatmapset_name': beatmapset.full_name,
+        },
+        is_announcement=True,
+        session=session
+    )
+
+def broadcast_update_activity(beatmapset: DBBeatmapset, session: Session) -> None:
+    last_activity = activity.activities.fetch_last(
+        beatmapset.creator_id,
+        session
+    )
+
+    is_duplicate = (
+        last_activity is not None and
+        last_activity.type in (UserActivity.BeatmapUploaded, UserActivity.BeatmapUpdated) and
+        last_activity.data['beatmapset_id'] == beatmapset.id
+    )
+
+    # Post to userpage
+    activity.submit(
+        beatmapset.creator_id,
+        resolve_primary_mode(beatmapset.beatmaps),
+        UserActivity.BeatmapUpdated,
+        {
+            'username': beatmapset.creator,
+            'beatmapset_id': beatmapset.id,
+            'beatmapset_name': beatmapset.full_name
+        },
+        is_hidden=is_duplicate,
+        session=session
+    )
+
+def resolve_primary_mode(beatmaps: List[DBBeatmap]) -> int:
+    counter = Counter([beatmap.mode for beatmap in beatmaps])
+    return counter.most_common(1)[0][0] if counter else 0
 
 def update_beatmap_metadata(
     beatmapset: DBBeatmapset,
@@ -1535,27 +1532,17 @@ def update_beatmap_package(
 ) -> None:
     app.session.logger.debug(f'Updating beatmap package...')
 
-    buffer = io.BytesIO()
-    zip = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
-
-    for file in files:
-        if not any(file.filename.endswith(ext) for ext in bss.allowed_file_extensions):
-            continue
-
-        zip.writestr(file.filename, file.content)
-
-    zip.close()
-    buffer.seek(0)
+    osz_package = bss.create_osz_package(files)
+    osz_size = len(osz_package)
 
     app.session.storage.upload_osz(
         set_id,
-        buffer.getvalue()
+        osz_package
     )
-    
+
     # Get total length of all video files
     video_files = [
-        file
-        for file in files
+        file for file in files
         if any(file.filename.endswith(ext) for ext in bss.video_file_extensions)
     ]
 
@@ -1563,8 +1550,6 @@ def update_beatmap_package(
         len(file.content)
         for file in video_files
     )
-
-    osz_size = len(buffer.getvalue())
     osz_size_novideo = osz_size - total_video_length
 
     # Update osz file sizes for osu!direct
@@ -1883,28 +1868,6 @@ def update_osz2_hashes(set_id: int, osz2: Osz2Package, session: Session) -> None
         session=session
     )
 
-def calculate_package_size(files: List[File]) -> int:
-    buffer = io.BytesIO()
-    osz = ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED)
-
-    for file in files:
-        osz.writestr(file.filename, file.content)
-
-    osz.close()
-    size = len(buffer.getvalue())
-
-    del buffer
-    del osz
-    return size
-
-def calculate_size_limit(beatmap_length: int) -> int:
-    # The file size limit is 10MB plus an additional 10MB for
-    # every minute of beatmap length, and it caps at 100MB.
-    return min(
-        10_000_000 + (10_000_000 * (beatmap_length / 60)),
-        100_000_000
-    )
-
 def resolve_beatmapset(
     set_id: int,
     beatmap_ids: List[int],
@@ -2038,29 +2001,7 @@ def adjust_files_for_collaboration(
 def existing_files(beatmapset_id: int) -> List[File]:
     previous_osz = app.session.storage.get_osz_internal(beatmapset_id)
     previous_osz = previous_osz or utils.empty_zip_file()
-    return osz_to_files(previous_osz)
-
-def osz_to_files(osz_data: bytes) -> List[File]:
-    with ZipFile(io.BytesIO(osz_data)) as zip_file:
-        files = []
-
-        for info in zip_file.infolist():
-            content = zip_file.read(info.filename)
-            content_hash = hashlib.md5(content).digest()
-
-            files.append(
-                File(
-                    filename=info.filename,
-                    content=content,
-                    offset=info.header_offset,
-                    size=info.file_size,
-                    hash=content_hash,
-                    date_created=datetime(*info.date_time),
-                    date_modified=datetime(*info.date_time)
-                )
-            )
-
-    return files
+    return bss.osz_to_files(previous_osz)
 
 def default_topic_message(set_id: int, session: Session) -> str:
     beatmapset = beatmapsets.fetch_one(
