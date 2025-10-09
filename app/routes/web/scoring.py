@@ -256,7 +256,8 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
         Mods.Autoplay,
         Mods.Cinema,
         Mods.Target,
-        Mods.ScoreV2
+        Mods.ScoreV2,
+        Mods.Random
     )
 
     if any(mod in score.enabled_mods for mod in unranked_mods):
