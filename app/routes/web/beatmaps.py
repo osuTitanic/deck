@@ -1365,7 +1365,7 @@ def update_beatmap_metadata(
 
         difficulty_attributes = performance.calculate_difficulty(
             beatmap_files[filename].content,
-            beatmap.beatmap_id
+            beatmap.mode
         )
         assert difficulty_attributes is not None
 
