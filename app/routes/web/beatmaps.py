@@ -1488,17 +1488,17 @@ def update_beatmap_audio(
     audio_filename = target_beatmap.audio_filename
     audio_offset = target_beatmap.preview_time.total_seconds() * 1000
 
-    if audio_filename not in files:
+    audio_file = next(
+        (file for file in files if file.filename == audio_filename),
+        None
+    )
+
+    if not audio_file:
         app.session.logger.debug(f'Audio file not found. Skipping...')
         return
 
-    audio_file = next(
-        file for file in files
-        if file.filename == audio_filename
-    )
-
     audio_snippet = utils.extract_audio_snippet(
-        audio_file,
+        audio_file.content,
         offset_ms=audio_offset
     )
 
