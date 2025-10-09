@@ -1037,7 +1037,7 @@ def upload_osz(
     update_beatmap_audio(beatmapset, beatmap_data, files)
     update_beatmap_files(files, session=session)
 
-    app.session.logging.info(
+    app.session.logger.info(
         f'{user.name} uploaded an osz file for beatmapset ({set_id})'
     )
 
