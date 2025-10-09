@@ -714,7 +714,6 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         )
 
     files = list(file_map.values())
-    metadata = {MetadataType[key]: value for key, value in request.metadata.items()}
 
     beatmap_data = {
         ticket.filename: bss.parse_beatmap(ticket.file)
@@ -732,7 +731,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         for name_change in names.fetch_all_reserved(user.id, session)
     )
 
-    if not validate_beatmap_owner(beatmap_data, metadata, allowed_usernames) and not user.is_bat:
+    if not validate_beatmap_owner(beatmap_data, request.metadata, allowed_usernames) and not user.is_bat:
         app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
         return error_response(1, legacy=True)
 
@@ -785,7 +784,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     update_beatmap_metadata(
         beatmapset,
         files,
-        metadata,
+        request.metadata,
         beatmap_data,
         session
     )
@@ -992,10 +991,6 @@ def upload_osz(
         for file in files
         if file.filename.endswith('.osu')
     }
-    metadata = {
-        MetadataType[key]: value
-        for key, value in upload_request.metadata.items()
-    }
     max_beatmap_length = bss.maximum_beatmap_length(beatmap_data.values())
 
     if max_beatmap_length <= 1:
@@ -1018,9 +1013,8 @@ def upload_osz(
 
     # Update metadata for beatmapset and beatmaps
     update_beatmap_metadata(
-        beatmapset,
-        files,
-        metadata,
+        beatmapset, files,
+        upload_request.metadata,
         beatmap_data,
         session
     )

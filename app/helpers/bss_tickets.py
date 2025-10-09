@@ -1,5 +1,4 @@
 
-
 from dataclasses import dataclass, asdict, field
 from osz2 import MetadataType
 from typing import Dict, List
@@ -21,7 +20,7 @@ class UploadRequest:
     osz_ticket: str
     has_video: bool
     has_storyboard: bool
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: Dict[MetadataType, str] = field(default_factory=dict)
     is_update: bool = False
     tickets: List[UploadTicket] = field(default_factory=list)
 
@@ -29,12 +28,18 @@ class UploadRequest:
     def osz_filename(self) -> str:
         return utils.sanitize_filename(
             f'{self.set_id} '
-            f'{self.metadata[MetadataType.Artist.name]} - {self.metadata[MetadataType.Title.name]} '
-            f'({self.metadata[MetadataType.Creator.name]})'
+            f'{self.metadata[MetadataType.Artist]} - {self.metadata[MetadataType.Title]} '
+            f'({self.metadata[MetadataType.Creator]})'
         ) + '.osz'
 
 def register_upload_request(user_id: int, request: UploadRequest) -> None:
     request_dict = asdict(request)
+
+    # Serialize the MetadataType keys to their names
+    request_dict['metadata'] = {
+        key.name: value
+        for key, value in request.metadata.items()
+    }
 
     for ticket in request_dict['tickets']:
         # Serialize the binary file data to base64
@@ -57,9 +62,14 @@ def get_upload_request(user_id: int) -> UploadRequest | None:
         UploadTicket(**ticket)
         for ticket in request_dict['tickets']
     ]
+    metadata = {
+        MetadataType[key]: value
+        for key, value in request_dict['metadata'].items()
+    }
 
     request = UploadRequest(**request_dict)
     request.tickets = tickets
+    request.metadata = metadata
     return request
 
 def upload_request_exists(user_id: int) -> bool:

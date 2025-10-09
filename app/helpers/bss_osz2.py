@@ -45,14 +45,14 @@ def parse_beatmap(osu_file: bytes) -> Beatmap | None:
     return Beatmap.parse(osu_file.decode(errors='ignore'))
 
 @wrapper.exception_wrapper(process_on_fail)
-def osz2_metadata_from_beatmap(beatmap: Beatmap) -> Dict[str, str]:
+def osz2_metadata_from_beatmap(beatmap: Beatmap) -> Dict[MetadataType, str]:
     return {
-        MetadataType.Title.name: beatmap.title,
-        MetadataType.TitleUnicode.name: beatmap.title_unicode,
-        MetadataType.Artist.name: beatmap.artist,
-        MetadataType.ArtistUnicode.name: beatmap.artist_unicode,
-        MetadataType.Creator.name: beatmap.creator,
-        MetadataType.Source.name: beatmap.source,
-        MetadataType.Tags.name: ' '.join(beatmap.tags),
-        MetadataType.PreviewTime.name: beatmap.preview_time.total_seconds()
+        MetadataType.Title: beatmap.title,
+        MetadataType.TitleUnicode: beatmap.title_unicode,
+        MetadataType.Artist: beatmap.artist,
+        MetadataType.ArtistUnicode: beatmap.artist_unicode,
+        MetadataType.Creator: beatmap.creator,
+        MetadataType.Source: beatmap.source,
+        MetadataType.Tags: ' '.join(beatmap.tags),
+        MetadataType.PreviewTime: beatmap.preview_time.total_seconds()
     }
