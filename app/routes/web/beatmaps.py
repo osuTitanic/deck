@@ -193,7 +193,7 @@ def validate_upload_request(
 
         if set_id is None:
             return error_response(5, "An error occurred while creating the beatmapset.")
-        
+
         app.session.logger.info(f'{user.name} wants to create a new beatmapset ({set_id})')
 
     # Either we don't have the osz2 file or the client has no osz2 file
@@ -681,15 +681,15 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
     if beatmapset.creator_id != user.id:
         app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
         return error_response(1, legacy=True)
-    
+
     if beatmapset.server != 1:
         app.session.logger.warning(f'Failed to process upload request: Beatmapset is not on Titanic')
         return error_response(1, legacy=True)
-    
+
     if beatmapset.status > 0:
         app.session.logger.warning(f'Failed to process upload request: Beatmapset is ranked or loved')
         return error_response(3, legacy=True)
-    
+
     if beatmapset.status == -2:
         app.session.logger.warning(f'Failed to process upload request: Beatmapset is graveyarded')
         return error_response(4, legacy=True)
