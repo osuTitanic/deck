@@ -534,12 +534,12 @@ def topic_contents(
 
     first_post = posts.fetch_initial_post(topic.id, session)
 
-    return Response('\u0003'.join([
+    return '\u0003'.join([
         f'0',
         f'{topic.id}',
         f'{topic.title}',
         f'{first_post.content if first_post else ""}',
-    ]))
+    ])
 
 def create_ticket_hash(
     filename: str,
