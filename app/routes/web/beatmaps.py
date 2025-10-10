@@ -1281,7 +1281,7 @@ def broadcast_update_activity(beatmapset: DBBeatmapset, session: Session) -> Non
 
 def resolve_primary_mode(beatmaps: List[DBBeatmap]) -> int:
     counter = Counter([beatmap.mode for beatmap in beatmaps])
-    return counter.most_common(1)[0][0] if counter else 0
+    return int(counter.most_common(1)[0][0]) if counter else 0
 
 def update_beatmap_metadata(
     beatmapset: DBBeatmapset,
