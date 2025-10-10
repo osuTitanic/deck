@@ -3,7 +3,6 @@ from .common.logging import Console, File
 from .server import api
 
 from . import exceptions
-from . import highlights
 from . import session
 from . import routes
 from . import server

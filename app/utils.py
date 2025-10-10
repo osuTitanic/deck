@@ -11,19 +11,20 @@ import lzma
 import time
 import app
 import io
+import re
 import os
 
-REQUIRED_STORAGE_KEYS = [
+REQUIRED_STORAGE_KEYS = (
     'screenshots',
+    'thumbnails',
     'beatmaps',
     'avatars',
     'replays',
     'release',
     'audio',
-    'thumbnails',
-    'osz',
-    'osz2'
-]
+    'osz2',
+    'osz'
+)
 
 def setup() -> None:
     os.makedirs(
@@ -100,6 +101,14 @@ def download_to_s3(bucket: str, key: str, url: str) -> None:
         key,
         bucket
     )
+
+unsafe_characters_pattern = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
+
+def sanitize_filename(filename: str) -> str:
+    return re.sub(unsafe_characters_pattern, "", filename)
+
+def empty_zip_file() -> bytes:
+    return b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 
 @cache
 def check_password(password: str, bcrypt_hash: str) -> bool:

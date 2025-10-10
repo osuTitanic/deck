@@ -14,12 +14,15 @@ from typing import Optional, Tuple, List
 from concurrent.futures import Future
 from copy import copy
 
+from app.helpers import achievements as AchievementManager
+from app.helpers.score import Score, ScoreStatus
+from app.helpers.chart import Chart
+from app.helpers import highlights
+
 from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
 from app.common.helpers.ip import resolve_ip_address_fastapi
 from app.common.helpers.score import calculate_rx_score
 from app.common.database import DBStats, DBScore, DBUser
-from app import achievements as AchievementManager
-from app.objects import Score, ScoreStatus, Chart
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
 from app.common.constants import regexes
@@ -256,7 +259,12 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
         Mods.Autoplay,
         Mods.Cinema,
         Mods.Target,
-        Mods.ScoreV2
+        Mods.ScoreV2,
+        Mods.Random,
+        Mods.KeyCoop,
+        Mods.Key1,
+        Mods.Key2,
+        Mods.Key3,
     )
 
     if any(mod in score.enabled_mods for mod in unranked_mods):
@@ -842,7 +850,7 @@ def score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                score.personal_best_pp.id,
+                score.personal_best_score.id,
                 score.beatmap.id,
                 mode=score.mode.value,
                 session=score.session
@@ -921,7 +929,7 @@ def score_submission(
     # Send highlights on #announce
     if score.passed:
         app.session.score_executor.submit(
-            app.highlights.check,
+            highlights.check,
             score_object.id, score.user,
             new_stats, old_stats,
             new_rank, old_rank
@@ -1033,7 +1041,7 @@ def legacy_score_submission(
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
-                score.personal_best_pp.id,
+                score.personal_best_score.id,
                 score.beatmap.id,
                 mode=score.mode.value,
                 session=score.session
@@ -1119,7 +1127,7 @@ def legacy_score_submission(
     # Send highlights on #announce
     if score.passed:
         app.session.score_executor.submit(
-            app.highlights.check,
+            highlights.check,
             score_object.id, score.user,
             new_stats, old_stats,
             beatmap_rank, old_rank
