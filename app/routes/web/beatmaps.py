@@ -660,13 +660,7 @@ def handle_common_upload(
 
     return '\n'.join(response)
 
-def handle_upload_finish(user: DBUser, session: Session) -> str | None:
-    request = bss.get_upload_request(user.id)
-
-    if not request:
-        app.session.logger.warning(f'Failed to process upload request: Upload request not found')
-        return "An error occurred while processing your beatmap. Please try again!"
-
+def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Session) -> str | None:
     remaining_beatmaps = remaining_beatmap_uploads(user, session)
     beatmapset = beatmapsets.fetch_one(request.set_id, session)
 
@@ -731,7 +725,7 @@ def handle_upload_finish(user: DBUser, session: Session) -> str | None:
         for name_change in names.fetch_all_reserved(user.id, session)
     )
 
-    if not validate_beatmap_owner(beatmap_data, request.metadata, allowed_usernames) and not user.is_bat:
+    if not validate_beatmap_owner(request.metadata, beatmap_data, allowed_usernames) and not user.is_bat:
         app.session.logger.warning(f'Failed to process upload request: User does not own the beatmapset')
         return error_response(1, legacy=True)
 
@@ -896,6 +890,7 @@ def update_beatmap_files_endpoint(
         # Validate all beatmaps, update metadata,
         # upload new files, ...
         error = handle_upload_finish(
+            upload_request,
             user,
             session
         )
