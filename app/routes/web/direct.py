@@ -1,6 +1,6 @@
 
 from app.common.database import DBBeatmapset, DBUser
-from app.common.constants import DisplayMode
+from app.common.constants import DirectDisplayMode
 from app.utils import sanitize_filename
 from app.common.cache import status
 from app.common import officer
@@ -19,9 +19,13 @@ from fastapi import (
     Query
 )
 
+import config
 import app
 
 router = APIRouter()
+
+def direct_error(message: str) -> str:
+    return f"-1\n{message}"
 
 def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
     versions = ",".join(
@@ -55,88 +59,61 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
         str(post_id or 0),
     ])
 
-def update_osz_filesize(set_id: int, has_video: bool = False) -> None:
-    updates = {}
-
-    if has_video:
-        updates['osz_filesize_novideo'] = get_osz_size(
-            set_id,
-            no_video=True
-        )
-
-    updates['osz_filesize'] = get_osz_size(
-        set_id,
-        no_video=False
-    )
-
-    beatmapsets.update(set_id, updates)
-
-def get_osz_size(set_id: int, no_video: bool = False) -> int:
-    r = app.session.requests.head(
-        f'https://osu.direct/api/d/{set_id}'
-        f'{"noVideo=" if no_video else ""}'
-    )
-
-    if not r.ok:
-        app.session.logger.error(
-            f"Failed to get osz size: {r.status_code}"
-        )
-        return 0
-
-    if not (filesize := r.headers.get('content-length')):
-        app.session.logger.error(
-            "Failed to get osz size: content-length header missing"
-        )
-        return 0
-
-    return int(filesize)
-
 @router.get('/osu-search.php')
 def search(
     session: Session = Depends(app.session.database.yield_session),
+    display_mode: DirectDisplayMode = Query(DirectDisplayMode.All, alias='r'),
     legacy_password: str | None = Query(None, alias='c'),
     page_offset: int | None = Query(None, alias='p'),
     username: str | None = Query(None, alias='u'),
     password: str | None = Query(None, alias='h'),
-    display_mode: int = Query(4, alias='r'),
     query: str = Query(..., alias='q'),
     mode: int = Query(-1, alias='m')
 ) -> str:
-    supports_page_offset = page_offset is not None
-    page_offset = page_offset or 0
-    player = None
+    password: str | None = password or legacy_password
+    player: DBUser | None = None
 
     # Skip authentication for old clients
-    if legacy_password or password:
+    if password:
         if not (player := users.fetch_by_name(username, session=session)):
-            return '-1\nFailed to authenticate user'
+            return direct_error('Failed to authenticate user.')
 
-        if not app.utils.check_password(password or legacy_password, player.bcrypt):
-            return '-1\nFailed to authenticate user'
+        if not app.utils.check_password(password, player.bcrypt):
+            return direct_error('Failed to authenticate user.')
 
         if not status.exists(player.id):
-            return '-1\nNot connected to bancho'
+            return direct_error('You are not connected to bancho.')
 
         if not player.is_supporter:
-            return "-1\nWhy are you here?"
+            return direct_error('Why are you here?')
 
-    if display_mode not in DisplayMode._value2member_map_:
-        return "-1\nInvalid display mode"
-
-    display_mode = DisplayMode(display_mode)
+    if player is None and not config.ALLOW_UNAUTHENTICATED_DIRECT:
+        return direct_error('This version of osu! is not supported.')
 
     if len(query) < 2:
-        return "-1\nQuery is too short."
+        return direct_error('Query is too short.')
+
+    client = (
+        status.version(player.id) or 0
+        if player else 0
+    )
+
+    # Prior to b20140315.9, setting the "m" parameter to 0 
+    # meant "all modes", instead of only osu! standard
+    if mode == 0 and client <= 20140315:
+        mode = -1
 
     app.session.logger.info(
         f'Got osu!direct search request: "{query}" '
         f'from "{player}"'
     )
 
+    supports_page_offset = page_offset is not None
+    page_offset = page_offset or 0
     response = []
 
     try:
-        results = beatmapsets.search(
+        results = beatmapsets.search_direct(
             query,
             player.id if player else 0,
             display_mode,
@@ -165,7 +142,7 @@ def search(
             response.append(online_beatmap(set))
     except Exception as e:
         officer.call(f'Failed to execute search.', exc_info=e)
-        return "-1\nServer error. Please try again!"
+        return direct_error('A server error occurred. Please try again!')
 
     return "\n".join(response)
 
@@ -193,6 +170,9 @@ def pickup_info(
 
         if not player.is_supporter:
             raise HTTPException(401)
+
+    if player is None and not config.ALLOW_UNAUTHENTICATED_DIRECT:
+        raise HTTPException(401)
 
     if set_id:
         beatmapset = beatmapsets.fetch_one(set_id, session)
@@ -223,12 +203,6 @@ def pickup_info(
         f'{player} -> '
         f'Got osu!direct pickup request for: "{beatmapset.full_name}".'
     )
-
-    if not beatmapset.osz_filesize:
-        update_osz_filesize(
-            beatmapset.id,
-            beatmapset.has_video
-        )
 
     return online_beatmap(
         beatmapset,
