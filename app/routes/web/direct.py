@@ -23,6 +23,9 @@ import app
 
 router = APIRouter()
 
+def direct_error(message: str) -> str:
+    return f"-1\n{message}"
+
 def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
     versions = ",".join(
         [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
@@ -73,26 +76,27 @@ def search(
     # Skip authentication for old clients
     if legacy_password or password:
         if not (player := users.fetch_by_name(username, session=session)):
-            return '-1\nFailed to authenticate user'
+            return direct_error('Failed to authenticate user.')
 
         if not app.utils.check_password(password or legacy_password, player.bcrypt):
-            return '-1\nFailed to authenticate user'
+            return direct_error('Failed to authenticate user.')
 
         if not status.exists(player.id):
-            return '-1\nNot connected to bancho'
+            return direct_error('You are not connected to bancho.')
 
         if not player.is_supporter:
-            return "-1\nWhy are you here?"
+            return direct_error('Why are you here?')
 
     if len(query) < 2:
-        return "-1\nQuery is too short."
+        return direct_error('Query is too short.')
 
     client = (
         status.version(player.id) or 0
         if player else 0
     )
 
-    # Prior to b20140315.9, setting the "m" parameter to 0 meant "all modes", instead of only osu! standard
+    # Prior to b20140315.9, setting the "m" parameter to 0 
+    # meant "all modes", instead of only osu! standard
     if mode == 0 and client <= 20140315:
         mode = -1
 
@@ -133,7 +137,7 @@ def search(
             response.append(online_beatmap(set))
     except Exception as e:
         officer.call(f'Failed to execute search.', exc_info=e)
-        return "-1\nServer error. Please try again!"
+        return direct_error('A server error occurred. Please try again!')
 
     return "\n".join(response)
 
