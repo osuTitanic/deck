@@ -1,6 +1,6 @@
 
 from app.common.database import DBBeatmapset, DBUser
-from app.common.constants import DisplayMode
+from app.common.constants import DirectDisplayMode
 from app.utils import sanitize_filename
 from app.common.cache import status
 from app.common import officer
@@ -120,10 +120,10 @@ def search(
         if not player.is_supporter:
             return "-1\nWhy are you here?"
 
-    if display_mode not in DisplayMode._value2member_map_:
+    if display_mode not in DirectDisplayMode._value2member_map_:
         return "-1\nInvalid display mode"
 
-    display_mode = DisplayMode(display_mode)
+    display_mode = DirectDisplayMode(display_mode)
 
     if len(query) < 2:
         return "-1\nQuery is too short."
