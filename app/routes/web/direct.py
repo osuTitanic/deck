@@ -128,6 +128,10 @@ def search(
     if len(query) < 2:
         return "-1\nQuery is too short."
 
+    # Prior to b20140315.9, setting the "m" parameter to 0 meant "all modes", instead of only osu! standard
+    if mode == 0 and (player is None or (status.version(player.id) or 0) <= 20140315):
+        mode = -1
+
     app.session.logger.info(
         f'Got osu!direct search request: "{query}" '
         f'from "{player}"'
@@ -136,7 +140,7 @@ def search(
     response = []
 
     try:
-        results = beatmapsets.search(
+        results = beatmapsets.search_direct(
             query,
             player.id if player else 0,
             display_mode,
