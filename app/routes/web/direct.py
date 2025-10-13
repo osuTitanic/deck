@@ -94,11 +94,11 @@ def get_osz_size(set_id: int, no_video: bool = False) -> int:
 @router.get('/osu-search.php')
 def search(
     session: Session = Depends(app.session.database.yield_session),
+    display_mode: DirectDisplayMode = Query(DirectDisplayMode.All, alias='d'),
     legacy_password: str | None = Query(None, alias='c'),
     page_offset: int | None = Query(None, alias='p'),
     username: str | None = Query(None, alias='u'),
     password: str | None = Query(None, alias='h'),
-    display_mode: int = Query(4, alias='r'),
     query: str = Query(..., alias='q'),
     mode: int = Query(-1, alias='m')
 ) -> str:
@@ -119,11 +119,6 @@ def search(
 
         if not player.is_supporter:
             return "-1\nWhy are you here?"
-
-    if display_mode not in DirectDisplayMode._value2member_map_:
-        return "-1\nInvalid display mode"
-
-    display_mode = DirectDisplayMode(display_mode)
 
     if len(query) < 2:
         return "-1\nQuery is too short."
