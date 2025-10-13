@@ -128,8 +128,13 @@ def search(
     if len(query) < 2:
         return "-1\nQuery is too short."
 
+    client = (
+        status.version(player.id) or 0
+        if player else 0
+    )
+
     # Prior to b20140315.9, setting the "m" parameter to 0 meant "all modes", instead of only osu! standard
-    if mode == 0 and (player is None or (status.version(player.id) or 0) <= 20140315):
+    if mode == 0 and client <= 20140315:
         mode = -1
 
     app.session.logger.info(
