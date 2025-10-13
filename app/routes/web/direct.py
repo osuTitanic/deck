@@ -62,7 +62,7 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
 @router.get('/osu-search.php')
 def search(
     session: Session = Depends(app.session.database.yield_session),
-    display_mode: DirectDisplayMode = Query(DirectDisplayMode.All, alias='d'),
+    display_mode: DirectDisplayMode = Query(DirectDisplayMode.All, alias='r'),
     legacy_password: str | None = Query(None, alias='c'),
     page_offset: int | None = Query(None, alias='p'),
     username: str | None = Query(None, alias='u'),
