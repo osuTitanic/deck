@@ -19,6 +19,7 @@ from fastapi import (
     Query
 )
 
+import config
 import app
 
 router = APIRouter()
@@ -69,16 +70,15 @@ def search(
     query: str = Query(..., alias='q'),
     mode: int = Query(-1, alias='m')
 ) -> str:
-    supports_page_offset = page_offset is not None
-    page_offset = page_offset or 0
-    player = None
+    password: str | None = password or legacy_password
+    player: DBUser | None = None
 
     # Skip authentication for old clients
-    if legacy_password or password:
+    if password:
         if not (player := users.fetch_by_name(username, session=session)):
             return direct_error('Failed to authenticate user.')
 
-        if not app.utils.check_password(password or legacy_password, player.bcrypt):
+        if not app.utils.check_password(password, player.bcrypt):
             return direct_error('Failed to authenticate user.')
 
         if not status.exists(player.id):
@@ -86,6 +86,9 @@ def search(
 
         if not player.is_supporter:
             return direct_error('Why are you here?')
+
+    if player is None and not config.ALLOW_UNAUTHENTICATED_DIRECT:
+        return direct_error('This version of osu! is not supported.')
 
     if len(query) < 2:
         return direct_error('Query is too short.')
@@ -105,6 +108,8 @@ def search(
         f'from "{player}"'
     )
 
+    supports_page_offset = page_offset is not None
+    page_offset = page_offset or 0
     response = []
 
     try:
@@ -165,6 +170,9 @@ def pickup_info(
 
         if not player.is_supporter:
             raise HTTPException(401)
+
+    if player is None and not config.ALLOW_UNAUTHENTICATED_DIRECT:
+        raise HTTPException(401)
 
     if set_id:
         beatmapset = beatmapsets.fetch_one(set_id, session)
