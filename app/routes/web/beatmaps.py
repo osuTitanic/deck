@@ -2061,7 +2061,7 @@ def create_beatmap_topic(
         forum_id=(10 if wip else 9),
         title=subject,
         creator_id=user_id,
-        can_change_icon=False,
+        can_change_icon=True,
         status_text=(
             'Needs modding'
             if wip else
