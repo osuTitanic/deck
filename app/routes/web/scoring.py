@@ -372,7 +372,7 @@ def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
     account_age = (datetime.now() - player.created_at)
     pp_cutoff = min(1500, max(750, account_age.total_seconds() / 8))
 
-    if score.pp >= pp_cutoff:
+    if score.beatmap.awards_pp and score.pp >= pp_cutoff:
         officer.call(
             f'"{score.username}" exceeded the pp limit ({score.pp}).'
         )
