@@ -37,6 +37,7 @@ EMAILS_ENABLED = bool(EMAIL_PROVIDER and EMAIL_SENDER)
 WEB_HOST = os.environ.get('WEB_HOST')
 WEB_PORT = int(os.environ.get('WEB_PORT', 80))
 
+ALLOW_UNAUTHENTICATED_DIRECT = eval(os.environ.get('ALLOW_UNAUTHENTICATED_DIRECT', 'True').capitalize())
 DISABLE_CLIENT_VERIFICATION = eval(os.environ.get('DISABLE_CLIENT_VERIFICATION', 'True').capitalize())
 BEATMAP_SUBMISSION_ENABLED = eval(os.environ.get('BEATMAP_SUBMISSION_ENABLED', 'True').capitalize())
 APPROVED_MAP_REWARDS = eval(os.environ.get('APPROVED_MAP_REWARDS', 'False').capitalize())
