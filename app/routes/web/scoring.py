@@ -611,7 +611,7 @@ def unlock_achievements(
             NotificationType.Achievement.value,
             notification_header,
             notification_message,
-            link=f'https://osu.{config.DOMAIN_NAME}/u/{player.id}#achievements'
+            link=f'{config.OSU_BASEURL}/u/{player.id}#achievements'
         )
 
     return achievement_response
@@ -670,7 +670,7 @@ def response_charts(
     overall_chart = Chart()
     overall_chart['chartId'] = 'overall'
     overall_chart['chartName'] = 'Overall Ranking'
-    overall_chart['chartUrl'] = f'https://osu.{config.DOMAIN_NAME}/u/{score.user.id}'
+    overall_chart['chartUrl'] = f'{config.OSU_BASEURL}/u/{score.user.id}'
     overall_chart['chartEndDate'] = ''
     overall_chart['achievements'] = ' '.join(achievement_response)
     overall_chart['achievements-new'] = '' # TODO
@@ -713,7 +713,7 @@ def response_charts(
     beatmap_ranking = Chart()
     beatmap_ranking['chartId'] = 'beatmap'
     beatmap_ranking['chartName'] = 'Beatmap Ranking'
-    beatmap_ranking['chartUrl'] = f'https://osu.{config.DOMAIN_NAME}/b/{score.beatmap.id}'
+    beatmap_ranking['chartUrl'] = f'{config.OSU_BASEURL}/b/{score.beatmap.id}'
 
     old_score = score.personal_best_score
     new_score = score.to_database()

@@ -26,6 +26,7 @@ from fastapi import (
     Form
 )
 
+import urllib.parse
 import hashlib
 import config
 import time
@@ -395,7 +396,7 @@ def upload_beatmap(
 
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
-        f'(http://osu.{config.DOMAIN_NAME}/s/{set_id})'
+        f'({config.OSU_BASEURL}/s/{set_id})'
     )
 
     # Depending on if the beatmap is new or updated, different event types should be used
@@ -2029,13 +2030,14 @@ def default_topic_message(set_id: int, session: Session) -> str:
         f'[b]Difficulties Available:[/b]',
         '[list]',
         *(
-            f'[*][url=http://osu.{config.DOMAIN_NAME}/api/beatmaps/osu/{beatmap.id}]{beatmap.version}[/url] ({round(beatmap.diff, 2)} stars)'
+            f'[*][url={config.OSU_BASEURL}/web/maps/{urllib.parse.quote(beatmap.filename)}]{beatmap.version}[/url] '
+            f'({round(beatmap.diff, 2)} stars)'
             for beatmap in beatmapset.beatmaps
         ),
         '[/list]',
         '',
-        f'[size=150][b]Download: [url=http://osu.{config.DOMAIN_NAME}/d/{beatmapset.id}]{beatmapset.artist} - {beatmapset.title}[/url][/b][/size]',
-        f'[b]Information:[/b] [url=http://osu.{config.DOMAIN_NAME}/s/{beatmapset.id}]Scores/Beatmap Listing[/url]',
+        f'[size=150][b]Download: [url={config.OSU_BASEURL}/d/{beatmapset.id}]{beatmapset.artist} - {beatmapset.title}[/url][/b][/size]',
+        f'[b]Information:[/b] [url={config.OSU_BASEURL}/s/{beatmapset.id}]Scores/Beatmap Listing[/url]',
         '---------------',
         'Use this space to tell the world about your map. It helps to include a list of changes as your map is modded!'
     ])

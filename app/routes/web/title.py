@@ -16,7 +16,7 @@ def legacy_menu_icon(
 ) -> Response:
     if redirect:
         # Used when the user clicks on the title image
-        return RedirectResponse(config.MENUICON_URL or f'http://osu.{config.DOMAIN_NAME}')
+        return RedirectResponse(config.MENUICON_URL or config.OSU_BASEURL)
 
     if not config.MENUICON_IMAGE:
         return Response(None)
