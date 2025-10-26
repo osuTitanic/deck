@@ -97,7 +97,7 @@ def check_rank(
 
         notifications.create(
             player.id,
-            NotificationType.Other.value,
+            NotificationType.Beatmaps.value,
             'Welcome to the top!',
             f'Congratulations for reaching the #1 global rank in {mode_name}.'
             ' Your incredible skill and dedication have set you apart as the absolute best in the game.'
