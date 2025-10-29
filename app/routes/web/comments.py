@@ -1,5 +1,6 @@
 
 from sqlalchemy.orm import Session
+from contextlib import suppress
 from datetime import datetime
 from typing import List
 from fastapi import (
@@ -37,7 +38,7 @@ def get_comments(
     content: str | None = Form(None, alias='comment'),
     time: int | None = Form(None, alias='starttime'),
     color: str | None = Form(None, alias='f'),
-    target: str | None = Form(None)
+    target: str | None = Form('map')
 ) -> str:
     if not (user := users.fetch_by_name(username, session)):
         app.session.logger.warning("Failed to submit comment: Authentication")
@@ -59,37 +60,20 @@ def get_comments(
         if beatmap_id: db_comments.extend(comments.fetch_many(beatmap_id, 'map', session))
         if set_id: db_comments.extend(comments.fetch_many(set_id, 'song', session))
 
+        is_legacy: bool = set_id or not replay_id
         response: List[str] = []
 
         for comment in db_comments:
-            comment_format = comment.format if comment.format != None else ""
-            comment_format = f'{comment_format}{f"|{comment.color}" if comment.color else ""}'
-
-            if not set_id or not replay_id:
-                # Legacy comments
-                response.append(
-                    '|'.join([
-                        str(comment.time),
-                        comment.comment
-                    ])
-                )
-            else:
-                response.append(
-                    '\t'.join([
-                        str(comment.time),
-                        comment.target_type,
-                        comment_format,
-                        comment.comment
-                    ])
-                )
+            formatted_comment = format_comment(comment, is_legacy)
+            response.append(formatted_comment)
 
         return "\n".join(response)
 
     elif action == 'post':
-        try:
+        target = CommentTarget.Map
+
+        with suppress(ValueError):
             target = CommentTarget(target)
-        except ValueError:
-            target = CommentTarget.Map
 
         if not (content):
             app.session.logger.warning("Failed to submit comment: No content")
@@ -156,3 +140,20 @@ def get_comments(
         return f"{time}|{content}\n"
 
     raise HTTPException(400, detail="Invalid action")
+
+def format_comment(comment: DBComment, legacy: bool = False) -> str:
+    comment_format = comment.format if comment.format != None else ""
+    comment_format = f'{comment_format}{f"|{comment.color}" if comment.color else ""}'
+
+    if legacy:
+        return '|'.join([
+            str(comment.time),
+            comment.comment
+        ])
+
+    return '\t'.join([
+        str(comment.time),
+        comment.target_type,
+        comment_format,
+        comment.comment
+    ])
