@@ -113,7 +113,7 @@ def get_comments(
         }[target]
 
         permissions = Permissions(
-            groups.get_player_permissions(user.id, session)
+            groups.fetch_bancho_permissions(user.id, session)
         )
 
         if Permissions.Supporter not in permissions:
