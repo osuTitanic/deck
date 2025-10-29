@@ -60,7 +60,7 @@ def get_comments(
         if beatmap_id: db_comments.extend(comments.fetch_many(beatmap_id, 'map', session))
         if set_id: db_comments.extend(comments.fetch_many(set_id, 'song', session))
 
-        is_legacy: bool = set_id or not replay_id
+        is_legacy: bool = not set_id or not replay_id
         response: List[str] = []
 
         for comment in db_comments:
