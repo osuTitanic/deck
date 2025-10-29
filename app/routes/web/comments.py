@@ -153,7 +153,7 @@ def format_comment(comment: DBComment, legacy: bool = False) -> str:
 
     return '\t'.join([
         str(comment.time),
-        comment.target_type,
+        comment.target_type.capitalize(),
         comment_format,
         comment.comment
     ])
