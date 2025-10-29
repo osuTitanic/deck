@@ -112,20 +112,16 @@ def get_comments(
             CommentTarget.Song: set_id
         }[target]
 
-        permissions = Permissions(
-            groups.fetch_bancho_permissions(user.id, session)
-        )
-
-        if Permissions.Supporter not in permissions:
+        if not user.is_supporter:
             color = None
 
         comment_format = 'player'
 
         if beatmap.beatmapset.creator == user.name:
             comment_format = 'creator'
-        elif Permissions.BAT in permissions:
+        elif user.is_bat:
             comment_format = 'bat'
-        elif Permissions.Supporter in permissions:
+        elif user.is_supporter:
             comment_format = 'subscriber'
 
         comments.create(
