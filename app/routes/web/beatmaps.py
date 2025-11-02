@@ -1381,6 +1381,7 @@ def update_beatmap_metadata(
                 'cs': beatmap.cs(),
                 'od': beatmap.od(),
                 'ar': beatmap.ar(),
+                'slider_multiplier': beatmap.slider_multiplier,
                 'count_normal': difficulty_attributes.n_circles or 0,
                 'count_slider': difficulty_attributes.n_sliders or 0,
                 'count_spinner': difficulty_attributes.n_spinners or 0,
