@@ -42,7 +42,7 @@ def patch_osz2(osz2_patch: bytes, osz2_source: bytes) -> bytes | None:
 
 @wrapper.exception_wrapper(process_on_fail)
 def parse_beatmap(osu_file: bytes) -> Beatmap | None:
-    return Beatmap.parse(osu_file.decode(errors='ignore'))
+    return Beatmap.parse(osu_file.decode(encoding='utf-8-sig', errors='ignore'))
 
 @wrapper.exception_wrapper(process_on_fail)
 def osz2_metadata_from_beatmap(beatmap: Beatmap) -> Dict[MetadataType, str]:
