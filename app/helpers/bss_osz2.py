@@ -30,7 +30,7 @@ class InternalOsz2(Osz2Package):
                 self.beatmaps[file.filename] = beatmap
 
 def process_on_fail(e: Exception) -> None:
-    officer.call(f'Failed to process osz/osu file: "{e}"')
+    officer.call(f'Failed to process osz/osu file: "{e}"', exc_info=e)
 
 @wrapper.exception_wrapper(process_on_fail)
 def decrypt_osz2(osz2_file: bytes) -> InternalOsz2 | None:
