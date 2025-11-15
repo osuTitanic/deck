@@ -1,5 +1,4 @@
 
-from typing import Optional
 from datetime import datetime
 from app.common.database.repositories import scores
 from app.common.helpers import performance
@@ -43,9 +42,9 @@ class Score:
         mode: GameMode,
         version: int,
         flags: BadFlags,
-        exited: Optional[bool],
-        failtime: Optional[int],
-        replay: Optional[bytes]
+        exited: bool | None,
+        failtime: int | None,
+        replay: bytes | None
     ) -> None:
         self.file_checksum = file_checksum
         self.username = username
@@ -80,15 +79,15 @@ class Score:
         self.pp = 0.0
 
         self.session = app.session.database.session
-        self.personal_best_score: Optional[DBScore] = None
-        self.personal_best_pp: Optional[DBScore] = None
-        self.beatmap: Optional[DBBeatmap] = None
-        self.user: Optional[DBUser] = None
+        self.personal_best_score: DBScore | None = None
+        self.personal_best_pp: DBScore | None = None
+        self.beatmap: DBBeatmap | None = None
+        self.user: DBUser | None = None
 
         # Optional
-        self.fun_spoiler: Optional[str] = None
-        self.client_hash: Optional[str] = None
-        self.processes: Optional[str] = None
+        self.fun_spoiler: str | None = None
+        self.client_hash: str | None = None
+        self.processes: str | None = None
 
         if passed:
             # "Fix" for old clients
@@ -386,9 +385,9 @@ class Score:
     def parse(
         cls,
         formatted_string: str,
-        replay: Optional[bytes],
-        exited: Optional[bool],
-        failtime: Optional[int]
+        replay: bytes | None,
+        exited: bool | None,
+        failtime: int | None
     ) -> "Score":
         """Parse a score string"""
         args = formatted_string.split(':')
