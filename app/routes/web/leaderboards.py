@@ -19,13 +19,9 @@ from app.common.database.repositories import (
     users
 )
 
+from app.common.constants import LeaderboardType, GameMode, Mods
 from app.helpers.enums import SubmissionStatus, LegacyStatus
 from app.common.cache import status
-from app.common.constants import (
-    LeaderboardType,
-    GameMode,
-    Mods
-)
 
 import config
 import app

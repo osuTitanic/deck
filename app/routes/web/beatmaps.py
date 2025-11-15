@@ -8,7 +8,7 @@ from osz2 import *
 
 from app.common.helpers import activity, performance
 from app.common.constants import UserActivity
-from app.helpers.enums import SendAction
+from app.helpers.bss import SendAction
 from app.common.cache import status
 from app.common.database import *
 from app.common import officer
