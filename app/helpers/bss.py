@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
 from slider import Beatmap
+from enum import IntEnum
 from typing import List
 from osz2 import *
 
@@ -17,6 +18,16 @@ import statistics
 import hashlib
 import zipfile
 import io
+
+class SendAction(IntEnum):
+    Standard = 0
+    FirstBeatmap = 1
+    LastBeatmap = 2
+    SingleBeatmap = 3
+
+    @classmethod
+    def values(cls) -> list:
+        return list(cls._value2member_map_.keys())
 
 allowed_file_extensions = (
     ".osu", ".osz", ".osb", ".osk", ".png", ".mp3", ".jpeg",
