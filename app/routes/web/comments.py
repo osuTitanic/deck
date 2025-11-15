@@ -1,6 +1,6 @@
 
-from app.common.constants import CommentTarget, UserActivity
 from app.common.database import beatmaps, comments, users
+from app.common.constants import UserActivity
 from app.common.database import DBComment
 from app.common.helpers import activity
 from app.common.cache import status
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from contextlib import suppress
 from datetime import datetime
 from typing import List
+from enum import Enum
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -19,6 +20,28 @@ from fastapi import (
 import app
 
 router = APIRouter()
+
+class CommentTarget(str, Enum):
+    Replay = 'replay'
+    Song   = 'song'
+    Map    = 'map'
+
+def format_comment(comment: DBComment, legacy: bool = False) -> str:
+    comment_format = comment.format if comment.format != None else ""
+    comment_format = f'{comment_format}{f"|{comment.color}" if comment.color else ""}'
+
+    if legacy:
+        return '|'.join([
+            str(comment.time),
+            comment.comment
+        ])
+
+    return '\t'.join([
+        str(comment.time),
+        comment.target_type.capitalize(),
+        comment_format,
+        comment.comment
+    ])
 
 @router.post('/osu-comment.php')
 def get_comments(
@@ -135,20 +158,3 @@ def get_comments(
         return f"{time}|{content}\n"
 
     raise HTTPException(400, detail="Invalid action")
-
-def format_comment(comment: DBComment, legacy: bool = False) -> str:
-    comment_format = comment.format if comment.format != None else ""
-    comment_format = f'{comment_format}{f"|{comment.color}" if comment.color else ""}'
-
-    if legacy:
-        return '|'.join([
-            str(comment.time),
-            comment.comment
-        ])
-
-    return '\t'.join([
-        str(comment.time),
-        comment.target_type.capitalize(),
-        comment_format,
-        comment.comment
-    ])
