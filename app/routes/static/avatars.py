@@ -1,5 +1,4 @@
 
-from typing import Optional
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -24,8 +23,8 @@ def default_avatar():
 @router.get('/a/{filename}')
 def avatar(
     filename: str,
-    size: Optional[int] = Query(128, alias='s'),
-    checksum: Optional[str] = Query(None, alias='c')
+    size: int | None = Query(128, alias='s'),
+    checksum: str | None = Query(None, alias='c')
 ) -> Response:
     # Workaround for older clients that use file extensions
     user_id_string = filename.split('_')[0]

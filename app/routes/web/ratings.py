@@ -1,7 +1,6 @@
 
 from sqlalchemy.orm import Session
 from datetime import datetime
-from typing import Optional
 from fastapi import (
     APIRouter,
     Depends,
@@ -27,7 +26,7 @@ def rate(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
     beatmap_md5: str = Query(..., alias='c'),
-    rating: Optional[int] = Query(None, alias='v')
+    rating: int | None = Query(None, alias='v')
 ) -> str:
     if not (player := users.fetch_by_name(username, session)):
         return 'auth fail'

@@ -2,7 +2,6 @@
 from fastapi.responses import Response, RedirectResponse
 from fastapi import APIRouter, Query
 from datetime import timedelta
-from typing import Optional
 
 import config
 import app
@@ -11,8 +10,8 @@ router = APIRouter()
 
 @router.get('/osu-title-image.php')
 def legacy_menu_icon(
-    image_checksum: Optional[str] = Query('', alias='c'),
-    redirect: Optional[bool] = Query(False, alias='l')
+    image_checksum: str | None = Query('', alias='c'),
+    redirect: bool | None = Query(False, alias='l')
 ) -> Response:
     if redirect:
         # Used when the user clicks on the title image

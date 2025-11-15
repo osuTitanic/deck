@@ -1,5 +1,4 @@
 
-from typing import Optional
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -15,7 +14,7 @@ router = APIRouter()
 @router.get('/{filename}')
 def get_release_file(
     filename: str,
-    checksum: Optional[str] = Query(None, alias='v')
+    checksum: str | None = Query(None, alias='v')
 ) -> bytes:
     if not (release_file := app.session.storage.get_release_file(filename)):
         raise HTTPException(404)

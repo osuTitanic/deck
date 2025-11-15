@@ -10,8 +10,8 @@ from fastapi import (
 
 from py3rijndael import RijndaelCbc, Pkcs7Padding
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, List
 from concurrent.futures import Future
+from typing import Tuple, List
 from copy import copy
 
 from app.helpers import achievements as AchievementManager
@@ -161,9 +161,9 @@ async def parse_legacy_score_data(
     form: dict,
     ip: str
 ) -> Score:
-    failtime: Optional[str] = query.get('ft', 0)
-    exited: Optional[str] = query.get('x', False)
-    replay: Optional[bytes] = None
+    failtime: str | None = query.get('ft', 0)
+    exited: str | None = query.get('x', False)
+    replay: bytes | None = None
     replay_file = form.get('score')
 
     if replay_file and replay_file.filename != 'replay':
@@ -236,7 +236,7 @@ def validate_replay(replay_bytes: bytes) -> bool:
 
     return True
 
-def perform_score_validation(score: Score, player: DBUser) -> Optional[str]:
+def perform_score_validation(score: Score, player: DBUser) -> str | None:
     """Validate the score submission requests and return an error if the validation fails"""
     app.session.logger.debug('Performing score validation...')
 
@@ -750,9 +750,9 @@ def score_submission(
     request: Request,
     # This will get sent when the "FlashLightImageHack" flag is triggered
     # We don't need to use it, since the flag will already restrict them
-    flashlight_screenshot: Optional[bytes] = Form(None, alias='i'),
-    legacy_password: Optional[str] = Query(None, alias='pass'),
-    password: Optional[str] = Form(None, alias='pass'),
+    flashlight_screenshot: bytes | None = Form(None, alias='i'),
+    legacy_password: str | None = Query(None, alias='pass'),
+    password: str | None = Form(None, alias='pass'),
     score: Score = Depends(parse_score_data),
 ) -> str:
     password = legacy_password or password
@@ -941,7 +941,7 @@ def score_submission(
 @router.post('/osu-submit-new.php')
 def legacy_score_submission(
     request: Request,
-    password: Optional[str] = Query(None, alias='pass'),
+    password: str | None = Query(None, alias='pass'),
     score: Score = Depends(parse_score_data)
 ) -> str:
     score.user = users.fetch_by_name(
