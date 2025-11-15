@@ -22,11 +22,14 @@ def beatmap_file(query: str) -> Response:
         content=file,
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename="{quote(beatmap.filename)}"'
+            'Content-Disposition': f'attachment; filename="{quote(beatmap.filename)}"',
+            'Last-Modified': beatmap.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
         }
     )
 
 def resolve_beatmap(query: str) -> DBBeatmap | None:
+    query = query.strip()
+
     if query.isdigit():
         return beatmaps.fetch_by_id(int(query))
 

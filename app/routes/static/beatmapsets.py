@@ -1,7 +1,10 @@
 
+from app.common.database import beatmapsets, beatmaps
+from app.common.database.objects import DBBeatmap
 from app.utils import sanitize_filename
-from app.common.database.repositories import beatmapsets
+
 from fastapi.responses import StreamingResponse
+from urllib.parse import quote
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -86,10 +89,11 @@ def beatmap_osz(filename: str) -> StreamingResponse:
         raise HTTPException(404)
 
     estimated_size = (
-        beatmapset.osz_filesize_novideo if no_video else beatmapset.osz_filesize
+        beatmapset.osz_filesize_novideo if no_video else
+        beatmapset.osz_filesize
     )
-    
-    beatmap_filename = sanitize_filename(
+
+    osz_filename = sanitize_filename(
         f'{set_id} {beatmapset.artist} - {beatmapset.title}.osz'
     )
 
@@ -97,8 +101,36 @@ def beatmap_osz(filename: str) -> StreamingResponse:
         response.iter_content(65536),
         media_type='application/octet-stream',
         headers={
-            'Content-Disposition': f'attachment; filename="{beatmap_filename}"',
+            'Content-Disposition': f'attachment; filename="{osz_filename}"',
             'Content-Length': response.headers.get('Content-Length', f'{estimated_size}'),
             'Last-Modified': beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
         }
     )
+
+@router.get('/osu/{query}')
+def beatmap_file(query: str) -> Response:
+    if not (beatmap := resolve_beatmap(query)):
+        raise HTTPException(404)
+
+    if not (file := app.session.storage.get_beatmap(beatmap.id)):
+        raise HTTPException(404)
+
+    return Response(
+        content=file,
+        media_type='application/octet-stream',
+        headers={
+            'Content-Disposition': f'attachment; filename="{quote(beatmap.filename)}"',
+            'Last-Modified': beatmap.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
+        }
+    )
+
+def resolve_beatmap(query: str) -> DBBeatmap | None:
+    query = query.strip()
+
+    if query.isdigit():
+        return beatmaps.fetch_by_id(int(query))
+
+    if query.endswith('.osu'):
+        return beatmaps.fetch_by_file(query)
+
+    return beatmaps.fetch_by_checksum(query)
