@@ -23,7 +23,7 @@ from app.common.cache import status
 from app.common.constants import (
     SubmissionStatus,
     LegacyStatus,
-    RankingType,
+    LeaderboardType,
     GameMode,
     Mods
 )
@@ -147,7 +147,7 @@ def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
 def get_scores(
     session: Session = Depends(app.session.database.yield_session),
     skip_scores: bool = Depends(integer_boolean('s')),
-    ranking_type: RankingType | None = Query(1, alias='v'),
+    ranking_type: LeaderboardType | None = Query(1, alias='v'),
     request_version: int | None = Query(1, alias='vv'),
     username: str | None = Query(None, alias='us'),
     password: str | None = Query(None, alias='ha'),
@@ -182,7 +182,7 @@ def get_scores(
         return "1|false" # Update Available
 
     if not ranking_type:
-        ranking_type = RankingType.Top
+        ranking_type = LeaderboardType.Top
 
     submission_status = SubmissionStatus.from_database(
         beatmap.status,
@@ -207,7 +207,7 @@ def get_scores(
         # does not store both mods together
         mods &= ~Mods.DoubleTime
 
-    if ranking_type == RankingType.Friends:
+    if ranking_type == LeaderboardType.Friends:
         friends = relationships.fetch_target_ids(
             player.id,
             session=session
@@ -218,7 +218,7 @@ def get_scores(
             beatmap.id,
             player.id,
             mode.value,
-            mods if ranking_type == RankingType.SelectedMod else None,
+            mods if ranking_type == LeaderboardType.SelectedMod else None,
             session
         )
 
@@ -227,18 +227,18 @@ def get_scores(
                 beatmap.id,
                 mode.value,
                 mods=mods
-                    if ranking_type == RankingType.SelectedMod
+                    if ranking_type == LeaderboardType.SelectedMod
                     else None,
                 country=player.country
-                    if ranking_type == RankingType.Country
+                    if ranking_type == LeaderboardType.Country
                     else None,
                 friends=friends
-                    if ranking_type == RankingType.Friends
+                    if ranking_type == LeaderboardType.Friends
                     else None,
                 session=session
             )
 
-            if ranking_type == RankingType.Friends:
+            if ranking_type == LeaderboardType.Friends:
                 score_count += 1
 
     # NOTE: In request version 3, the submission status
@@ -282,9 +282,9 @@ def get_scores(
             player.id,
             beatmap.id,
             mode.value,
-            mods           if ranking_type == RankingType.SelectedMod else None,
-            friends        if ranking_type == RankingType.Friends     else None,
-            player.country if ranking_type == RankingType.Country     else None,
+            mods           if ranking_type == LeaderboardType.SelectedMod else None,
+            friends        if ranking_type == LeaderboardType.Friends     else None,
+            player.country if ranking_type == LeaderboardType.Country     else None,
             session
         )
 
@@ -296,7 +296,7 @@ def get_scores(
 
     top_scores = []
 
-    if ranking_type == RankingType.Top:
+    if ranking_type == LeaderboardType.Top:
         top_scores = scores.fetch_range_scores(
             beatmap.id,
             mode=mode.value,
@@ -304,7 +304,7 @@ def get_scores(
             session=session
         )
 
-    elif ranking_type == RankingType.Country:
+    elif ranking_type == LeaderboardType.Country:
         top_scores = scores.fetch_range_scores_country(
             beatmap.id,
             mode=mode.value,
@@ -313,7 +313,7 @@ def get_scores(
             session=session
         )
 
-    elif ranking_type == RankingType.Friends:
+    elif ranking_type == LeaderboardType.Friends:
         top_scores = scores.fetch_range_scores_friends(
             beatmap.id,
             mode=mode.value,
@@ -322,7 +322,7 @@ def get_scores(
             session=session
         )
 
-    elif ranking_type == RankingType.SelectedMod:
+    elif ranking_type == LeaderboardType.SelectedMod:
         top_scores = scores.fetch_range_scores_mods(
             beatmap.id,
             mode=mode.value,
