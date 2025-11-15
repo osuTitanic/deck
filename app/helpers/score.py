@@ -1,5 +1,6 @@
 
 from datetime import datetime
+from app.helpers.enums import BadFlags
 from app.common.database.repositories import scores
 from app.common.helpers import performance
 from app.common import officer
@@ -12,7 +13,6 @@ from app.common.database import (
 from app.common.constants import (
     ScoreStatus,
     GameMode,
-    BadFlags,
     Grade,
     Mods
 )
