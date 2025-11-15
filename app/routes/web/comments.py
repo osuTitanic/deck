@@ -1,4 +1,5 @@
 
+from app.helpers.enums import CommentTarget
 from app.common.database import beatmaps, comments, users
 from app.common.constants import UserActivity
 from app.common.database import DBComment
@@ -9,7 +10,6 @@ from sqlalchemy.orm import Session
 from contextlib import suppress
 from datetime import datetime
 from typing import List
-from enum import Enum
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -20,11 +20,6 @@ from fastapi import (
 import app
 
 router = APIRouter()
-
-class CommentTarget(str, Enum):
-    Replay = 'replay'
-    Song   = 'song'
-    Map    = 'map'
 
 def format_comment(comment: DBComment, legacy: bool = False) -> str:
     comment_format = comment.format if comment.format != None else ""

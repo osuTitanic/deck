@@ -19,10 +19,9 @@ from app.common.database.repositories import (
     users
 )
 
+from app.helpers.enums import SubmissionStatus, LegacyStatus
 from app.common.cache import status
 from app.common.constants import (
-    SubmissionStatus,
-    LegacyStatus,
     LeaderboardType,
     GameMode,
     Mods
