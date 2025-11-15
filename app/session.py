@@ -37,7 +37,7 @@ database = Postgres(
 storage = Storage()
 
 # Used for achievements checks
-achievement_executor = ThreadPoolExecutor(max_workers=15)
+achievement_executor = ThreadPoolExecutor(max_workers=5)
 
 # Used for uploading replays, and checking hightlights
-score_executor = ThreadPoolExecutor(max_workers=10)
+score_executor = ThreadPoolExecutor(max_workers=5)
