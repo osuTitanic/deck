@@ -1,4 +1,10 @@
 
+from app.common.constants import CommentTarget, UserActivity
+from app.common.database import beatmaps, comments, users
+from app.common.database import DBComment
+from app.common.helpers import activity
+from app.common.cache import status
+
 from sqlalchemy.orm import Session
 from contextlib import suppress
 from datetime import datetime
@@ -10,20 +16,9 @@ from fastapi import (
     Form
 )
 
-from app.common.constants import CommentTarget, Permissions, UserActivity
-from app.common.database import DBComment
-from app.common.helpers import activity
-from app.common.cache import status
-from app.common.database import (
-    beatmaps,
-    comments,
-    groups,
-    users
-)
+import app
 
 router = APIRouter()
-
-import app
 
 @router.post('/osu-comment.php')
 def get_comments(
