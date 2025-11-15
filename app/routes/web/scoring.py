@@ -16,10 +16,11 @@ from copy import copy
 
 from app.helpers import achievements as AchievementManager
 from app.helpers.score import Score, ScoreStatus
+from app.helpers.enums import BadFlags
 from app.helpers.chart import Chart
 from app.helpers import highlights
 
-from app.common.constants import GameMode, BadFlags, ButtonState, NotificationType, Mods
+from app.common.constants import GameMode, ButtonState, NotificationType, Mods
 from app.common.helpers.ip import resolve_ip_address_fastapi
 from app.common.helpers.score import calculate_rx_score
 from app.common.database import DBStats, DBScore, DBUser
