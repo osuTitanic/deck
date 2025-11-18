@@ -24,3 +24,4 @@ venv/
 dist/
 build/
 coverage/
+logs/
