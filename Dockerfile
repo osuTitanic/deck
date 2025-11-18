@@ -1,22 +1,25 @@
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.14-alpine AS builder
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+ENV PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
 
-# Installing build dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        build-essential \
+# Build dependencies for pillow, psycopg2, rosu-pp-py, etc.
+RUN apk add --no-cache \
+        build-base \
+        cargo \
         curl \
+        freetype-dev \
         git \
-        libpq-dev \
-        libssl-dev \
-        pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install rust toolchain
-RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-ENV PATH="/root/.cargo/bin:${PATH}"
+        lcms2-dev \
+        libffi-dev \
+        libjpeg-turbo-dev \
+        linux-headers \
+        openjpeg-dev \
+        openssl-dev \
+        pkgconf \
+        postgresql-dev \
+        rust \
+        tiff-dev \
+        zlib-dev
 
 WORKDIR /tmp/build
 COPY requirements.txt ./
@@ -25,47 +28,42 @@ RUN pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir --no-compile --root /install -r requirements.txt && \
     pip install --no-cache-dir --no-compile --root /install gunicorn
 
-FROM python:3.13-slim-bookworm
+FROM python:3.14-alpine
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Installing runtime dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        ffmpeg \
-        libavcodec-extra \
-        libpq5 \
-        libssl3 \
-        tini \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives
-
-# Copy only installed site-packages from builder
-COPY --from=builder /install/usr/local /usr/local
-
-# Runtime configuration
-ARG WEB_WORKERS=4
-ENV WEB_WORKERS=${WEB_WORKERS} \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Copy source code
+# Install runtime dependencies
+RUN apk add --no-cache \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        freetype \
+        lcms2 \
+        libffi \
+        libjpeg-turbo \
+        libstdc++ \
+        openjpeg \
+        openssl \
+        postgresql-libs \
+        tini \
+        tiff \
+        zlib
+
+# Copy only the installed python packages and entry points from the builder image
+COPY --from=builder /install/usr/local /usr/local
+
+ARG WEB_WORKERS=4
+ENV WEB_WORKERS=${WEB_WORKERS} \
+    API_WORKERS=${WEB_WORKERS}
+
 WORKDIR /deck
 COPY . .
 
-# Precompile python files for faster startup
+# Precompile application modules to lower start latency
 RUN python -m compileall -q app
 
 STOPSIGNAL SIGTERM
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--"]
 
-CMD gunicorn \
-    --access-logfile - \
-    --preload \
-    -b 0.0.0.0:80 \
-    -w $WEB_WORKERS \
-    -k uvicorn.workers.UvicornWorker \
-    --max-requests 10000 \
-    --max-requests-jitter 5000 \
-    --graceful-timeout 5 \
-    --timeout 10 \
-    app:api
+CMD ["/bin/sh", "-c", "gunicorn --access-logfile - --preload -b 0.0.0.0:80 -w ${WEB_WORKERS} -k uvicorn.workers.UvicornWorker --max-requests 10000 --max-requests-jitter 5000 --graceful-timeout 5 --timeout 10 app:api"]
