@@ -30,6 +30,7 @@ from fastapi import (
 import urllib.parse
 import hashlib
 import config
+import math
 import time
 import app
 
@@ -1366,6 +1367,15 @@ def update_beatmap_metadata(
         )
         assert difficulty_attributes is not None
 
+        eyup_difficulty = performance.calculate_eyup_star_rating(beatmap)
+        assert eyup_difficulty is not None
+        assert not math.isinf(eyup_difficulty)
+        assert not math.isnan(eyup_difficulty)
+
+        # Rounding to 4 decimal places for database
+        eyup_difficulty = round(eyup_difficulty, 4)
+        eyup_difficulty = float(eyup_difficulty)
+
         beatmaps.update(
             beatmap_id,
             {
@@ -1387,7 +1397,8 @@ def update_beatmap_metadata(
                 'count_slider': difficulty_attributes.n_sliders or 0,
                 'count_spinner': difficulty_attributes.n_spinners or 0,
                 'max_combo': difficulty_attributes.max_combo,
-                'diff': difficulty_attributes.stars
+                'diff': difficulty_attributes.stars,
+                'eyup_diff': eyup_difficulty
             },
             session=session
         )
