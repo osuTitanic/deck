@@ -42,6 +42,7 @@ DISABLE_CLIENT_VERIFICATION = eval(os.environ.get('DISABLE_CLIENT_VERIFICATION',
 BEATMAP_SUBMISSION_ENABLED = eval(os.environ.get('BEATMAP_SUBMISSION_ENABLED', 'True').capitalize())
 APPROVED_MAP_REWARDS = eval(os.environ.get('APPROVED_MAP_REWARDS', 'False').capitalize())
 FROZEN_RANK_UPDATES = eval(os.environ.get('FROZEN_RANK_UPDATES', 'False').capitalize())
+FROZEN_PPV1_UPDATES = eval(os.environ.get('FROZEN_PPV1_UPDATES', 'False').capitalize())
 ALLOW_RELAX = eval(os.environ.get('ALLOW_RELAX', 'True').capitalize())
 ENABLE_SSL = eval(os.environ.get('ENABLE_SSL', 'False').capitalize())
 S3_ENABLED = eval(os.environ.get('ENABLE_S3', 'True').capitalize())

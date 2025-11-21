@@ -516,8 +516,9 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
             for score in best_scores_by_score
         )
 
-        # Update ppv1
-        user_stats.ppv1 = performance.calculate_weighted_ppv1(best_scores)
+        # Update ppv1, if config allows for it
+        if not config.FROZEN_PPV1_UPDATES:
+            user_stats.ppv1 = performance.calculate_weighted_ppv1(best_scores)
 
         # Update score grades
         grades = scores.fetch_grades(
