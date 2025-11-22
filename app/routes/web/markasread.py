@@ -29,13 +29,13 @@ def mark_channel_as_read(
     if not (target_user := users.fetch_by_safe_name(safe_name, session=database)):
         raise HTTPException(404)
 
-    total_messages = messages.update_private_all(
+    messages.update_private_all(
         target_user.id,
         player.id,
         {'read': True},
         session=database
     )
     session.logger.info(
-        f"'{player.name}' marked {total_messages} messages as read in DMs with '{target_user.name}'"
+        f"'{player.name}' marked all messages as read in DMs with '{target_user.name}'"
     )
     return Response(status_code=200)
