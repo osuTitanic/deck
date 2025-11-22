@@ -1398,12 +1398,22 @@ def update_beatmap_metadata(
     session.refresh(beatmapset)
 
     for beatmap in beatmapset.beatmaps:
-        if beatmap.status != -3:
+        if beatmap.status == -3:
+            # Remove inactive beatmap
+            plays.delete_by_beatmap_id(beatmap.id, session=session)
+            beatmaps.delete_by_id(beatmap.id, session=session)
             continue
 
-        # Remove inactive beatmap
-        plays.delete_by_beatmap_id(beatmap.id, session=session)
-        beatmaps.delete_by_id(beatmap.id, session=session)
+        # Update eyup stars for ppv1 calculations
+        eyup_difficulty = performance.calculate_eyup_star_rating(beatmap)
+        assert eyup_difficulty is not None
+        assert not math.isinf(eyup_difficulty)
+        assert not math.isnan(eyup_difficulty)
+
+        # Rounding to 4 decimal places for database
+        eyup_difficulty = round(eyup_difficulty, 4)
+        eyup_difficulty = float(eyup_difficulty)
+        beatmaps.update(beatmap.id, {'diff_eyup': eyup_difficulty}, session=session)
 
     if is_bubbled(beatmapset, session):
         # Bubble should be popped when the beatmap
