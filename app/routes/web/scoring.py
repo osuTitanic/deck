@@ -447,7 +447,7 @@ def calculate_weighted_acc(scores: List[DBScore]) -> float:
     bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(scores)))
     return (weighted_acc * bonus_acc) / 100
 
-def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats]:
+def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats, dict]:
     """Update the users and beatmaps stats. It will return the old & new stats for the user"""
     app.session.logger.debug('Updating user stats...')
 
