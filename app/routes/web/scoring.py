@@ -678,8 +678,8 @@ def response_charts(
     overall_chart['achievements-new'] = '' # TODO
 
     overall_chart.entry('rank', ranking["old_rank"], ranking["new_rank"])
-    overall_chart.entry('rankedScore', old_stats.rscore, new_stats.rscore)
-    overall_chart.entry('totalScore', old_stats.tscore, new_stats.tscore)
+    overall_chart.entry('rankedScore', old_stats.rscore, round(new_stats.rscore))
+    overall_chart.entry('totalScore', old_stats.tscore, round(new_stats.tscore))
     overall_chart.entry('playCount', old_stats.playcount, new_stats.playcount)
     overall_chart.entry('maxCombo', old_stats.max_combo, new_stats.max_combo)
     overall_chart.entry('pp', round(ranking["old_pp"]), round(ranking["new_pp"]))
