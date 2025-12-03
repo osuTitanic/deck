@@ -68,8 +68,9 @@ class Score:
         self.flags = flags
         self.passed = passed
         self.exited = exited
-        self.version = version
         self.failtime = failtime
+        self.version_string = f"b{version}"
+        self.version = version
 
         self.replay = replay
         self.status_pp = ScoreStatus.Submitted
@@ -432,6 +433,7 @@ class Score:
             beatmap_id=self.beatmap.id,
             user_id=self.user.id,
             client_version=self.version,
+            client_string=self.version_string,
             checksum=self.score_checksum,
             mode=self.mode.value,
             pp=round(self.pp, 8),

@@ -36,6 +36,7 @@ from app.common.database.repositories import (
     histories,
     beatmaps,
     scores,
+    logins,
     plays,
     users,
     stats
@@ -849,6 +850,12 @@ def score_submission(
 
         score.status_pp = score.calculate_pp_status()
         score.status_score = score.calculate_score_status()
+
+        # Fetch current osu! client version
+        score.version_string = (
+            logins.fetch_last_osu_version(player.id, score.session)
+            or f"b{score.version}"
+        )
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
