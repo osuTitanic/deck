@@ -25,6 +25,7 @@ from . import stats
 from . import login
 from . import coins
 from . import maps
+from . import osz2
 
 router = APIRouter()
 router.include_router(leaderboards.router)
@@ -51,3 +52,4 @@ router.include_router(stats.router)
 router.include_router(login.router)
 router.include_router(coins.router)
 router.include_router(maps.router)
+router.include_router(osz2.router)
