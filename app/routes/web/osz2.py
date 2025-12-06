@@ -20,8 +20,8 @@ def get_osz2_hashes(
 
     return "|".join(
         "1",
-        beatmapset.body_hash,
-        beatmapset.meta_hash
+        beatmapset.body_hash.upper(),
+        beatmapset.meta_hash.upper()
     )
 
 @router.get("/osu-osz2-getfileinfo.php")
