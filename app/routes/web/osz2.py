@@ -23,6 +23,32 @@ def get_osz2_hashes(
         beatmapset.meta_hash
     )
 
+@router.get("/osu-osz2-getrawheader.php")
+def get_osz2_header(
+    session: Session = Depends(app.session.database.yield_session),
+    username: str = Query(..., alias="u"),
+    password: str = Query(..., alias="h"),
+    set_id: int = Query(..., alias="s")
+) -> Response:
+    player = users.fetch_by_name(username, session=session)
+
+    if not player:
+        return error_response(5, 'Authentication failed. Please check your login credentials.')
+
+    if not app.utils.check_password(password, player.bcrypt):
+        return error_response(5, 'Authentication failed. Please check your login credentials.')
+
+    if not (osz2 := app.session.storage.get_osz2_internal(set_id)):
+        return error_response(1)
+
+    try:
+        package = Osz2Package.from_bytes(osz2)
+    except Exception as e:
+        app.logger.warning(f"Failed to read osz2 package: {e}")
+        return error_response(1)
+
+    return Response(osz2[0 : package.data_offset])
+
 @router.get("osu-osz2-getfilecontents.php")
 def get_osz2_file_contents(
     session: Session = Depends(app.session.database.yield_session),
@@ -39,10 +65,7 @@ def get_osz2_file_contents(
     if not app.utils.check_password(password, player.bcrypt):
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
-    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
-        return error_response(1)
-    
-    if not (osz2 := app.session.storage.get_osz2_internal(beatmapset.id)):
+    if not (osz2 := app.session.storage.get_osz2_internal(set_id)):
         return error_response(1)
 
     try:
@@ -50,7 +73,7 @@ def get_osz2_file_contents(
     except Exception as e:
         app.logger.warning(f"Failed to read osz2 package: {e}")
         return error_response(1)
-    
+
     if not (file := package.find_file_by_name(filename)):
         return error_response(1)
 
