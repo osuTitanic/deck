@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Response, Query, Depends
+from fastapi import HTTPException, APIRouter, Response, Query, Depends
 from app.routes.web.beatmaps import error_response
 from app.common.database import beatmapsets, users
 from sqlalchemy.orm import Session
@@ -109,3 +109,28 @@ def get_osz2_file_info(
         for file in package.files
     ]
     return "|".join(info_strings) + "|"
+
+@router.get("/osu-magnet.php")
+def get_osu_magnet(
+    session: Session = Depends(app.session.database.yield_session),
+    username: str = Query(..., alias="u"),
+    password: str = Query(..., alias="h"),
+    set_id: int = Query(..., alias="s"),
+    no_video: int = Query(0, alias="v")
+) -> str:
+    player = users.fetch_by_name(username, session=session)
+
+    if not player:
+        raise HTTPException(401)
+
+    if not app.utils.check_password(password, player.bcrypt):
+        raise HTTPException(401)
+
+    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
+        raise HTTPException(404)
+
+    if not beatmapset.available:
+        raise HTTPException(451)
+
+    # osu! magnets are not supported yet, and probably never will be...
+    raise HTTPException(501)
