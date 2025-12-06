@@ -175,10 +175,10 @@ def get_scores(
 
     # has_osz2_update is used to check if the osz2 file is still up to date
     # This was part of the unused osu! magnet system
-    has_osz2_update = False
+    has_osz2_update = "false"
 
     if osz2_hash and osz2_hash != beatmap.beatmapset.osz2_hashes:
-        has_osz2_update = True
+        has_osz2_update = "true"
 
     if beatmap.md5 != beatmap_hash:
         return f"1|{has_osz2_update}" # Update Available
