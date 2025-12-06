@@ -1,5 +1,6 @@
 
 from fastapi import HTTPException, APIRouter, Response, Query, Depends
+from app.common.helpers.replays import get_ticks, decode_ticks
 from app.routes.web.beatmaps import error_response
 from app.common.database import beatmapsets, users
 from sqlalchemy.orm import Session
@@ -33,26 +34,29 @@ def get_osz2_file_info(
     player = users.fetch_by_name(username, session=session)
 
     if not player:
+        app.session.logger.info(f"Failed to authenticate user '{username}'")
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
     if not app.utils.check_password(password, player.bcrypt):
+        app.session.logger.info(f"Failed to authenticate user '{username}'")
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
     if not (osz2 := app.session.storage.get_osz2_internal(set_id)):
+        app.session.logger.warning(f"Could not find osz2 package for beatmapset: '{set_id}'")
         return error_response(5)
 
     try:
         package = Osz2Package.from_bytes(osz2)
     except Exception as e:
-        app.logger.warning(f"Failed to read osz2 package: {e}")
+        app.session.logger.warning(f"Failed to read osz2 package: {e}")
         return error_response(5)
 
     info_strings = [
         f"{file.filename}:{file.offset}:{file.size}:{file.hash.hex().upper()}:"
-        f"{int(file.date_created.timestamp())}:{int(file.date_modified.timestamp())}"
+        f"{get_ticks(file.date_created)}:{get_ticks(file.date_modified)}"
         for file in package.files
     ]
-    return "|".join(info_strings) + "\n"
+    return "|".join(info_strings) + f"\n{package.data_offset}"
 
 @router.get("/osu-osz2-getrawheader.php")
 def get_osz2_header(
@@ -64,12 +68,15 @@ def get_osz2_header(
     player = users.fetch_by_name(username, session=session)
 
     if not player:
+        app.session.logger.info(f"Failed to authenticate user '{username}'")
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
     if not app.utils.check_password(password, player.bcrypt):
+        app.session.logger.info(f"Failed to authenticate user '{username}'")
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
     if not (osz2 := app.session.storage.get_osz2_internal(set_id)):
+        app.session.logger.warning(f"Could not find osz2 package for beatmapset: '{set_id}'")
         return error_response(5)
 
     try:
