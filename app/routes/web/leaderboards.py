@@ -150,7 +150,7 @@ def get_scores(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f'),
     mode: GameMode = Query(..., alias='m'),
-    osz_hash: str = Query(..., alias='h'),
+    osz2_hash: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='i'),
     mods: int | None = Query(0),
 ) -> str:
@@ -170,24 +170,26 @@ def get_scores(
         session=session
     )
 
-    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+    if not (beatmapset := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return "-1|false" # Not Submitted
 
-    if beatmap.md5 != beatmap_hash:
+    if beatmapset.md5 != beatmap_hash:
         return "1|false" # Update Available
 
     if not ranking_type:
         ranking_type = LeaderboardType.Top
 
     submission_status = SubmissionStatus.from_database(
-        beatmap.status,
+        beatmapset.status,
         request_version
     )
 
-    # TODO: has_osz is used to check if the osz file is still up to date
-    #       However, we would have to implement a few more endpoints to
-    #       make this work properly.
-    has_osz = False
+    # has_osz2_update is used to check if the osz2 file is still up to date
+    # This was part of the unused osu! magnet system
+    has_osz2_update = False
+
+    if osz2_hash and osz2_hash != beatmapset.body_hash:
+        has_osz2_update = True
 
     # Only send NC if the client supports it
     send_nc: bool = client_supports_nc(status.version(player.id))
@@ -208,9 +210,9 @@ def get_scores(
             session=session
         )
 
-    if beatmap.is_ranked:
+    if beatmapset.is_ranked:
         personal_best = scores.fetch_personal_best_score(
-            beatmap.id,
+            beatmapset.id,
             player.id,
             mode.value,
             mods if ranking_type == LeaderboardType.SelectedMod else None,
@@ -219,7 +221,7 @@ def get_scores(
 
         if personal_best:
             score_count = scores.fetch_count_beatmap(
-                beatmap.id,
+                beatmapset.id,
                 mode.value,
                 mods=mods
                     if ranking_type == LeaderboardType.SelectedMod
@@ -250,9 +252,9 @@ def get_scores(
     response.append(
         '|'.join([
             str(submission_status.value),
-            str(has_osz),
-            str(beatmap.id),
-            str(beatmap.set_id),
+            str(has_osz2_update),
+            str(beatmapset.id),
+            str(beatmapset.set_id),
             str(score_count),
             "", # Featured Artist Track ID
             ""  # Featured Artist License Text
@@ -260,22 +262,22 @@ def get_scores(
     )
 
     # Global offset
-    response.append(f'{beatmap.beatmapset.offset}')
+    response.append(f'{beatmapset.beatmapset.offset}')
 
     # Title (Example: https://i.imgur.com/BofeZ2z.png)
-    response.append(beatmap.beatmapset.display_title)
+    response.append(beatmapset.beatmapset.display_title)
 
     # NOTE: This was actually used for user ratings, but
     #       we are using the new star ratings instead.
-    response.append(f'{beatmap.diff}')
+    response.append(f'{beatmapset.diff}')
 
-    if skip_scores or not beatmap.is_ranked:
+    if skip_scores or not beatmapset.is_ranked:
         return "\n".join(response)
 
     if personal_best:
         index = scores.fetch_score_index(
             player.id,
-            beatmap.id,
+            beatmapset.id,
             mode.value,
             mods           if ranking_type == LeaderboardType.SelectedMod else None,
             friends        if ranking_type == LeaderboardType.Friends     else None,
@@ -293,7 +295,7 @@ def get_scores(
 
     if ranking_type == LeaderboardType.Top:
         top_scores = scores.fetch_range_scores(
-            beatmap.id,
+            beatmapset.id,
             mode=mode.value,
             limit=config.SCORE_RESPONSE_LIMIT,
             session=session
@@ -301,7 +303,7 @@ def get_scores(
 
     elif ranking_type == LeaderboardType.Country:
         top_scores = scores.fetch_range_scores_country(
-            beatmap.id,
+            beatmapset.id,
             mode=mode.value,
             country=player.country,
             limit=config.SCORE_RESPONSE_LIMIT,
@@ -310,7 +312,7 @@ def get_scores(
 
     elif ranking_type == LeaderboardType.Friends:
         top_scores = scores.fetch_range_scores_friends(
-            beatmap.id,
+            beatmapset.id,
             mode=mode.value,
             friends=friends,
             limit=config.SCORE_RESPONSE_LIMIT,
@@ -319,7 +321,7 @@ def get_scores(
 
     elif ranking_type == LeaderboardType.SelectedMod:
         top_scores = scores.fetch_range_scores_mods(
-            beatmap.id,
+            beatmapset.id,
             mode=mode.value,
             mods=mods,
             limit=config.SCORE_RESPONSE_LIMIT,
