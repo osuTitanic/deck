@@ -350,10 +350,10 @@ def legacy_scores(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+    if not (beatmapset := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return "-1" # Not Submitted
 
-    if beatmap.md5 != beatmap_hash:
+    if beatmapset.md5 != beatmap_hash:
         return "1" # Update Available
 
     users.update(
@@ -363,24 +363,24 @@ def legacy_scores(
     )
 
     response = []
-    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmapset.status)
     send_nc = client_supports_nc(status.version(player_id))
 
     response.append(f'{submission_status.value}')
-    response.append(f'{beatmap.beatmapset.offset}')
+    response.append(f'{beatmapset.beatmapset.offset}')
 
     # Title (Example: https://i.imgur.com/BofeZ2z.png)
-    response.append(beatmap.beatmapset.display_title)
+    response.append(beatmapset.beatmapset.display_title)
 
     # NOTE: This was actually used for user ratings, but
     #       we are using the new star ratings instead
-    response.append(f'{beatmap.diff}')
+    response.append(f'{beatmapset.diff}')
 
-    if skip_scores or not beatmap.is_ranked:
+    if skip_scores or not beatmapset.is_ranked:
         return "\n".join(response)
 
     personal_best = scores.fetch_personal_best_score(
-        beatmap.id,
+        beatmapset.id,
         player.id,
         mode.value,
         session=session
@@ -389,7 +389,7 @@ def legacy_scores(
     if personal_best:
         index = scores.fetch_score_index(
             player.id,
-            beatmap.id,
+            beatmapset.id,
             mode.value,
             session=session
         )
@@ -401,7 +401,7 @@ def legacy_scores(
         response.append('')
 
     top_scores = scores.fetch_range_scores(
-        beatmap.id,
+        beatmapset.id,
         mode=mode.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
@@ -429,10 +429,10 @@ def legacy_scores_no_ratings(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+    if not (beatmapset := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return '-1' # Not Submitted
 
-    if beatmap.md5 != beatmap_hash:
+    if beatmapset.md5 != beatmap_hash:
         return '1' # Update Available
 
     send_nc: bool = client_supports_nc(status.version(player_id))
@@ -453,19 +453,19 @@ def legacy_scores_no_ratings(
     )
 
     response = []
-    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmapset.status)
 
     response.append(f'{submission_status.value}')
-    response.append(f'{beatmap.beatmapset.offset}')
+    response.append(f'{beatmapset.beatmapset.offset}')
 
     # Title (Example: https://i.imgur.com/BofeZ2z.png)
-    response.append(beatmap.beatmapset.display_title)
+    response.append(beatmapset.beatmapset.display_title)
 
-    if skip_scores or not beatmap.is_ranked:
+    if skip_scores or not beatmapset.is_ranked:
         return "\n".join(response)
 
     personal_best = scores.fetch_personal_best_score(
-        beatmap.id,
+        beatmapset.id,
         player.id,
         mode.value,
         session=session
@@ -474,7 +474,7 @@ def legacy_scores_no_ratings(
     if personal_best:
         index = scores.fetch_score_index(
             player.id,
-            beatmap.id,
+            beatmapset.id,
             mode.value,
             session=session
         )
@@ -486,7 +486,7 @@ def legacy_scores_no_ratings(
         response.append("")
 
     top_scores = scores.fetch_range_scores(
-        beatmap.id,
+        beatmapset.id,
         mode=mode.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
@@ -513,10 +513,10 @@ def legacy_scores_no_beatmap_data(
     if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+    if not (beatmapset := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1') # Not Submitted
 
-    if beatmap.md5 != beatmap_hash:
+    if beatmapset.md5 != beatmap_hash:
         return Response('1') # Update Available
 
     send_nc: bool = client_supports_nc(status.version(player_id))
@@ -538,16 +538,16 @@ def legacy_scores_no_beatmap_data(
     )
 
     response = []
-    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmapset.status)
 
     # Status
     response.append(f'{submission_status.value}')
 
-    if skip_scores or not beatmap.is_ranked:
+    if skip_scores or not beatmapset.is_ranked:
         return Response("\n".join(response))
 
     personal_best = scores.fetch_personal_best_score(
-        beatmap.id,
+        beatmapset.id,
         player.id,
         mode.value,
         session=session
@@ -556,7 +556,7 @@ def legacy_scores_no_beatmap_data(
     if personal_best:
         index = scores.fetch_score_index(
             player.id,
-            beatmap.id,
+            beatmapset.id,
             mode.value,
             session=session
         )
@@ -568,7 +568,7 @@ def legacy_scores_no_beatmap_data(
         response.append('')
 
     top_scores = scores.fetch_range_scores(
-        beatmap.id,
+        beatmapset.id,
         mode=mode.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
@@ -588,23 +588,23 @@ def legacy_scores_no_personal_best(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f')
 ) -> Response:
-    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+    if not (beatmapset := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1') # Not Submitted
 
-    if beatmap.md5 != beatmap_hash:
+    if beatmapset.md5 != beatmap_hash:
         return Response('1') # Update Available
 
     response = []
-    submission_status = SubmissionStatus.from_database_legacy(beatmap.status)
+    submission_status = SubmissionStatus.from_database_legacy(beatmapset.status)
 
     # Status
     response.append(f'{submission_status.value}')
 
-    if skip_scores or not beatmap.is_ranked:
+    if skip_scores or not beatmapset.is_ranked:
         return Response("\n".join(response))
 
     top_scores = scores.fetch_range_scores(
-        beatmap.id,
+        beatmapset.id,
         mode=GameMode.Osu.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
@@ -624,24 +624,24 @@ def legacy_scores_status_change(
     beatmap_hash: str = Query(..., alias='c'),
     beatmap_file: str = Query(..., alias='f')
 ) -> Response:
-    if not (beatmap := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
+    if not (beatmapset := resolve_beatmapset(beatmap_file, beatmap_hash, session)):
         return Response('-1') # Not Submitted
 
-    if beatmap.md5 != beatmap_hash:
+    if beatmapset.md5 != beatmap_hash:
         return Response('1') # Update Available
 
     response = []
-    submission_status = LegacyStatus.from_database(beatmap.status)
+    submission_status = LegacyStatus.from_database(beatmapset.status)
 
     # Status
     if submission_status <= SubmissionStatus.Unknown:
         response.append(f'{submission_status.value}')
 
-    if skip_scores or not beatmap.is_ranked:
+    if skip_scores or not beatmapset.is_ranked:
         return Response("\n".join(response))
 
     top_scores = scores.fetch_range_scores(
-        beatmap.id,
+        beatmapset.id,
         mode=GameMode.Osu.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
@@ -659,11 +659,11 @@ def legacy_scores_no_status(
     session: Session = Depends(app.session.database.yield_session),
     beatmap_hash: str = Query(..., alias='c')
 ) -> str:
-    if not (beatmap := beatmaps.fetch_by_checksum(beatmap_hash, session)):
+    if not (beatmapset := beatmaps.fetch_by_checksum(beatmap_hash, session)):
         return "-1" # Not Submitted
 
     top_scores = scores.fetch_range_scores(
-        beatmap.id,
+        beatmapset.id,
         mode=GameMode.Osu.value,
         limit=config.SCORE_RESPONSE_LIMIT,
         session=session
