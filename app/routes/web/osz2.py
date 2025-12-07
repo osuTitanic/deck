@@ -1,11 +1,17 @@
 
 from fastapi import HTTPException, APIRouter, Response, Query, Depends
-from app.common.helpers.replays import get_ticks, decode_ticks
+from fastapi.responses import StreamingResponse
+
 from app.routes.web.beatmaps import error_response
 from app.common.database import beatmapsets, users
+from app.common.helpers.replays import get_ticks
 from sqlalchemy.orm import Session
+from urllib.parse import quote
 from osz2 import Osz2Package
+from app import utils
 
+import hashlib
+import config
 import app
 
 router = APIRouter()
@@ -139,5 +145,46 @@ def get_osu_magnet(
     if not beatmapset.available:
         raise HTTPException(451)
 
-    # osu! magnets are not supported yet, and probably never will be...
-    raise HTTPException(501)
+    if not beatmapset.info_hash:
+        raise HTTPException(404)
+
+    # Construct display name for the torrent
+    display_name = utils.sanitize_filename(
+        f"{beatmapset.artist} - {beatmapset.title}.osz2"
+    )
+
+    # Build magnet link
+    magnet_parts = [
+        f"xt=urn:sha1:{hashlib.sha1(beatmapset.osz2_hashes.encode()).hexdigest()}",
+        f"dn={quote(display_name)}",
+        f"tr={quote(config.TRACKER_BASEURL)}",
+        f"x.pe={quote(f'{config.OSU_BASEURL}/web/osz2-download.php?s={set_id}&v={no_video}')}"
+    ]
+    return "magnet:?" + "&".join(magnet_parts)
+
+@router.get("/osz2-download.php")
+def download_osz2(
+    session: Session = Depends(app.session.database.yield_session),
+    set_id: int = Query(..., alias="s")
+) -> Response:
+    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
+        raise HTTPException(404)
+
+    if not beatmapset.available:
+        raise HTTPException(451)
+
+    if not (osz2 := app.session.storage.get_osz2_iterable(set_id)):
+        raise HTTPException(404)
+
+    osz2_filename = utils.sanitize_filename(
+        f"{set_id} {beatmapset.artist} - {beatmapset.title}.osz2"
+    )
+
+    return StreamingResponse(
+        content=osz2,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{osz2_filename}"',
+            "Last-Modified": beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
+        }
+    )
