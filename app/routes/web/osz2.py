@@ -148,43 +148,4 @@ def get_osu_magnet(
     if not beatmapset.info_hash:
         raise HTTPException(404)
 
-    # Construct display name for the torrent
-    display_name = utils.sanitize_filename(
-        f"{beatmapset.artist} - {beatmapset.title}.osz2"
-    )
-
-    # Build magnet link
-    magnet_parts = [
-        f"xt=urn:sha1:{hashlib.sha1(beatmapset.osz2_hashes.encode()).hexdigest()}",
-        f"dn={quote(display_name)}",
-        f"tr={quote(config.TRACKER_BASEURL)}",
-        f"x.pe={quote(f'{config.OSU_BASEURL}/web/osz2-download.php?s={set_id}&v={no_video}')}"
-    ]
-    return "magnet:?" + "&".join(magnet_parts)
-
-@router.get("/osz2-download.php")
-def download_osz2(
-    session: Session = Depends(app.session.database.yield_session),
-    set_id: int = Query(..., alias="s")
-) -> Response:
-    if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
-        raise HTTPException(404)
-
-    if not beatmapset.available:
-        raise HTTPException(451)
-
-    if not (osz2 := app.session.storage.get_osz2_iterable(set_id)):
-        raise HTTPException(404)
-
-    osz2_filename = utils.sanitize_filename(
-        f"{set_id} {beatmapset.artist} - {beatmapset.title}.osz2"
-    )
-
-    return StreamingResponse(
-        content=osz2,
-        media_type="application/octet-stream",
-        headers={
-            "Content-Disposition": f'attachment; filename="{osz2_filename}"',
-            "Last-Modified": beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT')
-        }
-    )
+    raise HTTPException(501)
