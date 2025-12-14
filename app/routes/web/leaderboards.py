@@ -85,7 +85,7 @@ def resolve_mods(score: DBScore, send_nc: bool = True) -> int:
 
     return mods.value
 
-def client_supports_nc(version: int) -> bool:
+def client_supports_nc(version: int | None) -> bool:
     return (version or 0) >= 20120620
 
 def integer_boolean(parameter: str) -> Callable:
@@ -423,10 +423,10 @@ def legacy_scores_no_ratings(
     beatmap_file: str = Query(..., alias='f'),
     player_id: int = Query(..., alias='u')
 ) -> str:
-    if not status.exists(player_id):
+    if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (player := users.fetch_by_id(player_id, session=session)):
+    if not (bancho_status := status.get(player_id)):
         raise HTTPException(401)
 
     if not (beatmap := resolve_beatmap(beatmap_file, beatmap_hash, session)):
@@ -435,8 +435,8 @@ def legacy_scores_no_ratings(
     if beatmap.md5 != beatmap_hash:
         return '1' # Update Available
 
-    send_nc: bool = client_supports_nc(status.version(player_id))
-    current_mode = status.get(player.id).status.mode
+    send_nc = client_supports_nc(status.version(player_id))
+    current_mode = bancho_status.status.mode
 
     if current_mode != mode:
         # Assign new mode to player
@@ -507,10 +507,10 @@ def legacy_scores_no_beatmap_data(
     beatmap_file: str = Query(..., alias='f'),
     player_id: int = Query(..., alias='u')
 ) -> str:
-    if not status.exists(player_id):
+    if not (player := users.fetch_by_id(player_id, session=session)):
         raise HTTPException(401)
 
-    if not (player := users.fetch_by_id(player_id, session=session)):
+    if not (bancho_status := status.get(player_id)):
         raise HTTPException(401)
 
     if not (beatmap := resolve_beatmap(beatmap_file, beatmap_hash, session)):
@@ -519,8 +519,8 @@ def legacy_scores_no_beatmap_data(
     if beatmap.md5 != beatmap_hash:
         return Response('1') # Update Available
 
-    send_nc: bool = client_supports_nc(status.version(player_id))
-    current_mode = status.get(player.id).status.mode
+    send_nc = client_supports_nc(status.version(player_id))
+    current_mode = bancho_status.status.mode
     mode = GameMode.Osu
 
     if current_mode != mode:
