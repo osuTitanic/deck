@@ -16,6 +16,7 @@ async def lifespan(app: FastAPI):
     yield
     session.achievement_executor.shutdown(wait=True)
     session.score_executor.shutdown(wait=True)
+    session.database.engine.dispose()
     session.redis.close()
 
 api = FastAPI(
