@@ -2,15 +2,16 @@
 from .common.cache.events import EventQueue
 from .common.database import Postgres
 from .common.storage import Storage
+from .common.config import Config
 
 from concurrent.futures import ThreadPoolExecutor
 from requests import Session
 from redis import Redis
 
 import logging
-import config
 
 logger = logging.getLogger('deck')
+config = Config()
 
 requests = Session()
 requests.headers = {
@@ -27,14 +28,8 @@ events = EventQueue(
     connection=redis
 )
 
-database = Postgres(
-    config.POSTGRES_USER,
-    config.POSTGRES_PASSWORD,
-    config.POSTGRES_HOST,
-    config.POSTGRES_PORT
-)
-
-storage = Storage()
+database = Postgres(config)
+storage = Storage(config)
 
 # Used for achievements checks
 achievement_executor = ThreadPoolExecutor(max_workers=5)
