@@ -10,7 +10,7 @@ python-dotenv==1.2.1
 redis==7.1.0
 requests==2.32.5
 sendgrid==6.12.5
-sqlalchemy==2.0.44
+sqlalchemy==2.0.45
 uvicorn==0.38.0
 pydub==0.25.1
 rosu-pp-py==3.1.0
