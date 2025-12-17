@@ -21,9 +21,9 @@ from app.common.database.repositories import (
 
 from app.common.constants import LeaderboardType, GameMode, Mods
 from app.helpers.enums import SubmissionStatus, LegacyStatus
+from app.common.config import config_instance as config
 from app.common.cache import status
 
-import config
 import app
 
 router = APIRouter()

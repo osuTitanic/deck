@@ -11,7 +11,6 @@ from app.common.cache import leaderboards
 from app.common.helpers import activity
 from app.common.constants import Mods
 
-import config
 import app
 
 # I found some infos on the old achievements online:

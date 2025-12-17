@@ -24,6 +24,7 @@ from app.common.constants import GameMode, ButtonState, NotificationType, Mods
 from app.common.helpers.ip import resolve_ip_address_fastapi
 from app.common.helpers.score import calculate_rx_score
 from app.common.database import DBStats, DBScore, DBUser
+from app.common.config import config_instance as config
 from app.common.cache import leaderboards, status
 from app.common.helpers import performance
 from app.common.constants import regexes
@@ -44,8 +45,6 @@ from app.common.database.repositories import (
 
 import hashlib
 import base64
-import config
-import lzma
 import app
 
 router = APIRouter()

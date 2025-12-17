@@ -1,17 +1,11 @@
 
 from fastapi import HTTPException, APIRouter, Response, Query, Depends
-from fastapi.responses import StreamingResponse
-
 from app.routes.web.beatmaps import error_response
 from app.common.database import beatmapsets, users
 from app.common.helpers.replays import get_ticks
 from sqlalchemy.orm import Session
-from urllib.parse import quote
 from osz2 import Osz2Package
-from app import utils
 
-import hashlib
-import config
 import app
 
 router = APIRouter()

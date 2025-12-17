@@ -1,12 +1,8 @@
 
-from app.common.database.repositories import users
+from app.common.config import config_instance as config
 from app.common.helpers import location, ip
 from app.common.constants import regexes
 from fastapi import APIRouter, Request, Query
-from datetime import datetime
-
-import config
-import app
 
 router = APIRouter()
 

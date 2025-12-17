@@ -1,11 +1,8 @@
 
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Depends
+from app.session import config
 from typing import List
-
-import config
-import json
-import app
 
 router = APIRouter()
 

@@ -1,9 +1,7 @@
 
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter
-
-import config
-import app
+from app.session import config
 
 router = APIRouter()
 

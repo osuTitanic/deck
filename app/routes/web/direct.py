@@ -1,4 +1,5 @@
 
+from app.common.config import config_instance as config
 from app.common.database import DBBeatmapset, DBUser
 from app.common.constants import DirectDisplayMode
 from app.utils import sanitize_filename
@@ -19,7 +20,6 @@ from fastapi import (
     Query
 )
 
-import config
 import app
 
 router = APIRouter()

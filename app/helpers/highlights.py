@@ -1,6 +1,7 @@
 
 from app.common.database.repositories import notifications, scores, wrapper
 from app.common.constants import Mods, NotificationType, UserActivity
+from app.common.config import config_instance as config
 from app.common.cache import leaderboards
 from app.common.helpers import activity
 from sqlalchemy.orm import Session
@@ -12,7 +13,6 @@ from app.common.database import (
     DBUser
 )
 
-import config
 import app
 
 def check_rank(

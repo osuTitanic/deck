@@ -1,11 +1,11 @@
 
+from app.common.config import config_instance as config
 from pydub import AudioSegment
 from functools import cache
 from typing import Callable
 from functools import wraps
 from PIL import Image
 
-import config
 import bcrypt
 import lzma
 import time

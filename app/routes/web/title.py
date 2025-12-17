@@ -2,8 +2,8 @@
 from fastapi.responses import Response, RedirectResponse
 from fastapi import APIRouter, Query
 from datetime import timedelta
+from app.session import config
 
-import config
 import app
 
 router = APIRouter()

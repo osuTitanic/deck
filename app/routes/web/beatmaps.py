@@ -6,6 +6,7 @@ from datetime import datetime
 from slider import Beatmap
 from osz2 import *
 
+from app.common.config import config_instance as config
 from app.common.helpers import activity, performance
 from app.common.constants import UserActivity
 from app.helpers.bss import SendAction
@@ -29,7 +30,6 @@ from fastapi import (
 
 import urllib.parse
 import hashlib
-import config
 import math
 import time
 import app

@@ -1,6 +1,7 @@
 
 from datetime import datetime
 from app.helpers.enums import BadFlags
+from app.common.config import config_instance as config
 from app.common.database.repositories import scores
 from app.common.helpers import performance
 from app.common import officer
@@ -18,7 +19,6 @@ from app.common.constants import (
 )
 
 import hashlib
-import config
 import app
 
 class Score:

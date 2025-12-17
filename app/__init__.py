@@ -10,11 +10,10 @@ from . import utils
 
 import logging
 import uvicorn
-import config
 
 logging.basicConfig(
     format='[%(asctime)s] - <%(name)s> %(levelname)s: %(message)s',
-    level=logging.DEBUG if config.DEBUG else logging.INFO,
+    level=logging.DEBUG if session.config.DEBUG else logging.INFO,
     handlers=[Console, File]
 )
 
@@ -29,7 +28,7 @@ if logging.getLogger('uvicorn.access').handlers:
 def run():
     uvicorn.run(
         server.api,
-        host=config.WEB_HOST,
-        port=config.WEB_PORT,
+        host=session.config.WEB_HOST,
+        port=session.config.WEB_PORT,
         log_config=None
     )

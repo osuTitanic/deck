@@ -1,8 +1,8 @@
 
+from app.common.config import config_instance as config
 from app.common.helpers import clients
 from fastapi import APIRouter, Query
 
-import config
 import app
 
 router = APIRouter()
