@@ -1,32 +1,33 @@
 FROM python:3.14-alpine AS builder
 
-ENV PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+ENV PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Build dependencies for pillow, psycopg2, rosu-pp-py, etc.
 RUN apk add --no-cache \
-        build-base \
-        cargo \
-        curl \
-        freetype-dev \
-        git \
-        lcms2-dev \
-        libffi-dev \
-        libjpeg-turbo-dev \
-        linux-headers \
-        openjpeg-dev \
-        openssl-dev \
-        pkgconf \
-        postgresql-dev \
-        rust \
-        tiff-dev \
-        zlib-dev
+    build-base \
+    cargo \
+    curl \
+    freetype-dev \
+    git \
+    lcms2-dev \
+    libffi-dev \
+    libjpeg-turbo-dev \
+    linux-headers \
+    openjpeg-dev \
+    openssl-dev \
+    pkgconf \
+    postgresql-dev \
+    rust \
+    tiff-dev \
+    zlib-dev
 
 WORKDIR /tmp/build
 COPY requirements.txt ./
-
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir --no-compile --root /install -r requirements.txt && \
-    pip install --no-cache-dir --no-compile --root /install gunicorn
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip setuptools wheel && \
+    pip install --no-compile --root /install -r requirements.txt && \
+    pip install --no-compile --root /install gunicorn
 
 FROM python:3.14-alpine
 
@@ -35,20 +36,20 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Install runtime dependencies
 RUN apk add --no-cache \
-        ca-certificates \
-        curl \
-        ffmpeg \
-        freetype \
-        lcms2 \
-        libffi \
-        libjpeg-turbo \
-        libstdc++ \
-        openjpeg \
-        openssl \
-        postgresql-libs \
-        tini \
-        tiff \
-        zlib
+    ca-certificates \
+    curl \
+    ffmpeg \
+    freetype \
+    lcms2 \
+    libffi \
+    libjpeg-turbo \
+    libstdc++ \
+    openjpeg \
+    openssl \
+    postgresql-libs \
+    tini \
+    tiff \
+    zlib
 
 # Copy only the installed python packages and entry points from the builder image
 COPY --from=builder /install/usr/local /usr/local
