@@ -53,7 +53,7 @@ router = APIRouter()
 def decrypt_string(
     b64: str | None,
     iv: bytes,
-    key: str = config.SCORE_SUBMISSION_KEY
+    key: str = "h89f2-890h2h89b34g-h80g134n90133"
 ) -> str | None:
     """Decrypt a rinjdael encrypted string"""
     if not b64:
@@ -94,7 +94,7 @@ async def parse_score_data(request: Request) -> Score:
         officer.call(f'Got score submission without score data! ({ip})')
         raise HTTPException(400)
 
-    decryption_key = config.SCORE_SUBMISSION_KEY
+    decryption_key = "h89f2-890h2h89b34g-h80g134n90133"
     score_data = score_form[0]
     fun_spoiler = form.get('fs')
     client_hash = form.get('s')
