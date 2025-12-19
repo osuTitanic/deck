@@ -37,7 +37,7 @@ def add_favourite(
 
     count = favourites.fetch_count(player.id, session)
 
-    if count > 49:
+    if count > 99:
         app.session.logger.warning("Failed to add favourite: Too many favourites")
         return 'You have too many favourite maps. Please go to your profile and delete some first.'
 
