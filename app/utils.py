@@ -112,6 +112,10 @@ def empty_zip_file() -> bytes:
 
 @cache
 def check_password(password: str, bcrypt_hash: str) -> bool:
+    if len(password) != 32:
+        # We expect an md5 hash to be passed as password
+        return False
+
     return bcrypt.checkpw(
         password.encode(),
         bcrypt_hash.encode()
