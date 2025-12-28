@@ -95,9 +95,13 @@ class Score:
             self.failtime = None
             self.exited = None
 
+    def __del__(self) -> None:
+        # Ensure the database session is closed
+        self.session.close()
+
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
-    
+
     @property
     def is_performance_pb(self) -> bool:
         return self.status_pp == ScoreStatus.Best
