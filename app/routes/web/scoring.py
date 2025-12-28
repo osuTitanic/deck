@@ -873,7 +873,7 @@ def score_submission(
             score_object.hidden = True
 
         score.session.add(score_object)
-        score.session.flush()
+        score.session.commit()
 
         # Try to upload replay
         app.session.score_executor.submit(
@@ -1072,7 +1072,7 @@ def legacy_score_submission(
             score_object.hidden = True
 
         score.session.add(score_object)
-        score.session.flush()
+        score.session.commit()
 
         # Try to upload replay
         app.session.score_executor.submit(
