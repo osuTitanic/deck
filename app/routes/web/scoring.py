@@ -814,6 +814,17 @@ def score_submission(
         score.session
     )
 
+    if score.version <= 0:
+        # Client didn't provide a version
+        # Try to get it from bancho instead
+        score.version = status.version(player.id) or 0
+
+    # Fetch current osu! client version
+    score.version_string = (
+        logins.fetch_last_osu_version(player.id, score.session)
+        or f"b{score.version}"
+    )
+
     score.pp = score.calculate_ppv2()
     score.ppv1 = score.calculate_ppv1()
 
@@ -826,11 +837,6 @@ def score_submission(
             score.to_database(),
             score.beatmap
         )
-
-    if score.version <= 0:
-        # Client didn't provide a version
-        # Try to get it from bancho instead
-        score.version = status.version(player.id) or 0
 
     if score.beatmap.is_ranked:
         score.personal_best_pp = scores.fetch_personal_best(
@@ -849,12 +855,6 @@ def score_submission(
 
         score.status_pp = score.calculate_pp_status()
         score.status_score = score.calculate_score_status()
-
-        # Fetch current osu! client version
-        score.version_string = (
-            logins.fetch_last_osu_version(player.id, score.session)
-            or f"b{score.version}"
-        )
 
         # Get old rank before submitting score
         old_rank = scores.fetch_score_index_by_id(
@@ -1007,6 +1007,17 @@ def legacy_score_submission(
         score.session
     )
 
+    if score.version <= 0:
+        # Client didn't provide a version
+        # Try to get it from bancho instead
+        score.version = status.version(player.id) or 0
+
+    # Fetch current osu! client version
+    score.version_string = (
+        logins.fetch_last_osu_version(player.id, score.session)
+        or f"b{score.version}"
+    )
+
     score.pp = score.calculate_ppv2()
     score.ppv1 = score.calculate_ppv1()
 
@@ -1019,11 +1030,6 @@ def legacy_score_submission(
             score.to_database(),
             score.beatmap
         )
-
-    if score.version <= 0:
-        # Client didn't provide a version
-        # Try to get it from bancho instead
-        score.version = status.version(player.id) or 0
 
     if score.version < 452 and Mods.Nightcore in score.enabled_mods:
         # Prevent "Taiko" mod plays from being submitted
