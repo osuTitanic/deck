@@ -454,7 +454,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats, dict]:
     # Update beatmap stats
     score.beatmap.playcount += 1
     score.beatmap.passcount += 1 if score.passed else 0
-    score.session.commit()
+    score.session.flush()
 
     # Update user stats
     user_stats = stats.fetch_by_mode(
@@ -471,7 +471,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats, dict]:
     user_stats.playtime += score.elapsed_time
     user_stats.tscore += score.total_score
     user_stats.total_hits += score.total_hits
-    score.session.commit()
+    score.session.flush()
 
     histories.update_plays(
         user_stats.user_id,
@@ -553,7 +553,7 @@ def update_stats(score: Score, player: DBUser) -> Tuple[DBStats, DBStats, dict]:
                 player.country
             )
 
-        score.session.commit()
+        score.session.flush()
 
         new_rank, new_pp = resolve_preferred_ranking(
             player,
@@ -882,9 +882,10 @@ def score_submission(
             score_object.id
         ).add_done_callback(thread_callback)
 
-        score.session.commit()
-
     new_stats, old_stats, ranking = update_stats(score, player)
+
+    # Commit all changes to the database
+    score.session.commit()
 
     # Reload stats on bancho
     app.session.events.submit(
@@ -930,6 +931,7 @@ def score_submission(
 
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+        f' ({config.OSU_BASEURL}/scores/{score_object.id})'
     )
 
     score.session.close()
@@ -1079,9 +1081,10 @@ def legacy_score_submission(
             score_object.id
         ).add_done_callback(thread_callback)
 
-        score.session.commit()
-
     new_stats, old_stats, ranking = update_stats(score, player)
+
+    # Commit all changes to the database
+    score.session.commit()
 
     # Reload stats on bancho
     app.session.events.submit(
@@ -1100,6 +1103,7 @@ def legacy_score_submission(
 
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+        f' ({config.OSU_BASEURL}/scores/{score_object.id})'
     )
 
     if not score.passed:
