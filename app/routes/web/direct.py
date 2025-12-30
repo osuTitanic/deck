@@ -23,6 +23,7 @@ from fastapi import (
 import app
 
 router = APIRouter()
+post_id_mapping: dict[int, int] = {}
 
 def direct_error(message: str) -> str:
     return f"-1\n{message}"
@@ -134,12 +135,18 @@ def search(
             ))
 
         for set in results:
-            if set.topic_id:
-                post_id = posts.fetch_initial_post_id(set.topic_id, session)
+            if not set.topic_id:
+                response.append(online_beatmap(set))
+                continue
+
+            if set.topic_id in post_id_mapping:
+                post_id = post_id_mapping[set.topic_id]
                 response.append(online_beatmap(set, post_id))
                 continue
 
-            response.append(online_beatmap(set))
+            post_id = posts.fetch_initial_post_id(set.topic_id, session)
+            post_id_mapping[set.topic_id] = post_id
+            response.append(online_beatmap(set, post_id))
     except Exception as e:
         officer.call(f'Failed to execute search.', exc_info=e)
         return direct_error('A server error occurred. Please try again!')
