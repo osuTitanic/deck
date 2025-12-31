@@ -1,11 +1,65 @@
 
 from app.common.config import config_instance as config
-from app.common.helpers import clients
+from app.common.database.repositories import releases
 from fastapi import APIRouter, Query
 
 import app
 
 router = APIRouter()
+
+@router.get('/update')
+def osume_update_endpoint(
+    time: int = Query(0, alias='t'),
+    current: int = Query(20140811, alias='v')
+) -> str:
+    # Respone format:
+    # <server_filename> <file_checksum> <description> <file_action> <old_checksum / local_filename>\n (for each file)
+    # File action can be: "del", "noup", "zip" or "diff"
+    # "del" - delete file
+    # "noup" - only download file if it doesn't exist
+    # "zip" - download file and unzip it
+    # "diff" - download file and patch it
+    # "extra" - was used in osume, inside the "extras" tab
+
+    with app.session.database.managed_session() as session:
+        # NOTE: The "current" parameter is a custom parameter added by
+        #       titanic that allows us to specify a custom version to use
+        entry = releases.fetch_official_by_version(
+            current,
+            session=session
+        )
+
+        if not entry:
+            return ""
+
+        files = releases.fetch_file_entries(
+            entry.id,
+            session=session
+        )
+
+        if not files:
+            return ""
+
+        response = []
+
+        for file in files:
+            # For now, we only use "noup" action, because we currently
+            # only have the "current" parameter to check for updates
+            # For "diff" actions, we would need a second "from" parameter
+            # that indicates where the user is updating from
+            response.append(f"{file.filename} {file.file_hash} {file.filename} noup {file.filename}")
+
+        extras = releases.fetch_extras(session)
+
+        for extra in extras:
+            response.append(f"{extra.filename} - {extra.description.replace(' ', '-')} extra {extra.filename}")
+
+        return '\n'.join(response)
+
+@router.get('/patches.php')
+def patches() -> str:
+    # TODO: Derive from "releases_files" -> "url_patch"
+    return ""
 
 @router.get('/update.php')
 def check_for_updates(
@@ -13,81 +67,10 @@ def check_for_updates(
     checksum: str = Query(..., alias='h'),
     ticks: int = Query(..., alias='t')
 ) -> str:
-    if config.DISABLE_CLIENT_VERIFICATION:
-        return "0"
-
-    if not (hashes := clients.fetch_hashes_by_filename(filename)):
-        return "0"
-
-    if checksum in hashes:
-        return "0"
-
-    # Patch filename structure: <filename>_<old_checksum>_<new_checksum>.patch
-    patches = [
-        file.removesuffix('.patch')
-        for file in app.session.storage.list('release')
-        if file.endswith('.patch')
-    ]
-
-    for patch in patches:
-        filename, old_checksum, new_checksum = patch.split('_')
-
-        if old_checksum != checksum:
-            continue
-
-        # Patch file was found
-        return "1"
-
+    # TODO: Apply checks from bancho here
     return "0"
-
-@router.get('/update')
-def get_files(time: int = Query(0, alias='t')) -> str:
-    # Respone format:
-    # <server_filename> <file_checksum> <description> <file_action> <old_checksum>\n (for each file)
-    # File action can be: "del", "noup", "zip" or "diff"
-    # "del" - delete file
-    # "noup" - only download file if it doesn't exist
-    # "zip" - download file and unzip it
-    # "diff" - download file and patch it
-    # "extra" - was used in osume, inside the "extras" tab (unused)
-
-    noup_files = (
-        'Microsoft.Xna.Framework.dll',
-        'Microsoft.Ink.dll',
-        'd3dx9_31.dll',
-        'bass_fx.dll',
-        'bass.dll',
-        'avutil-49.dll',
-        'avformat-52.dll',
-        'avcodec-51.dll'
-    )
-
-    release_files = app.session.storage.get_file_hashes('release').items()
-    response = []
-
-    for file, hash in release_files:
-        if file in noup_files:
-            response.append(f'{file} {hash} "" noup {hash}')
-            continue
-
-        if file.endswith('.patch'):
-            filename, old_checksum, new_checksum = file.split('_')
-            response.append(f'{filename} {new_checksum} "" diff {old_checksum}')
-            continue
-
-        if file.endswith('.zip'):
-            response.append(f'{filename} {hash} "" zip {hash}')
-            continue
-
-    return '\n'.join(response)
-
-@router.get('/patches.php')
-def patches() -> str:
-    return '\n'.join([
-        file for file in app.session.storage.list('release')
-        if file.endswith('.patch')
-    ])
 
 @router.get('/update2.php')
 def ingame_update_check() -> str:
-    return "" # TODO
+    # TODO
+    return ""
