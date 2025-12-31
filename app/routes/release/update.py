@@ -12,15 +12,6 @@ def osume_update_endpoint(
     time: int = Query(0, alias='t'),
     current: int = Query(20140818, alias='v')
 ) -> str:
-    # Respone format:
-    # <server_filename> <file_checksum> <description> <file_action> <old_checksum / local_filename>\n (for each file)
-    # File action can be: "del", "noup", "zip" or "diff"
-    # "del" - delete file
-    # "noup" - only download file if it doesn't exist
-    # "zip" - download file and unzip it
-    # "diff" - download file and patch it
-    # "extra" - was used in osume, inside the "extras" tab
-
     with app.session.database.managed_session() as session:
         # NOTE: The "current" parameter is a custom parameter added by
         #       titanic that allows us to specify a custom version to use
@@ -52,6 +43,9 @@ def osume_update_endpoint(
         extras = releases.fetch_extras(session)
 
         for extra in extras:
+            # It should be noted that "download" is the file to compare against
+            # e.g. for "tutorial.zip" it would be "Songs/tutorial/bg.jpg" ->
+            # If the file is present, the client will know that the tutorial is downloaded
             response.append(f"{extra.filename} {extra.md5} {extra.encoded_description} extra {extra.download}")
 
         return '\n'.join(response)
