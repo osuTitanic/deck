@@ -47,7 +47,7 @@ def osume_update_endpoint(
             # only have the "current" parameter to check for updates
             # For "diff" actions, we would need a second "from" parameter
             # that indicates where the user is updating from
-            response.append(f"{file.filename} {file.file_hash} {file.filename} noup {file.filename}")
+            response.append(f"f_{file.file_hash} {file.file_hash} - noup {file.filename}")
 
         extras = releases.fetch_extras(session)
 

@@ -1,10 +1,7 @@
 
-from fastapi import (
-    HTTPException,
-    APIRouter,
-    Response,
-    Query
-)
+from fastapi import HTTPException, APIRouter, Response, Query
+from fastapi.responses import StreamingResponse
+from app.common.database import releases
 
 import hashlib
 import app
@@ -16,10 +13,47 @@ def get_release_file(
     filename: str,
     checksum: str | None = Query(None, alias='v')
 ) -> bytes:
-    if not (release_file := app.session.storage.get_release_file(filename)):
+    if not filename.startswith(('f_', 'p_')):
+        # File is stored in "release" folder/bucket
+        return get_extra_file(filename)
+
+    file_type, checksum = filename.split('_', 1)
+    is_patch = file_type == 'p'
+
+    resolver = (
+        releases.fetch_official_file_by_full if not is_patch else
+        releases.fetch_official_file_by_patch
+    )
+
+    if not (release_file := resolver(filename)):
         raise HTTPException(404)
 
-    if checksum != hashlib.md5(release_file).hexdigest():
+    target_url = release_file.url_patch if is_patch else release_file.url_full
+    response = app.session.requests.get(target_url, allow_redirects=True, timeout=10)
+
+    if not response.ok:
+        raise HTTPException(response.status_code)
+
+    headers = {
+        'Content-Disposition': f'attachment; filename="{release_file.filename}"',
+        'Last-Modified': release_file.timestamp.strftime('%a, %d %b %Y %H:%M:%S GMT'),
+        'X-Full-URL': release_file.url_full or '',
+        'X-File-Hash': release_file.file_hash
+    }
+
+    if is_patch:
+        headers['X-Patch-URL'] = release_file.url_patch or ''
+        headers['X-Patch-ID'] = release_file.patch_id or ''
+        headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return StreamingResponse(
+        response.iter_content(chunk_size=8192),
+        media_type='application/octet-stream',
+        headers=headers
+    )
+
+def get_extra_file(filename: str):
+    if not (release_file := app.session.storage.get_release_file(filename)):
         raise HTTPException(404)
 
     return Response(release_file)
