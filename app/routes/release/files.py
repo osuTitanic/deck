@@ -35,6 +35,7 @@ def get_release_file(
         raise HTTPException(response.status_code)
 
     headers = {
+        'Content-Length': response.headers.get('Content-Length', '0'),
         'Content-Disposition': f'attachment; filename="{release_file.filename}"',
         'Last-Modified': release_file.timestamp.strftime('%a, %d %b %Y %H:%M:%S GMT'),
         'X-Full-URL': release_file.url_full or '',
