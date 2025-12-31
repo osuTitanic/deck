@@ -37,14 +37,10 @@ def get_release_file(
     headers = {
         'Content-Length': response.headers.get('Content-Length', '0'),
         'Content-Disposition': f'attachment; filename="{release_file.filename}"',
-        'Last-Modified': release_file.timestamp.strftime('%a, %d %b %Y %H:%M:%S GMT'),
-        'X-Full-URL': release_file.url_full or '',
-        'X-File-Hash': release_file.file_hash
+        'Last-Modified': release_file.timestamp.strftime('%a, %d %b %Y %H:%M:%S GMT')
     }
 
     if is_patch:
-        headers['X-Patch-URL'] = release_file.url_patch or ''
-        headers['X-Patch-ID'] = release_file.patch_id or ''
         headers['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     return StreamingResponse(

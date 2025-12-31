@@ -52,7 +52,7 @@ def osume_update_endpoint(
         extras = releases.fetch_extras(session)
 
         for extra in extras:
-            response.append(f"{extra.filename} - {extra.description.replace(' ', '-')} extra {extra.filename}")
+            response.append(f"{extra.filename} - {extra.description.replace(' ', '-')} extra {extra.download}")
 
         return '\n'.join(response)
 
