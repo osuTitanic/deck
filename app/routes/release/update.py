@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get('/update')
 def osume_update_endpoint(
     time: int = Query(0, alias='t'),
-    current: int = Query(20140811, alias='v')
+    current: int = Query(20140818, alias='v')
 ) -> str:
     # Respone format:
     # <server_filename> <file_checksum> <description> <file_action> <old_checksum / local_filename>\n (for each file)
