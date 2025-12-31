@@ -695,7 +695,7 @@ def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Sess
     file_map = {
         file.filename: file
         for file in existing_files(beatmapset.id)
-        if not file.filename.endswith('.osu')
+        if not file.is_beatmap
     }
 
     # Add updated maps to the files
@@ -754,7 +754,7 @@ def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Sess
 
     # Determine if the beatmapset has ever gotten a full submission
     has_full_submit = not all(
-        file.filename.endswith('.osu')
+        file.is_beatmap
         for file in files
     )
 
@@ -957,7 +957,7 @@ def upload_osz(
     osz_map_files = [
         file.filename
         for file in files
-        if file.filename.endswith('.osu')
+        if file.is_beatmap
     ]
 
     # Ensure we got the same amount of beatmaps
@@ -987,7 +987,7 @@ def upload_osz(
     beatmap_data = {
         file.filename: bss.parse_beatmap(file.content)
         for file in files
-        if file.filename.endswith('.osu')
+        if file.is_beatmap
     }
     max_beatmap_length = bss.maximum_beatmap_length(beatmap_data.values())
 
@@ -1291,7 +1291,7 @@ def update_beatmap_metadata(
     app.session.logger.debug(f'Updating beatmap metadata...')
 
     file_extensions = [
-        file.filename.split('.')[-1]
+        file.file_extension
         for file in files
     ]
 
@@ -1343,7 +1343,7 @@ def update_beatmap_metadata(
     beatmap_files = {
         file.filename: file
         for file in files
-        if file.filename.endswith('.osu')
+        if file.is_beatmap
     }
 
     beatmap_ids = sorted([
@@ -1514,7 +1514,7 @@ def update_beatmap_files(files: List[File], session: Session) -> None:
     app.session.logger.debug(f'Uploading beatmap files...')
 
     for file in files:
-        if not file.filename.endswith('.osu'):
+        if not file.is_beatmap:
             continue
 
         beatmap_id = beatmaps.fetch_id_by_filename(file.filename, session)
@@ -1572,7 +1572,7 @@ def duplicate_beatmap_files(
 ) -> bool:
     """Check for duplicate beatmap filenames & checksums"""
     for file in files:
-        if not file.filename.endswith('.osu'):
+        if not file.is_beatmap:
             continue
 
         if beatmap := beatmaps.fetch_by_file(file.filename, session):
@@ -1965,17 +1965,17 @@ def adjust_files_for_collaboration(
 
     original_beatmap_files = [
         file for file in original_files
-        if file.filename.endswith('.osu')
+        if file.is_beatmap
     ]
 
     resource_files = [
         file for file in files
-        if not file.filename.endswith('.osu')
+        if not file.is_beatmap
     ]
 
     original_resource_files = [
         file for file in original_files
-        if not file.filename.endswith('.osu')
+        if not file.is_beatmap
     ]
 
     if not can_update_resources:
@@ -1988,7 +1988,7 @@ def adjust_files_for_collaboration(
 
     new_beatmap_files = [
         file for file in files
-        if file.filename.endswith('.osu')
+        if file.is_beatmap
         and file not in original_beatmap_files
     ]
 

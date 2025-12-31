@@ -141,7 +141,7 @@ def create_osz_package(files: List[File]) -> bytes:
 
     for file in files:
         # Create ZipInfo to set file metadata
-        zip_info = ZipInfo(filename=file.filename)
+        zip_info = ZipInfo(filename=file.filename_sanitized)
         zip_info.compress_type = zipfile.ZIP_DEFLATED
         zip_info.date_time = file.date_modified.timetuple()[:6]
         osz.writestr(zip_info, file.content)
