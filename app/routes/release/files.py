@@ -13,15 +13,23 @@ def get_file(
     filename: str,
     checksum: str | None = Query(None, alias='v')
 ) -> bytes:
-    if not filename.startswith(('f_', 'p_')):
-        # File is stored in "release" folder/bucket
-        return get_extra_file(filename)
+    if response := get_release_file(checksum):
+        # File was found in official release files
+        return response
 
-    return get_release_file(filename)
+    if response := get_patch_file(filename):
+        # File is an official patch file
+        return response
 
-def get_extra_file(filename: str) -> StreamingResponse:
+    if response := get_extra_file(filename):
+        # File is part of osume extra content
+        return response
+
+    raise HTTPException(404)
+
+def get_extra_file(filename: str) -> StreamingResponse | None:
     if not (release_file := app.session.storage.get_release_file_iterator(filename)):
-        raise HTTPException(404)
+        return
 
     return StreamingResponse(
         release_file,
@@ -32,32 +40,54 @@ def get_extra_file(filename: str) -> StreamingResponse:
         }
     )
 
-def get_release_file(filename: str) -> StreamingResponse:
-    file_type, checksum = filename.split('_', 1)
-    is_patch = file_type == 'p'
-
-    resolver = (
-        releases.fetch_official_file_by_full if not is_patch else
-        releases.fetch_official_file_by_patch
+def get_patch_file(filename: str) -> StreamingResponse | None:
+    if not (release_file := releases.fetch_official_file_by_patch(filename)):
+        return
+    
+    response = app.session.requests.get(
+        release_file.url_patch,
+        allow_redirects=True,
+        stream=True,
+        timeout=10
     )
 
-    if not (release_file := resolver(filename)):
-        raise HTTPException(404)
+    if not response.ok:
+        return
 
-    target_url = release_file.url_patch if is_patch else release_file.url_full
-    response = app.session.requests.get(target_url, allow_redirects=True, timeout=10)
+    headers = {
+        'Content-Length': response.headers.get('Content-Length', '0'),
+        'Content-Disposition': f'attachment; filename="{filename}"',
+        'Last-Modified': release_file.timestamp.strftime('%a, %d %b %Y %H:%M:%S GMT')
+    }
+
+    return StreamingResponse(
+        response.iter_content(chunk_size=8192),
+        media_type='application/octet-stream',
+        headers=headers
+    )
+
+def get_release_file(checksum: str | None) -> StreamingResponse | None:
+    if not checksum:
+        return
+
+    if not (release_file := releases.fetch_official_file_by_checksum(checksum)):
+        return
+
+    response = app.session.requests.get(
+        release_file.url_full,
+        allow_redirects=True,
+        stream=True,
+        timeout=10
+    )
 
     if not response.ok:
-        raise HTTPException(response.status_code)
+        return
 
     headers = {
         'Content-Length': response.headers.get('Content-Length', '0'),
         'Content-Disposition': f'attachment; filename="{release_file.filename}"',
         'Last-Modified': release_file.timestamp.strftime('%a, %d %b %Y %H:%M:%S GMT')
     }
-
-    if is_patch:
-        headers['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     return StreamingResponse(
         response.iter_content(chunk_size=8192),
