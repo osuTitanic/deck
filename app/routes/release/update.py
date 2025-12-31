@@ -41,9 +41,7 @@ def check_for_updates(
     return "0"
 
 @router.get('/update')
-def get_files(
-    ticks: int = Query(..., alias='t')
-) -> str:
+def get_files(time: int = Query(0, alias='t')) -> str:
     # Respone format:
     # <server_filename> <file_checksum> <description> <file_action> <old_checksum>\n (for each file)
     # File action can be: "del", "noup", "zip" or "diff"
