@@ -9,7 +9,7 @@ import app
 router = APIRouter()
 
 @router.get('/{filename}')
-def get_release_file(
+def get_file(
     filename: str,
     checksum: str | None = Query(None, alias='v')
 ) -> bytes:
@@ -17,6 +17,22 @@ def get_release_file(
         # File is stored in "release" folder/bucket
         return get_extra_file(filename)
 
+    return get_release_file(filename)
+
+def get_extra_file(filename: str) -> StreamingResponse:
+    if not (release_file := app.session.storage.get_release_file_iterator(filename)):
+        raise HTTPException(404)
+
+    return StreamingResponse(
+        release_file,
+        media_type='application/octet-stream',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Length': str(app.session.storage.get_release_file_size(filename) or 0)
+        }
+    )
+
+def get_release_file(filename: str) -> StreamingResponse:
     file_type, checksum = filename.split('_', 1)
     is_patch = file_type == 'p'
 
@@ -48,9 +64,3 @@ def get_release_file(
         media_type='application/octet-stream',
         headers=headers
     )
-
-def get_extra_file(filename: str):
-    if not (release_file := app.session.storage.get_release_file(filename)):
-        raise HTTPException(404)
-
-    return Response(release_file)
