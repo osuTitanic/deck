@@ -23,10 +23,9 @@ def legacy_menu_icon(
     if (image := app.session.storage.get_from_cache('assets:title')):
         return Response(image)
 
-    try:
-        response = app.session.requests.get(config.MENUICON_IMAGE)
-        response.raise_for_status()
-    except Exception as e:
+    response = app.session.requests.get(config.MENUICON_IMAGE)
+
+    if not response.ok:
         app.session.logger.error(f'Error fetching title image: {e}')
         return Response(None)
 
