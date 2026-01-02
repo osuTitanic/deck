@@ -12,7 +12,9 @@ from app.common.database import (
     posts
 )
 
+from typing import Callable, Generator
 from sqlalchemy.orm import Session
+from functools import wraps
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -34,7 +36,7 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
     )
 
     return "|".join([
-        sanitize_filename(f'{set.id} {set.artist} - {set.title}.osz'),
+        sanitize_filename(f'{set.id} {set.full_name}.osz'),
         set.artist  if set.artist else "",
         set.title   if set.title else "",
         set.creator if set.creator else "",
@@ -51,7 +53,18 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
         str(post_id or 0),
     ])
 
+def catch_direct_errors(func) -> Callable:
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> str:
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            officer.call(f'Failed to execute {func.__name__}.', exc_info=e)
+            return direct_error('A server error occurred. Please try again!')
+    return wrapper
+
 @router.get('/osu-search.php')
+@catch_direct_errors
 def search(
     session: Session = Depends(app.session.database.yield_session),
     display_mode: DirectDisplayMode = Query(DirectDisplayMode.All, alias='r'),
@@ -104,43 +117,40 @@ def search(
     page_offset = page_offset or 0
     response = []
 
-    try:
-        results = beatmapsets.search_direct(
-            query,
-            player.id if player else 0,
-            display_mode,
-            page_offset * 100,
-            mode,
-            session
-        )
+    results = beatmapsets.search_direct(
+        query,
+        player.id if player else 0,
+        display_mode,
+        mode,
+        limit=100,
+        offset=page_offset * 100,
+        session=session
+    )
 
-        if not supports_page_offset:
-            response.append(str(
-                len(results)
-            ))
+    if not supports_page_offset:
+        response.append(str(
+            len(results)
+        ))
 
-        else:
-            response.append(str(
-                len(results)
-                if len(results) < 100 else 101
-            ))
+    else:
+        response.append(str(
+            len(results)
+            if len(results) < 100 else 101
+        ))
 
-        for set in results:
-            if not set.topic_id:
-                response.append(online_beatmap(set))
-                continue
+    for set in results:
+        if not set.topic_id:
+            response.append(online_beatmap(set))
+            continue
 
-            if set.topic_id in post_id_mapping:
-                post_id = post_id_mapping[set.topic_id]
-                response.append(online_beatmap(set, post_id))
-                continue
-
-            post_id = posts.fetch_initial_post_id(set.topic_id, session)
-            post_id_mapping[set.topic_id] = post_id
+        if set.topic_id in post_id_mapping:
+            post_id = post_id_mapping[set.topic_id]
             response.append(online_beatmap(set, post_id))
-    except Exception as e:
-        officer.call(f'Failed to execute search.', exc_info=e)
-        return direct_error('A server error occurred. Please try again!')
+            continue
+
+        post_id = posts.fetch_initial_post_id(set.topic_id, session)
+        post_id_mapping[set.topic_id] = post_id
+        response.append(online_beatmap(set, post_id))
 
     return "\n".join(response)
 
