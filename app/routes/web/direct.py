@@ -33,22 +33,13 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
         [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
     )
 
-    ratings = [
-        r.rating for r in set.ratings
-    ]
-
-    average_rating = (
-        sum(ratings) / len(ratings)
-        if ratings else 0
-    )
-
     return "|".join([
         sanitize_filename(f'{set.id} {set.artist} - {set.title}.osz'),
         set.artist  if set.artist else "",
         set.title   if set.title else "",
         set.creator if set.creator else "",
         str(set.status),
-        str(average_rating),
+        str(set.rating_average),
         str(set.last_update),
         str(set.id),
         str(set.topic_id or 0),
