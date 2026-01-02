@@ -30,9 +30,24 @@ post_id_mapping: dict[int, int] = {}
 def direct_error(message: str) -> str:
     return f"-1\n{message}"
 
-def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
+def direct_authentication(username: str | None, password: str | None, session: Session) -> DBUser | None:
+    if not username or not password:
+        return
+
+    if not (player := users.fetch_by_name(username, session)):
+        return
+
+    if not app.utils.check_password(password, player.bcrypt):
+        return
+
+    if not player.is_supporter:
+        return
+
+    return player
+
+def direct_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
     versions = ",".join(
-        [f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps]
+        (f"{beatmap.version}@{beatmap.mode}" for beatmap in set.beatmaps)
     )
 
     return "|".join([
@@ -52,6 +67,17 @@ def online_beatmap(set: DBBeatmapset, post_id: int = 0) -> str:
         versions,
         str(post_id or 0),
     ])
+
+def resolve_post_id(topic_id: int | None, session: Session) -> int:
+    if not topic_id:
+        return 0
+
+    if topic_id in post_id_mapping:
+        return post_id_mapping[topic_id]
+
+    post_id = posts.fetch_initial_post_id(topic_id, session)
+    post_id_mapping[topic_id] = post_id
+    return post_id
 
 def catch_direct_errors(func) -> Callable:
     @wraps(func)
@@ -75,22 +101,11 @@ def search(
     query: str = Query(..., alias='q'),
     mode: int = Query(-1, alias='m')
 ) -> str:
-    password: str | None = password or legacy_password
-    player: DBUser | None = None
-
-    # Skip authentication for old clients
-    if password:
-        if not (player := users.fetch_by_name(username, session=session)):
-            return direct_error('Failed to authenticate user.')
-
-        if not app.utils.check_password(password, player.bcrypt):
-            return direct_error('Failed to authenticate user.')
-
-        if not status.exists(player.id):
-            return direct_error('You are not connected to bancho.')
-
-        if not player.is_supporter:
-            return direct_error('Why are you here?')
+    player = direct_authentication(
+        username,
+        password or legacy_password,
+        session
+    )
 
     if player is None and not config.ALLOW_UNAUTHENTICATED_DIRECT:
         return direct_error('This version of osu! is not supported.')
@@ -100,7 +115,7 @@ def search(
 
     client = (
         status.version(player.id) or 0
-        if player else 0
+        if player is not None else 0
     )
 
     # Prior to b20140315.9, setting the "m" parameter to 0 
@@ -139,18 +154,8 @@ def search(
         ))
 
     for set in results:
-        if not set.topic_id:
-            response.append(online_beatmap(set))
-            continue
-
-        if set.topic_id in post_id_mapping:
-            post_id = post_id_mapping[set.topic_id]
-            response.append(online_beatmap(set, post_id))
-            continue
-
-        post_id = posts.fetch_initial_post_id(set.topic_id, session)
-        post_id_mapping[set.topic_id] = post_id
-        response.append(online_beatmap(set, post_id))
+        post_id = resolve_post_id(set.topic_id, session)
+        response.append(direct_beatmap(set, post_id))
 
     return "\n".join(response)
 
@@ -165,19 +170,8 @@ def pickup_info(
     username: str | None = Query(None, alias='u'),
     password: str | None = Query(None, alias='h'),
 ) -> str:
+    player = direct_authentication(username, password, session)
     beatmapset: DBBeatmapset | None = None
-    player: DBUser | None = None
-
-    # Skip authentication for old clients
-    if username and password:
-        if not (player := users.fetch_by_name(username, session=session)):
-            raise HTTPException(401)
-
-        if not app.utils.check_password(password, player.bcrypt):
-            raise HTTPException(401)
-
-        if not player.is_supporter:
-            raise HTTPException(401)
 
     if player is None and not config.ALLOW_UNAUTHENTICATED_DIRECT:
         raise HTTPException(401)
@@ -205,6 +199,7 @@ def pickup_info(
 
     if beatmapset.status == -3:
         # Beatmap was deleted or has not been submitted yet
+        app.session.logger.warning("osu!direct pickup request failed: Inactive beatmapset")
         raise HTTPException(404)
 
     app.session.logger.info(
@@ -212,7 +207,7 @@ def pickup_info(
         f'Got osu!direct pickup request for: "{beatmapset.full_name}".'
     )
 
-    return online_beatmap(
+    return direct_beatmap(
         beatmapset,
-        posts.fetch_initial_post_id(beatmapset.topic_id, session)
+        resolve_post_id(beatmapset.topic_id, session)
     )
