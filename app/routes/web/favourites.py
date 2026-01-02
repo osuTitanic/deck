@@ -9,6 +9,7 @@ from fastapi import (
 )
 
 from app.common.database import beatmapsets, favourites, users
+from app.common.config import config_instance as config
 from app.common.constants import UserActivity
 from app.common.helpers import activity
 from app.common.cache import status
@@ -33,11 +34,18 @@ def add_favourite(
     if not status.exists(player.id):
         raise HTTPException(401)
 
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()},
+        session
+    )
 
-    count = favourites.fetch_count(player.id, session)
+    count = favourites.fetch_count(
+        player.id,
+        session
+    )
 
-    if count > 99:
+    if count >= config.BEATMAP_FAVOURITES_LIMIT:
         app.session.logger.warning("Failed to add favourite: Too many favourites")
         return 'You have too many favourite maps. Please go to your profile and delete some first.'
 
@@ -81,9 +89,16 @@ def get_favourites(
     if not app.utils.check_password(password, player.bcrypt):
         raise HTTPException(401)
 
-    users.update(player.id, {'latest_activity': datetime.now()}, session)
+    users.update(
+        player.id,
+        {'latest_activity': datetime.now()},
+        session
+    )
 
-    player_favourites = favourites.fetch_many(player.id, session)
+    player_favourites = favourites.fetch_many(
+        player.id,
+        session
+    )
 
     app.session.logger.info(
         f'Got favourites request from "{username}" ({len(player_favourites)})'
