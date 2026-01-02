@@ -6,7 +6,6 @@ from fastapi import FastAPI
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    session.database.engine.dispose()
     session.database.wait_for_connection()
     session.redis.ping()
     profiling.setup()
