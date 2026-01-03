@@ -294,7 +294,7 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
         return 'error: no'
 
     if score.passed:
-        # Check for replay
+        # Replay must exist when the score is a pass
         if not score.replay:
             officer.call(
                 f'"{score.username}" submitted score without replay.'
@@ -331,9 +331,40 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
             )
             return 'error: no'
 
+        flags = [
+            BadFlags.FlashLightImageHack,
+            BadFlags.SpinnerHack,
+            BadFlags.TransparentWindow,
+            BadFlags.FastPress,
+            BadFlags.FlashlightChecksumIncorrect,
+            BadFlags.ChecksumFailure,
+            BadFlags.RawMouseDiscrepancy,
+            BadFlags.RawKeyboardDiscrepancy
+        ]
+
+        if any(flag in score.flags for flag in flags):
+            officer.call(
+                f'"{score.username}" submitted score with bad flags: {score.flags.name}. '
+                f'Please review this case as soon as possible. ({replay_hash})'
+            )
+
+        if not validate_replay(score.replay):
+            officer.call(
+                f'"{score.username}" submitted score with invalid replay.'
+            )
+
+            if not player.is_verified:
+                app.session.events.submit(
+                    'restrict',
+                    user_id=player.id,
+                    autoban=True,
+                    reason='Invalid replay'
+                )
+                return 'error: ban'
+
     if score.check_invalid_mods():
         officer.call(
-            f'"{score.username}" submitted score with invalid mods.'
+            f'"{score.username}" submitted score with invalid mods: {score.enabled_mods.name}.'
         )
 
         if not player.is_verified:
@@ -342,37 +373,6 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
                 user_id=player.id,
                 autoban=True,
                 reason='Invalid mods on score submission'
-            )
-            return 'error: ban'
-
-    flags = [
-        BadFlags.FlashLightImageHack,
-        BadFlags.SpinnerHack,
-        BadFlags.TransparentWindow,
-        BadFlags.FastPress,
-        BadFlags.FlashlightChecksumIncorrect,
-        BadFlags.ChecksumFailure,
-        BadFlags.RawMouseDiscrepancy,
-        BadFlags.RawKeyboardDiscrepancy
-    ]
-
-    if any(flag in score.flags for flag in flags):
-        officer.call(
-            f'"{score.username}" submitted score with bad flags: {score.flags.name}. '
-            f'Please review this case as soon as possible. ({replay_hash})'
-        )
-
-    if score.passed and not validate_replay(score.replay):
-        officer.call(
-            f'"{score.username}" submitted score with invalid replay.'
-        )
-
-        if not player.is_verified:
-            app.session.events.submit(
-                'restrict',
-                user_id=player.id,
-                autoban=True,
-                reason='Invalid replay'
             )
             return 'error: ban'
 
