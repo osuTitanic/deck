@@ -255,7 +255,13 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
         # Player was playing osu!std on a beatmap with mode taiko, fruits or mania
         # This can happen in old clients, where these modes were not implemented
         return 'error: no'
-    
+
+    if score.mode == GameMode.CatchTheBeat and score.version <= 504:
+        # b504 and below let you specify the size of the catcher by changing
+        # the skin, resulting in unfair advantages when using very wide ones:
+        # https://ibb.co/mrWyc2RR -> https://ibb.co/3yjXJcbm
+        return 'error: no'
+
     unranked_mods = (
         Mods.Autoplay,
         Mods.Cinema,
