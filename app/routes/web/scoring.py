@@ -394,45 +394,45 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
             return 'error: ban'
 
 def upload_replay(score: Score, score_id: int) -> None:
-    if score.passed and score.status_pp > ScoreStatus.Exited:
-        app.session.logger.debug('Uploading replay...')
+    if not score.passed or not score.replay:
+        return
 
-        # Check replay size (10mb max)
-        if len(score.replay) > 1e+7:
-            return
+    if score.status_pp <= ScoreStatus.Exited:
+        return
 
-        score_rank = scores.fetch_score_index_by_id(
-            mods=score.enabled_mods.value,
-            beatmap_id=score.beatmap.id,
-            mode=score.mode.value,
-            score_id=score_id
-        )
+    app.session.logger.debug('Uploading replay...')
 
-        # Replay will be cached temporarily and deleted after
-        app.session.storage.cache_replay(
-            score_id,
-            score.replay
-        )
+    # Check replay size (10mb max)
+    if len(score.replay) > 1e+7:
+        app.session.logger.warning('Replay size exceeded maximum limit.')
+        return
 
-        if not score.beatmap.is_ranked:
-            return
+    score_rank = scores.fetch_score_index_by_id(
+        mods=score.enabled_mods.value,
+        beatmap_id=score.beatmap.id,
+        mode=score.mode.value,
+        score_id=score_id
+    )
 
-        if score.status_pp < ScoreStatus.Submitted:
-            return
-
-        if score_rank > config.SCORE_RESPONSE_LIMIT * 10:
-            return
-
-        return app.session.storage.upload_replay(
-            score_id,
-            score.replay
-        )
-
-    # Cache replay for 30 minutes
+    # Replay will always be cached temporarily
     app.session.storage.cache_replay(
-        id=score_id,
-        content=score.replay,
-        time=timedelta(minutes=30)
+        score_id,
+        score.replay
+    )
+
+    if not score.beatmap.is_ranked:
+        return
+
+    if score.status_pp < ScoreStatus.Submitted:
+        return
+
+    if score_rank > config.SCORE_RESPONSE_LIMIT * 10:
+        return
+
+    # Replay met the requirement to be uploaded permanently
+    return app.session.storage.upload_replay(
+        score_id,
+        score.replay
     )
 
 def calculate_weighted_pp(scores: List[DBScore]) -> float:
