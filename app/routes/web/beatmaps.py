@@ -3,6 +3,7 @@ from typing import Dict, List, Callable, Tuple, Any
 from sqlalchemy.orm import Session
 from collections import Counter
 from datetime import datetime
+from functools import wraps
 from slider import Beatmap
 from osz2 import *
 
@@ -103,7 +104,30 @@ def file(*aliases) -> Callable:
         )
     return wrapper
 
+def catch_bss_errors(
+    message: str = "A server error occurred. Please try again!",
+    legacy: bool = False
+) -> Callable:
+    def decorator(func) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Response:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                officer.call(
+                    f'Failed to execute {func.__name__}.',
+                    exc_info=e
+                )
+
+                if session := kwargs.get('session'):
+                    session.rollback()
+
+                return error_response(5, message, legacy=legacy)
+        return wrapper
+    return decorator
+
 @router.get('/osu-osz2-bmsubmit-getid.php')
+@catch_bss_errors("A server error occurred. Please try again!")
 def validate_upload_request(
     session: Session = Depends(app.session.database.yield_session),
     beatmap_ids: List[int] = Depends(comma_list('b', int)),
@@ -213,6 +237,7 @@ def validate_upload_request(
     ]))
 
 @router.post('/osu-osz2-bmsubmit-upload.php')
+@catch_bss_errors("Something went wrong while processing your beatmap. Please try again!")
 def upload_beatmap(
     session: Session = Depends(app.session.database.yield_session),
     submission_file: UploadFile = Depends(file('0', 'osz2')),
@@ -305,96 +330,91 @@ def upload_beatmap(
         app.session.logger.error(f'Failed to upload beatmap: Failed to decrypt osz2 file')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
-    try:
-        current_files = existing_files(beatmapset.id)
+    current_files = existing_files(beatmapset.id)
 
-        if beatmapset.creator_id != user.id:
-            # User was invited for a beatmap collaboration
-            # We want to make sure they can only update the
-            # files that they are allowed to update
-            osz2.files = adjust_files_for_collaboration(
-                osz2.files,
-                current_files,
-                allowed_beatmaps,
-                can_update_resources
-            )
-
-        # Check if the user is trying to upload someone else's beatmap
-        if duplicate_beatmap_files(beatmapset, osz2.files, session):
-            app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
-            return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
-
-        allowed_usernames = {
-            beatmapset.creator_user.name,
-            user.name
-        }
-
-        # Allow usernames of collaborators
-        allowed_usernames.update(
-            username
-            for beatmap in beatmapset.beatmaps
-            for usernames in collaborations.fetch_usernames(beatmap.id, session)
-            for username in usernames
-        )
-
-        # Allow past usernames
-        allowed_usernames.update(
-            name_change.name
-            for name_change in names.fetch_all_reserved(user.id, session)
-        )
-
-        if not validate_beatmap_owner(osz2.metadata, osz2.beatmaps, allowed_usernames) and not user.is_bat:
-            app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
-            return error_response(1)
-
-        max_beatmap_length = bss.maximum_beatmap_length(osz2.beatmaps.values())
-
-        if max_beatmap_length <= 1:
-            app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
-            return error_response(5, 'Your beatmap is too short. Please try to make it longer and try again!')
-
-        package_filesize = bss.calculate_osz_size(osz2.files)
-        size_limit = bss.calculate_size_limit(max_beatmap_length)
-
-        if package_filesize > size_limit and not user.is_admin:
-            app.session.logger.warning(
-                f'Failed to upload beatmap: Beatmap package is too large '
-                f'({package_filesize} / {size_limit} bytes)'
-            )
-            return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
-
-        previous_status = beatmapset.status
-
-        # Update metadata for beatmapset and beatmaps
-        update_beatmap_metadata(
-            beatmapset,
+    if beatmapset.creator_id != user.id:
+        # User was invited for a beatmap collaboration
+        # We want to make sure they can only update the
+        # files that they are allowed to update
+        osz2.files = adjust_files_for_collaboration(
             osz2.files,
-            osz2.metadata,
-            osz2.beatmaps,
-            session
+            current_files,
+            allowed_beatmaps,
+            can_update_resources
         )
 
-        # Create & upload .osz file
-        update_beatmap_package(
-            beatmapset.id,
-            osz2.files,
-            session
+    # Check if the user is trying to upload someone else's beatmap
+    if duplicate_beatmap_files(beatmapset, osz2.files, session):
+        app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
+        return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
+
+    allowed_usernames = {
+        beatmapset.creator_user.name,
+        user.name
+    }
+
+    # Allow usernames of collaborators
+    allowed_usernames.update(
+        username
+        for beatmap in beatmapset.beatmaps
+        for usernames in collaborations.fetch_usernames(beatmap.id, session)
+        for username in usernames
+    )
+
+    # Allow past usernames
+    allowed_usernames.update(
+        name_change.name
+        for name_change in names.fetch_all_reserved(user.id, session)
+    )
+
+    if not validate_beatmap_owner(osz2.metadata, osz2.beatmaps, allowed_usernames) and not user.is_bat:
+        app.session.logger.warning(f'Failed to upload beatmap: User does not own the beatmapset')
+        return error_response(1)
+
+    max_beatmap_length = bss.maximum_beatmap_length(osz2.beatmaps.values())
+
+    if max_beatmap_length <= 1:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
+        return error_response(5, 'Your beatmap is too short. Please try to make it longer and try again!')
+
+    package_filesize = bss.calculate_osz_size(osz2.files)
+    size_limit = bss.calculate_size_limit(max_beatmap_length)
+
+    if package_filesize > size_limit and not user.is_admin:
+        app.session.logger.warning(
+            f'Failed to upload beatmap: Beatmap package is too large '
+            f'({package_filesize} / {size_limit} bytes)'
         )
+        return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
-        # Update beatmap assets
-        update_beatmap_thumbnail(beatmapset, osz2.beatmaps, osz2.files)
-        update_beatmap_audio(beatmapset, osz2.beatmaps, osz2.files)
-        update_beatmap_files(osz2.files, session=session)
+    previous_status = beatmapset.status
 
-        # Upload the osz2 file to storage
-        app.session.storage.upload_osz2(set_id, osz2_file)
+    # Update metadata for beatmapset and beatmaps
+    update_beatmap_metadata(
+        beatmapset,
+        osz2.files,
+        osz2.metadata,
+        osz2.beatmaps,
+        session
+    )
 
-        # Update osz2 hashes
-        update_osz2_hashes(set_id, osz2, session)
-    except Exception as e:
-        session.rollback()
-        app.session.logger.error(f'Failed to upload beatmap: Failed to process osz2 file ({e})', exc_info=True)
-        return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
+    # Create & upload .osz file
+    update_beatmap_package(
+        beatmapset.id,
+        osz2.files,
+        session
+    )
+
+    # Update beatmap assets
+    update_beatmap_thumbnail(beatmapset, osz2.beatmaps, osz2.files)
+    update_beatmap_audio(beatmapset, osz2.beatmaps, osz2.files)
+    update_beatmap_files(osz2.files, session=session)
+
+    # Upload the osz2 file to storage
+    app.session.storage.upload_osz2(set_id, osz2_file)
+
+    # Update osz2 hashes
+    update_osz2_hashes(set_id, osz2, session)
 
     app.session.logger.info(
         f'{user.name} successfully {"uploaded" if full_submit else "updated"} a beatmapset '
@@ -824,6 +844,7 @@ def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Sess
 @router.post('/osu-bmsubmit-getid3.php')
 @router.post('/osu-bmsubmit-getid2.php')
 @router.post('/osu-bmsubmit-getid.php')
+@catch_bss_errors(legacy=True)
 def update_beatmap_files_endpoint(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
@@ -904,6 +925,7 @@ def update_beatmap_files_endpoint(
     return response_data
 
 @router.post('/osu-bmsubmit-upload.php')
+@catch_bss_errors("Something went wrong while processing your beatmap. Please try again!", legacy=True)
 def upload_osz(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='p'),
@@ -1036,7 +1058,6 @@ def upload_osz(
     # Depending on if the beatmap is new or updated, different event types should be used
     broadcast_type = broadcast_upload_activity if previous_status == -3 else broadcast_update_activity
     broadcast_type(beatmapset, session)
-
     return "ok"
 
 @router.get('/osu-bmsubmit-novideo.php')
