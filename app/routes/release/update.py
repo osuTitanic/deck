@@ -12,7 +12,7 @@ def osume_update_endpoint(
     time: int = Query(0, alias='t'),
     current: int = Query(20140818, alias='v')
 ) -> str:
-    with app.session.database.managed_session() as session:
+    with app.session.database.managed_session(autocommit=False) as session:
         # NOTE: The "current" parameter is a custom parameter added by
         #       titanic that allows us to specify a custom version to use
         entry = releases.fetch_official_by_version(

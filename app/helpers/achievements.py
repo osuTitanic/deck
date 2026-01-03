@@ -50,7 +50,7 @@ def check_pack(score: DBScore, beatmapset_ids: List[int]) -> bool:
         # Score was not set inside this pack
         return False
 
-    with app.session.database.managed_session() as session:
+    with app.session.database.managed_session(autocommit=False) as session:
         for set_id in beatmapset_ids:
             result = session.query(DBScore) \
                 .join(DBBeatmap) \
@@ -134,7 +134,7 @@ def improved(score: DBScore) -> bool:
     if score.status_pp != ScoreStatus.Best:
         return False
 
-    with app.session.database.managed_session() as session:
+    with app.session.database.managed_session(autocommit=False) as session:
         # Check if player has set a D Rank in the last 24 hours
         result = session.query(DBScore) \
             .filter(
@@ -226,7 +226,7 @@ def quickdraw(score: DBScore) -> bool:
 @register(name='Obsessed', category='Hush-Hush', filename='obsessed.png')
 def obsessed(score: DBScore) -> bool:
     """Play the same map over 100 times in a day, retries included"""
-    with app.session.database.managed_session() as session:
+    with app.session.database.managed_session(autocommit=False) as session:
         score_count = session.query(DBScore) \
             .filter(DBScore.beatmap_id == score.beatmap_id) \
             .filter(DBScore.user_id == score.user_id) \
