@@ -940,6 +940,7 @@ def score_submission(
         f' ({config.OSU_BASEURL}/scores/{score_object.id})'
     )
 
+    score.session.commit()
     score.session.close()
 
     # Send highlights on #announce
@@ -1132,6 +1133,8 @@ def legacy_score_submission(
         mode=score.mode.value,
         session=score.session
     )
+
+    score.session.commit()
     score.session.close()
 
     if score.is_score_pb:
