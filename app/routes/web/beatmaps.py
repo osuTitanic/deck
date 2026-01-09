@@ -1373,7 +1373,15 @@ def update_beatmap_metadata(
     ])
     assert len(beatmap_ids) == len(beatmap_data)
 
+    # Before updating the beatmap metadata, we first have to
+    # assign all beatmap IDs, such that the IDs won't be shuffled
+    pre_assigned_ids = []
+
     for filename, beatmap in beatmap_data.items():
+        if beatmap.beatmap_id is not None:
+            pre_assigned_ids.append(beatmap.beatmap_id)
+            continue
+
         beatmap_id = resolve_beatmap_id(
             beatmap_ids,
             beatmap,
@@ -1381,7 +1389,16 @@ def update_beatmap_metadata(
             session=session
         )
         assert beatmap_id is not None
+        beatmap.beatmap_id = beatmap_id
 
+    # Check for duplicate pre-assigned IDs
+    assert len(pre_assigned_ids) == len(set(pre_assigned_ids)), "Duplicate beatmap IDs"
+
+    # Ensure the pre-assigned IDs are part of the beatmapset
+    for beatmap_id in pre_assigned_ids:
+        assert beatmap_id in beatmap_ids, "Beatmap ID not part of beatmapset"
+
+    for filename, beatmap in beatmap_data.items():
         difficulty_attributes = performance.calculate_difficulty(
             beatmap_files[filename].content,
             beatmap.mode
@@ -1389,7 +1406,7 @@ def update_beatmap_metadata(
         assert difficulty_attributes is not None
 
         beatmaps.update(
-            beatmap_id,
+            beatmap.beatmap_id,
             {
                 'status': status,
                 'filename': filename,
@@ -1631,6 +1648,7 @@ def resolve_beatmap_id(
     # Newer .osu version have the beatmap id in the metadata
     if (beatmap_id := beatmap.beatmap_id) is not None:
         if beatmap_id in beatmap_ids:
+            beatmap_ids.remove(beatmap_id)
             return beatmap_id
 
     # Try to get the beatmap id from the filename
@@ -1638,9 +1656,9 @@ def resolve_beatmap_id(
         if beatmap_object.id in beatmap_ids:
             beatmap_ids.remove(beatmap_object.id)
 
-        beatmap.beatmap_id = beatmap_object.id
         return beatmap_object.id
 
+    # Beatmap has not been uploaded yet, return a new id
     return beatmap_ids.pop(0)
 
 def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
@@ -1816,8 +1834,11 @@ def update_beatmaps(
         beatmap.id
         for beatmap in beatmapset.beatmaps
     ]
+    beatmaps_deleted = (
+        len(beatmap_ids) < len(current_beatmap_ids)
+    )
 
-    if len(beatmap_ids) < len(current_beatmap_ids):
+    if beatmaps_deleted:
         # Check if beatmap ids are valid & part of the set
         for beatmap_id in beatmap_ids:
             assert beatmap_id in current_beatmap_ids
