@@ -1828,7 +1828,7 @@ def update_beatmaps(
     beatmapset: DBBeatmapset,
     session: Session
 ) -> List[int] | None:
-    """Create/Delete beatmaps based on the amount of beatmaps the client requested"""
+    """Create/Delete beatmaps based on the amount of beatmaps the client requested"""  
     # Get current beatmaps
     current_beatmap_ids = [
         beatmap.id
@@ -1838,12 +1838,21 @@ def update_beatmaps(
         len(beatmap_ids) < len(current_beatmap_ids)
     )
 
-    if beatmaps_deleted:
-        # Check if beatmap ids are valid & part of the set
-        for beatmap_id in beatmap_ids:
-            assert beatmap_id in current_beatmap_ids
+    # Check if beatmap ids are valid & part of the set
+    for index, beatmap_id in (enumerate(beatmap_ids)):
+        if beatmap_id <= -1:
+            continue
 
-        # Remove beatmaps
+        if beatmap_id in current_beatmap_ids:
+            continue
+
+        # We need to recreate this ID, since its
+        # not part of the current beatmapset
+        beatmap_ids[index] = -1
+
+    if beatmaps_deleted:
+        # Beatmaps have been deleted by the uploader
+        # -> Remove them from the database
         deleted_maps = [
             beatmap_id
             for beatmap_id in current_beatmap_ids
@@ -1861,45 +1870,40 @@ def update_beatmaps(
             plays.delete_by_beatmap_id(beatmap_id, session=session)
             beatmaps.delete_by_id(beatmap_id, session=session)
 
-        app.session.logger.debug(f'Deleted {len(deleted_maps)} beatmaps')
+        app.session.logger.debug(f'Deleted beatmaps: {deleted_maps}')
         return beatmap_ids
 
-    # Calculate how many new beatmaps we need to create
-    required_maps = max(
-        len(beatmap_ids) - len(current_beatmap_ids), 0
-    )
+    # User is adding new beatmaps
+    # -> Create entry in the database to get the ID
+    is_collaborator = beatmapset.creator_id != user.id
+    beatmaps_created = []
 
-    # Create new beatmaps
-    new_beatmap_ids = [
-        beatmaps.create(
+    for index, beatmap_id in enumerate(beatmap_ids):
+        if beatmap_id != -1:
+            continue
+
+        # Create new beatmap
+        new_beatmap = beatmaps.create(
             id=bss.next_beatmap_id(session=session),
             set_id=beatmapset.id,
             session=session
-        ).id
-        for _ in range(required_maps)
-    ]
-
-    app.session.logger.debug(
-        f'Created {required_maps} new beatmaps'
-    )
-
-    # Add collaborator permissions, if user is not the creator
-    is_collaborator = beatmapset.creator_id != user.id
-
-    if not is_collaborator:
-        # Return new beatmap ids to the client
-        return current_beatmap_ids + new_beatmap_ids
-
-    for beatmap_id in new_beatmap_ids:
-        collaborations.create(
-            beatmap_id, user.id,
-            is_beatmap_author=True,
-            allow_resource_updates=True,
-            session=session
         )
 
+        # Add collaborator permissions, if user is not the creator
+        if is_collaborator:
+            collaborations.create(
+                new_beatmap.id, user.id,
+                is_beatmap_author=True,
+                allow_resource_updates=True,
+                session=session
+            )
+
+        beatmap_ids[index] = new_beatmap.id
+        beatmaps_created.append(new_beatmap.id)
+
     # Return new beatmap ids to the client
-    return current_beatmap_ids + new_beatmap_ids
+    app.session.logger.debug(f'Created new beatmaps: {beatmaps_created}')
+    return beatmap_ids
 
 def update_osz2_hashes(set_id: int, osz2: Osz2Package, session: Session) -> None:
     """Update the osz2 hashes for the given beatmapset & osz2"""
