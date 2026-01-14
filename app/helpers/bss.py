@@ -144,6 +144,7 @@ def create_osz_package(files: List[File]) -> bytes:
         zip_info = ZipInfo(filename=file.filename_sanitized)
         zip_info.compress_type = zipfile.ZIP_DEFLATED
         zip_info.date_time = file.date_modified.timetuple()[:6]
+        zip_info.external_attr = 0o775 << 16
         osz.writestr(zip_info, file.content)
 
     osz.close()
