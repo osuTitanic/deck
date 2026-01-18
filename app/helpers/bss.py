@@ -77,8 +77,7 @@ def calculate_beatmap_total_length(beatmap: Beatmap) -> int:
         return 0
 
     last_object = hit_objects[-1].time.total_seconds() * 1000
-    first_object = hit_objects[0].time.total_seconds() * 1000
-    return last_object - first_object
+    return last_object
 
 def calculate_beatmap_drain_length(beatmap: Beatmap) -> int:
     """Calculate the drain length of a beatmap from its hit objects"""
@@ -89,22 +88,24 @@ def calculate_beatmap_drain_length(beatmap: Beatmap) -> int:
 
     # Identify every break in the beatmap
     # and subtract it from the total length
-    total_length = calculate_beatmap_total_length(beatmap)
+    last_object = hit_objects[-1].time.total_seconds() * 1000
+    first_object = hit_objects[0].time.total_seconds() * 1000
+    total_length = last_object - first_object
     break_deltas = []
 
     for index, hit_object in enumerate(hit_objects):
         if index <= 0:
             continue
-        
+
         previous_object = hit_objects[index - 1]
         delta_time = hit_object.time - previous_object.time
         delta_time_seconds = delta_time.total_seconds() * 1000
-        
+
         if delta_time_seconds <= minimum_gap:
             continue
 
         break_deltas.append(delta_time_seconds - (gap_before_break + gap_after_break))
-        
+
     total_break_time = sum(break_deltas)
     return max(total_length - total_break_time, 0)
 
