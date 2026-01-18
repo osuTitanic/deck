@@ -85,6 +85,9 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     if not beatmapset.available:
         raise HTTPException(451)
 
+    # no_video can only be true if the beatmapset has videos
+    no_video = no_video and beatmapset.has_video
+
     if not (response := app.session.storage.api.osz(set_id, no_video)):
         raise HTTPException(404)
 
@@ -94,7 +97,8 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     )
 
     osz_filename = sanitize_filename(
-        f'{set_id} {beatmapset.artist} - {beatmapset.title}.osz'
+        f'{set_id} {beatmapset.artist} - {beatmapset.title}'
+        f'{" (no video)" if no_video else ""}.osz'
     )
 
     return StreamingResponse(
