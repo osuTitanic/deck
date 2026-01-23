@@ -113,6 +113,15 @@ def catch_bss_errors(
         def wrapper(*args, **kwargs) -> Response:
             try:
                 return func(*args, **kwargs)
+            except AssertionError as e:
+                assertion_msg = str(e)
+                response_msg = f"Your upload could not be processed: {assertion_msg}"
+                officer.call(f"Failed to process bss upload: {assertion_msg}")
+
+                if session := kwargs.get('session'):
+                    session.rollback()
+
+                return error_response(5, response_msg, legacy=legacy)
             except Exception as e:
                 officer.call(
                     f'Failed to execute {func.__name__}.',
@@ -1371,7 +1380,7 @@ def update_beatmap_metadata(
         beatmap.id
         for beatmap in beatmapset.beatmaps
     ])
-    assert len(beatmap_ids) == len(beatmap_data)
+    assert len(beatmap_ids) >= len(beatmap_data), "More beatmaps provided than expected"
 
     # Before updating the beatmap metadata, we first have to
     # assign all beatmap IDs, such that the IDs won't be shuffled
@@ -1403,7 +1412,7 @@ def update_beatmap_metadata(
             beatmap_files[filename].content,
             beatmap.mode
         )
-        assert difficulty_attributes is not None
+        assert difficulty_attributes is not None, "Failed to calculate beatmap difficulty"
 
         beatmaps.update(
             beatmap.beatmap_id,
@@ -1444,9 +1453,9 @@ def update_beatmap_metadata(
 
         # Update eyup stars for ppv1 calculations
         eyup_difficulty = performance.calculate_eyup_star_rating(beatmap)
-        assert eyup_difficulty is not None
-        assert not math.isinf(eyup_difficulty)
-        assert not math.isnan(eyup_difficulty)
+        assert eyup_difficulty is not None, "Failed to calculate eyup difficulty"
+        assert not math.isinf(eyup_difficulty), "Eyup difficulty is infinite"
+        assert not math.isnan(eyup_difficulty), "Eyup difficulty is NaN"
 
         # Rounding to 4 decimal places for database
         eyup_difficulty = round(eyup_difficulty, 4)
@@ -1997,7 +2006,7 @@ def adjust_files_for_collaboration(
 ) -> List[File]:
     """Adjust the uploaded files based on what the user is allowed to update"""
     # Making sure that both files and original_files are not empty
-    assert original_files and files
+    assert original_files and files, "Beatmap package files are empty"
 
     allowed_filenames = [
         beatmap.filename
