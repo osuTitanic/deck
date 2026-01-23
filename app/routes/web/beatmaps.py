@@ -115,8 +115,8 @@ def catch_bss_errors(
                 return func(*args, **kwargs)
             except AssertionError as e:
                 assertion_msg = str(e)
-                response_msg = f"Your upload could not be processed: {assertion_msg}"
-                officer.call(f"Failed to process bss upload: {assertion_msg}")
+                response_msg = f"Your beatmapset could not be updated: {assertion_msg}"
+                officer.call(f"Failed to process bss request: {assertion_msg}")
 
                 if session := kwargs.get('session'):
                     session.rollback()
