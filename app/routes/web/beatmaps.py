@@ -7,7 +7,7 @@ from functools import wraps
 from slider import Beatmap
 from osz2 import *
 
-from app.common.helpers import activity, performance, permissions
+from app.common.helpers import activity, performance, permissions as permissions_helper
 from app.common.config import config_instance as config
 from app.common.constants import UserActivity
 from app.helpers.bss import SendAction
@@ -1238,7 +1238,7 @@ def authenticate_user(
         app.session.logger.warning(f'Failed to authenticate user: User is not connected to bancho')
         return error_response(5, 'You are not connected to bancho, please try again!', legacy), None
 
-    if not permissions.has_permission("beatmaps.upload", player.id):
+    if not permissions_helper.has_permission("beatmaps.upload", player.id):
         app.session.logger.warning(f'Failed to authenticate user: User lacks beatmap upload permission')
         return error_response(5, 'You do not have permission to upload beatmaps.', legacy), None
 
