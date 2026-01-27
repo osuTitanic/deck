@@ -9,7 +9,7 @@ py3rijndael==0.3.3
 redis==7.1.0
 requests==2.32.5
 sendgrid==6.12.5
-sqlalchemy==2.0.45
+sqlalchemy==2.0.46
 uvicorn==0.40.0
 pydub==0.25.1
 rosu-pp-py==3.1.0
