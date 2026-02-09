@@ -678,7 +678,7 @@ def response_charts(
     overall_chart = Chart()
     overall_chart['chartId'] = 'overall'
     overall_chart['chartName'] = 'Overall Ranking'
-    overall_chart['chartUrl'] = f'{config.OSU_BASEURL}/u/{score.user.id}'
+    overall_chart['chartUrl'] = f'{config.OSU_BASEURL}/p/playerranking/?f={score.user.name}'
     overall_chart['chartEndDate'] = ''
     overall_chart['achievements'] = ' '.join(achievement_response)
     overall_chart['achievements-new'] = '' # TODO
