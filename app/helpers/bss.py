@@ -76,8 +76,9 @@ def calculate_beatmap_total_length(beatmap: Beatmap) -> int:
     if len(hit_objects) <= 1:
         return 0
 
+    first_object = hit_objects[0].time.total_seconds() * 1000
     last_object = hit_objects[-1].time.total_seconds() * 1000
-    return last_object
+    return max(last_object - first_object, 0)
 
 def calculate_beatmap_drain_length(beatmap: Beatmap) -> int:
     """Calculate the drain length of a beatmap from its hit objects"""
@@ -86,11 +87,9 @@ def calculate_beatmap_drain_length(beatmap: Beatmap) -> int:
     if len(hit_objects) <= 1:
         return 0
 
-    # Identify every break in the beatmap
-    # and subtract it from the total length
+    # Identify every break in the beatmap and subtract it from the last object time
+    # This also includes the break from the audio beginning to the first object
     last_object = hit_objects[-1].time.total_seconds() * 1000
-    first_object = hit_objects[0].time.total_seconds() * 1000
-    total_length = last_object - first_object
     break_deltas = []
 
     for index, hit_object in enumerate(hit_objects):
@@ -99,15 +98,15 @@ def calculate_beatmap_drain_length(beatmap: Beatmap) -> int:
 
         previous_object = hit_objects[index - 1]
         delta_time = hit_object.time - previous_object.time
-        delta_time_seconds = delta_time.total_seconds() * 1000
+        delta_time_ms = delta_time.total_seconds() * 1000
 
-        if delta_time_seconds <= minimum_gap:
+        if delta_time_ms < minimum_gap:
             continue
 
-        break_deltas.append(delta_time_seconds - (gap_before_break + gap_after_break))
+        break_deltas.append(delta_time_ms - (min_break_duration + gap_after_break))
 
     total_break_time = sum(break_deltas)
-    return max(total_length - total_break_time, 0)
+    return max(last_object - total_break_time, 0)
 
 def calculate_beatmap_median_bpm(beatmap: Beatmap) -> float:
     """Calculate the median BPM of a beatmap from its timing points"""
