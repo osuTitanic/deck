@@ -740,6 +740,20 @@ def response_charts(
         beatmap_ranking.entry('maxCombo', None, new_score.max_combo)
         beatmap_ranking.entry('accuracy', None, round(new_score.acc, 4) * 100)
         beatmap_ranking.entry('pp', None, round(new_score.pp))
+    
+    score_above = scores.fetch_score_above(
+        score.beatmap.id,
+        score.mode.value,
+        score.total_score,
+        session=score.session
+    )
+
+    beatmap_ranking['toNextRank'] = '0'
+    beatmap_ranking['toNextRankUser'] = ''
+
+    if score_above:
+        beatmap_ranking['toNextRankUser'] = score_above.user.name
+        beatmap_ranking['toNextRank'] = score_above.total_score - score.total_score
 
     return [beatmap_info, beatmap_ranking, overall_chart]
 
