@@ -27,7 +27,7 @@ COPY requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel && \
     pip install --no-compile --root /install -r requirements.txt && \
-    pip install --no-compile --root /install gunicorn
+    pip install --no-compile --root /install granian[pname,uvloop]
 
 FROM python:3.14-alpine
 
@@ -55,8 +55,10 @@ RUN apk add --no-cache \
 COPY --from=builder /install/usr/local /usr/local
 
 ARG WEB_WORKERS=4
-ENV WEB_WORKERS=${WEB_WORKERS} \
-    API_WORKERS=${WEB_WORKERS}
+ENV WEB_WORKERS=${WEB_WORKERS}
+
+ARG WEB_THREADS_RUNTIME=2
+ENV WEB_THREADS_RUNTIME=${WEB_THREADS_RUNTIME}
 
 WORKDIR /deck
 COPY . .
@@ -67,4 +69,4 @@ RUN python -m compileall -q app
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/sbin/tini", "--"]
 
-CMD ["/bin/sh", "-c", "gunicorn --access-logfile - --preload -b 0.0.0.0:80 -w ${WEB_WORKERS} -k uvicorn.workers.UvicornWorker --max-requests 10000 --max-requests-jitter 5000 --graceful-timeout 5 --timeout 10 app:api"]
+CMD ["/bin/sh", "-c", "granian --host 0.0.0.0 --port 80 --interface asgi --workers ${WEB_WORKERS} --runtime-threads ${WEB_THREADS_RUNTIME} --loop uvloop --http 1 --no-ws --backpressure 128 --respawn-failed-workers --access-log --process-name deck-worker --workers-kill-timeout 5 --workers-lifetime 3600 --workers-max-rss 512 app:api"]
