@@ -345,22 +345,14 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
         if any(flag in score.flags for flag in flags):
             officer.call(
                 f'"{score.username}" submitted score with bad flags: {score.flags.name}. '
-                f'Please review this case as soon as possible. ({replay_hash})'
+                f'Replay hash: {replay_hash}.'
             )
 
         if not validate_replay(score.replay):
             officer.call(
                 f'"{score.username}" submitted score with invalid replay.'
             )
-
-            if not player.is_verified:
-                app.session.events.submit(
-                    'restrict',
-                    user_id=player.id,
-                    autoban=True,
-                    reason='Invalid replay'
-                )
-                return 'error: ban'
+            return 'error: no'
 
     if score.check_invalid_mods():
         officer.call(
