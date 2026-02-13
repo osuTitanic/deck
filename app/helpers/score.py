@@ -395,7 +395,11 @@ class Score:
         if not self.replay:
             return None
 
-        return replays.serialize_replay(self.to_database(), self.replay)
+        score_object = self.to_database()
+        score_object.beatmap = self.beatmap
+        score_object.user = self.user
+        score_object.id = 0
+        return replays.serialize_replay(score_object, self.replay)
 
     @classmethod
     def parse(
