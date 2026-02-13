@@ -3,7 +3,7 @@ from datetime import datetime
 from app.helpers.enums import BadFlags
 from app.common.config import config_instance as config
 from app.common.database.repositories import scores
-from app.common.helpers import performance
+from app.common.helpers import performance, replays
 from app.common import officer
 from app.common.database import (
     DBBeatmap,
@@ -117,6 +117,10 @@ class Score:
     @property
     def relaxing(self) -> bool:
         return (Mods.Relax in self.enabled_mods) or (Mods.Autopilot in self.enabled_mods)
+
+    @property
+    def replay_filename(self) -> str:
+        return f'{self.user.name} on {self.beatmap.full_name} ({self.score_checksum}).osr'
 
     @property
     def elapsed_time(self) -> int:
@@ -385,6 +389,13 @@ class Score:
             return True
 
         return False
+
+    def serialize_replay(self) -> bytes | None:
+        """Serialize the replay of this score into an .osr format"""
+        if not self.replay:
+            return None
+
+        return replays.serialize_replay(self.to_database(), self.replay)
 
     @classmethod
     def parse(

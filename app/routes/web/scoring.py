@@ -344,19 +344,21 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
 
         if any(flag in score.flags for flag in flags):
             officer.call(
-                f'"{score.username}" submitted score with bad flags: {score.flags.name}. '
-                f'Replay hash: {replay_hash}.'
+                f'"{score.username}" submitted score with bad flags: {score.flags.name}.',
+                file=(score.replay_filename, score.serialize_replay())
             )
 
         if not validate_replay(score.replay):
             officer.call(
-                f'"{score.username}" submitted score with invalid replay.'
+                f'"{score.username}" submitted score with invalid replay.',
+                file=(score.replay_filename, score.serialize_replay())
             )
             return 'error: no'
 
     if score.check_invalid_mods():
         officer.call(
-            f'"{score.username}" submitted score with invalid mods: {score.enabled_mods.name}.'
+            f'"{score.username}" submitted score with invalid mods: {score.enabled_mods.name}.',
+            file=(score.replay_filename, score.serialize_replay())
         )
 
         if not player.is_verified:
@@ -373,7 +375,8 @@ def perform_score_validation(score: Score, player: DBUser) -> str | None:
 
     if score.beatmap.awards_pp and score.pp >= pp_cutoff:
         officer.call(
-            f'"{score.username}" exceeded the pp limit ({score.pp}).'
+            f'"{score.username}" exceeded the pp limit ({score.pp}).',
+            file=(score.replay_filename, score.serialize_replay())
         )
 
         if not player.is_verified:
