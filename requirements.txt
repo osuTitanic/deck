@@ -17,4 +17,4 @@ python-multipart==0.0.22
 audioop-lts==0.2.2; python_version >= "3.13"
 osz2==1.1.4
 pydantic-settings==2.13.1
-git+https://github.com/osuTitanic/slider@cbae45f898d4da32ebadd695ef961f5a845f118a
+git+https://github.com/osuTitanic/slider@bb0fe9e59c27e380778dcb4779913c27cb3c0b8a
