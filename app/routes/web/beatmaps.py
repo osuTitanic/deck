@@ -1487,9 +1487,9 @@ def update_beatmap_thumbnail(
     ]
 
     background_files = [
-        beatmap.background
+        beatmap.backgrounds[0]
         for beatmap in beatmaps.values()
-        if beatmap.background
+        if beatmap.backgrounds
     ]
 
     if not background_files:
@@ -1498,15 +1498,14 @@ def update_beatmap_thumbnail(
 
     target_background = background_files[0]
 
-    if target_background not in filenames:
+    if target_background.filename not in filenames:
         app.session.logger.debug(f'Background file not found. Skipping...')
         return
 
     background_file = next(
         file for file in files
-        if file.filename == target_background
+        if file.filename == target_background.filename
     )
-
     thumbnail = app.utils.resize_and_crop_image(
         background_file.content,
         target_width=160,
