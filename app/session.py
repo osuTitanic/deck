@@ -1,4 +1,5 @@
 
+from .common.helpers.performance import ppv2, ppv2_rosu
 from .common.cache.events import EventQueue
 from .common.database import Postgres
 from .common.storage import Storage
@@ -36,3 +37,7 @@ achievement_executor = ThreadPoolExecutor(max_workers=5)
 
 # Used for uploading replays, and checking hightlights
 score_executor = ThreadPoolExecutor(max_workers=5)
+
+# Initialize ppv2 calculator
+instance = ppv2_rosu.RosuPerformanceCalculator(storage)
+ppv2.initialize_calculator(instance)

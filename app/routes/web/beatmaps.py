@@ -1418,6 +1418,11 @@ def update_beatmap_metadata(
         )
         assert difficulty_attributes is not None, "Failed to calculate beatmap difficulty"
 
+        # I'm not too sure if this is the way to go when working with slider, but I guess this works for now
+        count_normal = len(beatmap.hit_objects(circles=True, sliders=False, spinners=False))
+        count_slider = len(beatmap.hit_objects(sliders=True, circles=False, spinners=False))
+        count_spinner = len(beatmap.hit_objects(spinners=True, circles=False, sliders=False))
+
         beatmaps.update(
             beatmap.beatmap_id,
             {
@@ -1435,11 +1440,11 @@ def update_beatmap_metadata(
                 'od': beatmap.od(),
                 'ar': beatmap.ar(),
                 'slider_multiplier': beatmap.slider_multiplier,
-                'count_normal': difficulty_attributes.n_circles or 0,
-                'count_slider': difficulty_attributes.n_sliders or 0,
-                'count_spinner': difficulty_attributes.n_spinners or 0,
+                'count_normal': count_normal,
+                'count_slider': count_slider,
+                'count_spinner': count_spinner,
                 'max_combo': difficulty_attributes.max_combo,
-                'diff': difficulty_attributes.stars
+                'diff': difficulty_attributes.star_rating
             },
             session=session
         )
