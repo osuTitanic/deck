@@ -1557,7 +1557,8 @@ def update_beatmap_audio(
 
     audio_snippet = utils.extract_audio_snippet(
         audio_file.content,
-        offset_ms=audio_offset
+        offset_ms=audio_offset,
+        bitrate="128k"
     )
 
     app.session.storage.upload_mp3(
