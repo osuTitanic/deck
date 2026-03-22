@@ -956,7 +956,7 @@ def upload_osz(
     if error:
         # Failed to authenticate user
         return Response(error.body, 403)
-    
+
     if not (upload_request := bss.get_upload_request(user.id)):
         app.session.logger.warning(f'Failed to upload osz file: Upload request not found')
         return bancho_message("An error occurred while processing your beatmap. Please try again!", user)
@@ -1485,7 +1485,7 @@ def update_beatmap_thumbnail(
 
     # Delete cached thumbnails
     app.session.redis.delete(f'mt:{beatmapset.id}', f'mt:{beatmapset.id}l')
-    
+
     filenames = [
         file.filename
         for file in files
@@ -1672,8 +1672,7 @@ def resolve_beatmap_id(
     if beatmap_object := beatmaps.fetch_by_file(filename, session):
         if beatmap_object.id in beatmap_ids:
             beatmap_ids.remove(beatmap_object.id)
-
-        return beatmap_object.id
+            return beatmap_object.id
 
     # Beatmap has not been uploaded yet, return a new id
     return beatmap_ids.pop(0)
@@ -1845,7 +1844,7 @@ def update_beatmaps(
     beatmapset: DBBeatmapset,
     session: Session
 ) -> List[int] | None:
-    """Create/Delete beatmaps based on the amount of beatmaps the client requested"""  
+    """Create/Delete beatmaps based on the amount of beatmaps the client requested"""
     # Get current beatmaps
     current_beatmap_ids = [
         beatmap.id
