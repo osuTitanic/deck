@@ -114,6 +114,10 @@ async def parse_score_data(request: Request) -> Score:
             officer.call(f'Invalid replay name on score submission: "{replay.filename}" ({ip})')
             raise HTTPException(400)
 
+        if replay.size and replay.size > 10 * 1024 * 1024: # 10 MB
+            officer.call(f'Replay file too large: {replay.size} bytes ({ip})')
+            raise HTTPException(400)
+
         replay = await replay.read()
 
     if osu_version := form.get('osuver'):
@@ -172,6 +176,10 @@ async def parse_legacy_score_data(
         raise HTTPException(400)
 
     if replay_file:
+        if replay_file.size and replay_file.size > 10 * 1024 * 1024: # 10 MB
+            officer.call(f'Replay file too large: {replay_file.size} bytes ({ip})')
+            raise HTTPException(400)
+
         replay = await replay_file.read()
 
     try:

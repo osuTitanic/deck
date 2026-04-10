@@ -34,6 +34,13 @@ async def read_screenshot(request: Request) -> bytes:
             detail='Invalid screenshot'
         )
 
+    if screenshot.size and screenshot.size > (4 * 1024 * 1024): # 4 MB
+        app.session.logger.warning(f'Failed to upload screenshot: File is too large ({screenshot.size} bytes)')
+        raise HTTPException(
+            status_code=400,
+            detail='Screenshot file too large'
+        )
+
     return await screenshot.read()
 
 @router.post('/osu-screenshot.php')
@@ -53,7 +60,7 @@ def screenshot(
         raise HTTPException(401)
 
     with memoryview(screenshot) as screenshot_view:
-        if len(screenshot_view) > (4 * 1024 * 1024):
+        if len(screenshot_view) > (4 * 1024 * 1024): # 4 MB
             app.session.logger.warning('Failed to upload screenshot: Too large')
             raise HTTPException(
                 status_code=400,

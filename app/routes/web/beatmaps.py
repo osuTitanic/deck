@@ -298,9 +298,13 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmapset is graveyarded')
         return error_response(4)
 
+    if submission_file.size and submission_file.size > 100_000_000: # 100 MB
+        app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large ({submission_file.size} bytes)')
+        return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
+
     osz2_file = submission_file.file.read()
 
-    if len(osz2_file) > 100_000_000: # 100mb
+    if len(osz2_file) > 100_000_000: # 100 MB
         app.session.logger.warning(f'Failed to upload beatmap: osz2 file is too large ({len(osz2_file)} bytes)')
         return error_response(5, 'Your beatmap is too big. Try to reduce its filesize and try again!')
 
@@ -875,10 +879,14 @@ def update_beatmap_files_endpoint(
         # Failed to authenticate user
         return error
 
+    if beatmap_file.size and beatmap_file.size > 15_000_000: # 15 MB
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap file is too large ({beatmap_file.size} bytes)')
+        return "Your beatmap is too big. Try to reduce its filesize and try again!"
+
     beatmap_file_contents = beatmap_file.file.read()
     beatmap_filename = beatmap_file.filename
 
-    if len(beatmap_file_contents) > 15_000_000: # 15mb
+    if len(beatmap_file_contents) > 15_000_000: # 15 MB
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap file is too large ({len(beatmap_file_contents)} bytes)')
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
 
@@ -981,8 +989,17 @@ def upload_osz(
     # Remove ticket, as it's no longer needed
     bss.remove_upload_request(user.id)
 
+    if file.size and file.size > 100_000_000: # 100 MB
+        app.session.logger.warning(f'Failed to upload osz file: file is too large ({file.size} bytes)')
+        return bancho_message("Your beatmap is too big. Try to reduce its filesize and try again!", user)
+
     # Read osz file contents
     osz_data = file.file.read()
+
+    if len(osz_data) > 100_000_000: # 100 MB
+        app.session.logger.warning(f'Failed to upload osz file: file is too large ({len(osz_data)} bytes)')
+        return bancho_message("Your beatmap is too big. Try to reduce its filesize and try again!", user)
+
     files = bss.osz_to_files(osz_data)
 
     osz_map_files = [
