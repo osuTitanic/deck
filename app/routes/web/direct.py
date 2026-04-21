@@ -3,7 +3,6 @@ from app.common.config import config_instance as config
 from app.common.database import DBBeatmapset, DBUser
 from app.common.constants import DirectDisplayMode
 from app.utils import sanitize_filename
-from app.common.cache import status
 from app.common import officer
 from app.common.database import (
     beatmapsets,
@@ -112,16 +111,6 @@ def search(
 
     if len(query) < 2:
         return direct_error('Query is too short.')
-
-    client = (
-        status.version(player.id) or 0
-        if player is not None else 0
-    )
-
-    # Prior to b20140315.9, setting the "m" parameter to 0 
-    # meant "all modes", instead of only osu! standard
-    if mode == 0 and client <= 20140315:
-        mode = -1
 
     app.session.logger.info(
         f'Got osu!direct search request: "{query}" '
