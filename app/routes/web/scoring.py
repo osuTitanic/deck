@@ -743,7 +743,7 @@ def response_charts(
         beatmap_ranking.entry('maxCombo', None, new_score.max_combo)
         beatmap_ranking.entry('accuracy', None, round(new_score.acc, 4) * 100)
         beatmap_ranking.entry('pp', None, round(new_score.pp))
-    
+
     score_above = scores.fetch_score_above(
         score.beatmap.id,
         score.mode.value,
@@ -1090,7 +1090,6 @@ def legacy_score_submission(
 
         # Submit to database
         score_object = score.to_database()
-        score_object.client_hash = ''
 
         if not config.ALLOW_RELAX and score.relaxing:
             score_object.hidden = True
