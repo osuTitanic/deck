@@ -12,7 +12,7 @@ from app import utils
 
 import app
 
-router = APIRouter()
+router = APIRouter(strict_content_type=False)
 
 class BeatmapInfoRequestForm(BaseModel):
     Filenames: list[str]
