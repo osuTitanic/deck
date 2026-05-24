@@ -1,6 +1,6 @@
 
-from app.common.database import beatmaps
-from sqlalchemy.orm import Session
+from app.common.database import DBBeatmap, DBBeatmapset
+from sqlalchemy.orm import Session, load_only, selectinload
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -16,26 +16,49 @@ router = APIRouter()
 @router.get('/osu-getstatus.php')
 def get_beatmaps(
     session: Session = Depends(app.session.database.yield_session),
-    checksums: str = Query(..., alias='c')
+    checksum_query: str = Query(..., alias='c')
 ) -> Response:
     # Check amount of requests
-    if len(checksums := checksums.split(',')) > 60:
+    if len(checksums := checksum_query.split(',')) > 60:
         raise HTTPException(400)
 
     # Check md5 size
     if any([len(checksum) != 32 for checksum in checksums if checksum]):
         raise HTTPException(400)
 
-    app.session.logger.info(f"Got beatmap status request for {len(checksums)} beatmaps.")
+    app.session.logger.info(
+        f"Got beatmap status request for {len(checksums)} beatmaps."
+    )
 
+    results = session.query(DBBeatmap) \
+        .options(
+            load_only(
+                DBBeatmap.id, \
+                DBBeatmap.set_id, \
+                DBBeatmap.md5, \
+                DBBeatmap.status \
+            ),
+            selectinload(DBBeatmap.beatmapset).load_only(
+                DBBeatmapset.id, \
+                DBBeatmapset.topic_id \
+            ) \
+        ) \
+        .filter(DBBeatmap.md5.in_(checksums)) \
+        .all()
+    
+    found_beatmaps = {
+        beatmap.md5: beatmap
+        for beatmap in results
+    }
     response = []
 
     for checksum in checksums:
-        if not (beatmap := beatmaps.fetch_by_checksum(checksum, session)):
+        if not (beatmap := found_beatmaps.get(checksum)):
             continue
 
-        status = 1 if beatmap.status > 0 else 0
-
+        status = (
+            1 if beatmap.is_ranked else 0
+        )
         response.append(','.join([
             str(checksum),
             str(status),
