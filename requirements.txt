@@ -15,6 +15,6 @@ pydub==0.25.1
 rosu-pp-py==4.0.2
 python-multipart==0.0.29
 audioop-lts==0.2.2; python_version >= "3.13"
-osz2==1.1.4
+osz2==1.1.6
 pydantic-settings==2.14.1
 git+https://github.com/osuTitanic/slider@bb0fe9e59c27e380778dcb4779913c27cb3c0b8a
