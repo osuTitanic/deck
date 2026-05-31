@@ -1,5 +1,6 @@
 
 from typing import Dict, List, Callable, Tuple, Any
+from slider.events import EventType
 from sqlalchemy.orm import Session
 from collections import Counter
 from datetime import datetime
@@ -1354,6 +1355,15 @@ def update_beatmap_metadata(
     detected_language = bss.detect_language_from_tags(tags)
     detected_genre = bss.detect_genre_from_tags(tags)
 
+    # Check if any of the individual beatmaps has storyboard elements
+    has_storyboard_elements = any([
+        [
+            event for event in beatmap.events
+            if event.event_type in {EventType.Sprite, EventType.Animation}
+        ]
+        for beatmap in beatmap_data.values()
+    ])
+
     # Update beatmapset metadata
     beatmapsets.update(
         beatmapset.id,
@@ -1383,7 +1393,7 @@ def update_beatmap_metadata(
             ),
             'has_storyboard': (
                 'osb' in file_extensions or
-                'osq' in file_extensions
+                has_storyboard_elements
             ),
             'last_update': datetime.now(),
             'status': status
