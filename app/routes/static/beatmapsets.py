@@ -2,6 +2,7 @@
 from app.common.database.objects import DBBeatmap, DBBeatmapset
 from app.common.database import beatmapsets, beatmaps
 from app.utils import sanitize_filename
+from requests import Response as HttpResponse
 
 from fastapi.responses import StreamingResponse
 from urllib.parse import quote
@@ -142,7 +143,7 @@ def resolve_beatmap(query: str) -> DBBeatmap | None:
 
     return beatmaps.fetch_by_checksum(query)
 
-def populate_osz_sizes(response: Response, beatmapset: DBBeatmapset, no_video: bool) -> None:
+def populate_osz_sizes(response: HttpResponse, beatmapset: DBBeatmapset, no_video: bool) -> None:
     if not beatmapset.has_video and no_video:
         no_video = False
 
