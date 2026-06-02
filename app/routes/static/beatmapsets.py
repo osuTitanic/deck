@@ -1,6 +1,6 @@
 
+from app.common.database.objects import DBBeatmap, DBBeatmapset
 from app.common.database import beatmapsets, beatmaps
-from app.common.database.objects import DBBeatmap
 from app.utils import sanitize_filename
 
 from fastapi.responses import StreamingResponse
@@ -95,11 +95,14 @@ def beatmap_osz(filename: str) -> StreamingResponse:
         beatmapset.osz_filesize_novideo if no_video else
         beatmapset.osz_filesize
     )
-
     osz_filename = sanitize_filename(
         f'{set_id} {beatmapset.artist} - {beatmapset.title}'
         f'{" (no video)" if no_video else ""}.osz'
     )
+
+    # There's a chance we have missing osz filesizes inside the database
+    # We can use the response content length to populate the missing data
+    populate_osz_sizes(response, beatmapset, no_video)
 
     return StreamingResponse(
         response.iter_content(65536),
@@ -138,3 +141,30 @@ def resolve_beatmap(query: str) -> DBBeatmap | None:
         return beatmaps.fetch_by_file(query)
 
     return beatmaps.fetch_by_checksum(query)
+
+def populate_osz_sizes(response: Response, beatmapset: DBBeatmapset, no_video: bool) -> None:
+    if not beatmapset.has_video and no_video:
+        no_video = False
+
+    target_column = 'osz_filesize_novideo' if no_video else 'osz_filesize'
+    current_value = getattr(beatmapset, target_column)
+
+    if current_value > 0:
+        # Filesize was already populated
+        return
+
+    content_length = response.headers.get('Content-Length')
+
+    if not content_length or not content_length.isdigit():
+        # Most likely not in the response data
+        return
+
+    # Update the database with the new filesize
+    setattr(
+        beatmapset, target_column,
+        int(content_length)
+    )
+    beatmapsets.update(
+        beatmapset.id,
+        {target_column: int(content_length)}
+    )
