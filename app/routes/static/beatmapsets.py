@@ -144,9 +144,6 @@ def resolve_beatmap(query: str) -> DBBeatmap | None:
     return beatmaps.fetch_by_checksum(query)
 
 def populate_osz_sizes(response: HttpResponse, beatmapset: DBBeatmapset, no_video: bool) -> None:
-    if not beatmapset.has_video and no_video:
-        no_video = False
-
     target_column = 'osz_filesize_novideo' if no_video else 'osz_filesize'
     current_value = getattr(beatmapset, target_column)
 
