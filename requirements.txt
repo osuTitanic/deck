@@ -6,7 +6,7 @@ geoip2==5.2.0
 pillow==12.2.0
 psycopg2-binary==2.9.12
 py3rijndael==0.3.3
-redis==7.4.0
+redis==8.0.0
 requests==2.34.2
 sendgrid==6.12.5
 sqlalchemy==2.0.50
