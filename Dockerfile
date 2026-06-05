@@ -63,8 +63,8 @@ ENV WEB_THREADS_RUNTIME=${WEB_THREADS_RUNTIME}
 WORKDIR /deck
 COPY . .
 
-# Precompile application modules to lower start latency
-RUN python -m compileall -q app
+# Precompile python modules to lower start latency
+RUN python -m compileall -q /usr/local/lib/python3.14/site-packages app
 
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/sbin/tini", "--"]
