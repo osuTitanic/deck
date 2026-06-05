@@ -66,7 +66,7 @@ COPY . .
 # Precompile python modules to lower start latency
 RUN python -m compileall -q /usr/local/lib/python3.14/site-packages app
 
-STOPSIGNAL SIGTERM
+STOPSIGNAL SIGINT
 ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["/bin/sh", "-c", "granian --host 0.0.0.0 --port 80 --interface asgi --workers ${WEB_WORKERS} --runtime-threads ${WEB_THREADS_RUNTIME} --loop uvloop --http 1 --no-ws --backpressure 128 --respawn-failed-workers --access-log --process-name deck-worker --workers-kill-timeout 5 --workers-lifetime 43200 --workers-max-rss 512 app:api"]
