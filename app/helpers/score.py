@@ -1,5 +1,4 @@
 
-from datetime import datetime
 from app.helpers.enums import BadFlags
 from app.common.config import config_instance as config
 from app.common.database.repositories import scores
@@ -10,16 +9,16 @@ from app.common.database import (
     DBScore,
     DBUser
 )
-
 from app.common.constants import (
     ScoreStatus,
     GameMode,
     Grade,
     Mods
 )
+from sqlalchemy.orm import Session
+from datetime import datetime
 
 import hashlib
-import app
 
 class Score:
     def __init__(
@@ -79,7 +78,6 @@ class Score:
         self.ppv1 = 0.0
         self.pp = 0.0
 
-        self.session = app.session.database.session
         self.personal_best_score: DBScore | None = None
         self.personal_best_pp: DBScore | None = None
         self.beatmap: DBBeatmap | None = None
@@ -95,21 +93,17 @@ class Score:
             self.failtime = None
             self.exited = None
 
-    def __del__(self) -> None:
-        # Ensure the database session is closed
-        self.session.close()
-
     def __repr__(self) -> str:
         return f'<Score {self.username} ({self.score_checksum})>'
 
     @property
     def is_performance_pb(self) -> bool:
         return self.status_pp == ScoreStatus.Best
-    
+
     @property
     def is_score_pb(self) -> bool:
         return self.status_score == ScoreStatus.Best
-    
+
     @property
     def has_pb(self) -> bool:
         return self.is_performance_pb or self.is_score_pb
@@ -120,14 +114,21 @@ class Score:
 
     @property
     def replay_filename(self) -> str:
+        if not self.beatmap or not self.user:
+            return f'{self.username} ({self.score_checksum}).osr'
+
         return f'{self.user.name} on {self.beatmap.full_name} ({self.score_checksum}).osr'
 
     @property
     def elapsed_time(self) -> int:
         """Total time elapsed for this score, in seconds"""
+        if not self.beatmap:
+            return 0
+
         if self.passed:
             return self.beatmap.total_length
 
+        assert self.failtime is not None
         return self.failtime // 1000
 
     @property
@@ -195,10 +196,10 @@ class Score:
             return False
 
         return True if mods in self.enabled_mods else False
-    
-    def calculate_ppv1(self) -> float:
+
+    def calculate_ppv1(self, session: Session) -> float:
         score = self.to_database()
-        result = performance.calculate_ppv1(score, self.session)
+        result = performance.calculate_ppv1(score, session)
 
         if result is None:
             officer.call('Failed to calculate ppv1: No result')
@@ -216,7 +217,7 @@ class Score:
 
         return result
 
-    def calculate_pp_status(self) -> ScoreStatus:
+    def calculate_pp_status(self, session: Session) -> ScoreStatus:
         """Set the performance status of this score, and the personal best of the user
 
         The score "status" determines if a score is a
@@ -226,6 +227,9 @@ class Score:
             - Failed/Exited score
             - Hidden score
         """
+        assert self.beatmap is not None, "Beatmap must be set to calculate pp status"
+        assert self.user is not None, "User must be set to calculate pp status"
+
         if not config.ALLOW_RELAX and self.relaxing:
             return ScoreStatus.Hidden
 
@@ -256,7 +260,7 @@ class Score:
                 self.user.id,
                 self.mode.value,
                 self.enabled_mods.value,
-                self.session
+                session
             )
 
             if not mods_pb:
@@ -266,25 +270,27 @@ class Score:
                 return ScoreStatus.Submitted
 
             # Change status for old personal best
-            self.session.query(DBScore) \
+            session.query(DBScore) \
                 .filter(DBScore.id == mods_pb.id) \
                 .update({'status_pp': ScoreStatus.Submitted.value})
-            self.session.commit()
+            session.commit()
             return ScoreStatus.Mods
 
         # New pb was set
-        status = {'status_pp': ScoreStatus.Submitted.value} \
-            if self.enabled_mods.value == self.personal_best_pp.mods else \
+        status: dict = (
+            {'status_pp': ScoreStatus.Submitted.value}
+            if self.enabled_mods.value == self.personal_best_pp.mods else
             {'status_pp': ScoreStatus.Mods.value}
+        )
 
-        self.session.query(DBScore) \
+        session.query(DBScore) \
             .filter(DBScore.id == self.personal_best_pp.id) \
             .update(status)
 
-        self.session.commit()
+        session.commit()
         return ScoreStatus.Best
-    
-    def calculate_score_status(self) -> ScoreStatus:
+
+    def calculate_score_status(self, session: Session) -> ScoreStatus:
         """Set the score status of this score, and the personal best of the user
 
         The score "status" determines if a score is a
@@ -294,6 +300,9 @@ class Score:
             - Failed/Exited score
             - Hidden score
         """
+        assert self.beatmap is not None, "Beatmap must be set to calculate score status"
+        assert self.user is not None, "User must be set to calculate score status"
+
         if not config.ALLOW_RELAX and self.relaxing:
             return ScoreStatus.Hidden
 
@@ -318,7 +327,7 @@ class Score:
                 self.user.id,
                 self.mode.value,
                 self.enabled_mods.value,
-                self.session
+                session
             )
 
             if not mods_pb:
@@ -328,22 +337,24 @@ class Score:
                 return ScoreStatus.Submitted
 
             # Change status for old personal best
-            self.session.query(DBScore) \
+            session.query(DBScore) \
                 .filter(DBScore.id == mods_pb.id) \
                 .update({'status_score': ScoreStatus.Submitted.value})
-            self.session.commit()
+            session.commit()
             return ScoreStatus.Mods
 
         # New pb was set
-        status = {'status_score': ScoreStatus.Submitted.value} \
-            if self.enabled_mods.value == self.personal_best_score.mods else \
+        status: dict = (
+            {'status_score': ScoreStatus.Submitted.value}
+            if self.enabled_mods.value == self.personal_best_score.mods else
             {'status_score': ScoreStatus.Mods.value}
+        )
 
-        self.session.query(DBScore) \
+        session.query(DBScore) \
             .filter(DBScore.id == self.personal_best_score.id) \
             .update(status)
 
-        self.session.commit()
+        session.commit()
         return ScoreStatus.Best
 
     def check_invalid_mods(self) -> bool:
@@ -395,6 +406,8 @@ class Score:
         if not self.replay:
             return None
 
+        assert self.beatmap is not None, "Beatmap must be set to serialize replay"
+        assert self.user is not None, "User must be set to serialize replay"
         score_object = self.to_database()
         score_object.beatmap = self.beatmap
         score_object.user = self.user
