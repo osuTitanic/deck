@@ -1,4 +1,9 @@
 
+from starlette.datastructures import (
+    QueryParams,
+    UploadFile,
+    FormData
+)
 from fastapi import (
     HTTPException,
     APIRouter,
@@ -56,16 +61,15 @@ def decrypt_string(
     key: str = "h89f2-890h2h89b34g-h80g134n90133"
 ) -> str | None:
     """Decrypt a rinjdael encrypted string"""
-    if not b64:
-        return
+    if b64 is None:
+        return None
 
     rjn = RijndaelCbc(
-        key=key,
+        key=key.encode(),
         iv=iv,
         padding=Pkcs7Padding(32),
         block_size=32
     )
-
     return rjn.decrypt(base64.b64decode(b64)).decode()
 
 async def parse_score_data(request: Request) -> Score:
@@ -83,8 +87,7 @@ async def parse_score_data(request: Request) -> Score:
     if score_data := query.get('score'):
         # Legacy score was submitted via. query argument
         return await parse_legacy_score_data(
-            score_data, query,
-            form, ip
+            score_data, query, form, ip
         )
 
     # NOTE: The form data can contain two "score" sections, where one
@@ -94,14 +97,31 @@ async def parse_score_data(request: Request) -> Score:
         officer.call(f'Got score submission without score data! ({ip})')
         raise HTTPException(400)
 
-    decryption_key = "h89f2-890h2h89b34g-h80g134n90133"
     score_data = score_form[0]
     fun_spoiler = form.get('fs')
     client_hash = form.get('s')
     processes = form.get('pl')
     failtime = form.get('ft')
     exited = form.get('x')
-    replay = None
+
+    # Ensure form data is of the correct type
+    if not isinstance(score_data, str):
+        officer.call(f'Invalid score data type on score submission: "{type(score_data)}" ({ip})')
+        raise HTTPException(400)
+
+    if fun_spoiler is not None and not isinstance(fun_spoiler, str):
+        officer.call(f'Invalid fun spoiler type on score submission: "{type(fun_spoiler)}" ({ip})')
+        raise HTTPException(400)
+
+    if client_hash is not None and not isinstance(client_hash, str):
+        officer.call(f'Invalid client hash type on score submission: "{type(client_hash)}" ({ip})')
+        raise HTTPException(400)
+
+    if processes is not None and not isinstance(processes, str):
+        officer.call(f'Invalid processes type on score submission: "{type(processes)}" ({ip})')
+        raise HTTPException(400)
+
+    replay_data: bytes | None = None
 
     if len(score_form) > 1:
         # Replay data was provided
@@ -109,6 +129,10 @@ async def parse_score_data(request: Request) -> Score:
 
         if not replay:
             officer.call(f'Got score submission with empty replay data! ({ip})')
+            raise HTTPException(400)
+
+        if not isinstance(replay, UploadFile):
+            officer.call(f'Invalid replay type on score submission: "{type(replay)}" ({ip})')
             raise HTTPException(400)
 
         if replay.filename not in ('replay', 'score'):
@@ -119,7 +143,10 @@ async def parse_score_data(request: Request) -> Score:
             officer.call(f'Replay file too large: {replay.size} bytes ({ip})')
             raise HTTPException(400)
 
-        replay = await replay.read()
+        replay_data = await replay.read()
+
+    # Default decryption key for old score submission endpoints
+    decryption_key = "h89f2-890h2h89b34g-h80g134n90133"
 
     if osu_version := form.get('osuver'):
         # New score submission endpoint uses a different encryption key
@@ -128,6 +155,7 @@ async def parse_score_data(request: Request) -> Score:
     if iv := form.get('iv'):
         # Score data is encrypted
         try:
+            assert isinstance(iv, str), "IV must be a string"
             iv = base64.b64decode(iv)
             client_hash = decrypt_string(client_hash, iv, decryption_key)
             fun_spoiler = decrypt_string(fun_spoiler, iv, decryption_key)
@@ -144,7 +172,7 @@ async def parse_score_data(request: Request) -> Score:
     try:
         score = Score.parse(
             score_data,
-            replay,
+            replay_data,
             bool(exited) if exited else None,
             int(failtime) if failtime else None
         )
@@ -163,20 +191,25 @@ async def parse_score_data(request: Request) -> Score:
 
 async def parse_legacy_score_data(
     score_data: str,
-    query: dict,
-    form: dict,
+    query: QueryParams,
+    form: FormData,
     ip: str
 ) -> Score:
-    failtime: str | None = query.get('ft', 0)
-    exited: str | None = query.get('x', False)
+    failtime: str | None = query.get('ft', '0')
+    exited: str | None = query.get('x', None)
+
     replay: bytes | None = None
     replay_file = form.get('score')
 
-    if replay_file and replay_file.filename != 'replay':
-        officer.call(f'Invalid replay name on score submission: "{replay.filename}" ({ip})')
-        raise HTTPException(400)
+    if replay_file is not None:
+        if not isinstance(replay_file, UploadFile):
+            officer.call(f'Invalid replay type on score submission: "{type(replay_file)}" ({ip})')
+            raise HTTPException(400)
 
-    if replay_file:
+        if replay_file.filename != 'replay':
+            officer.call(f'Invalid replay name on score submission: "{replay_file.filename}" ({ip})')
+            raise HTTPException(400)
+
         if replay_file.size and replay_file.size > 10 * 1024 * 1024: # 10 MB
             officer.call(f'Replay file too large: {replay_file.size} bytes ({ip})')
             raise HTTPException(400)
