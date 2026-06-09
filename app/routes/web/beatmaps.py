@@ -954,7 +954,7 @@ def upload_osz(
     set_id: int | None = Query(None, alias='s'),
     is_first: bool = Depends(integer_boolean_query('r')),
     session: Session = Depends(app.session.database.yield_session)
-) -> Response:
+) -> str | Response:
     error, user = authenticate_user(
         username,
         password,
@@ -1600,7 +1600,11 @@ def update_beatmap_files(files: List[File], session: Session) -> None:
         if not file.is_beatmap:
             continue
 
-        beatmap_id = beatmaps.fetch_id_by_filename(file.filename, session)
+        try:
+            beatmap_id = beatmaps.fetch_id_by_filename(file.filename, session)
+        except Exception as e:
+            app.session.logger.error(f'Failed to fetch beatmap id for file "{file.filename}": {e}')
+            continue
 
         if not beatmap_id:
             app.session.logger.warning(f'Beatmap file "{file.filename}" not found in database. Skipping...')
