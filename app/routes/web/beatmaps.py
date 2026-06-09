@@ -954,7 +954,7 @@ def upload_osz(
     set_id: int | None = Query(None, alias='s'),
     is_first: bool = Depends(integer_boolean_query('r')),
     session: Session = Depends(app.session.database.yield_session)
-) -> str | Response:
+) -> Response:
     error, user = authenticate_user(
         username,
         password,
