@@ -1354,6 +1354,7 @@ def update_beatmap_metadata(
     tags = metadata.get(MetadataType.Tags, '').split()
     detected_language = bss.detect_language_from_tags(tags)
     detected_genre = bss.detect_genre_from_tags(tags)
+    is_explicit = bss.detect_explicit_from_tags(tags) or beatmapset.explicit
 
     # Check if any of the individual beatmaps has storyboard elements
     has_storyboard_elements = any([
@@ -1377,6 +1378,7 @@ def update_beatmap_metadata(
             'title_unicode': metadata.get(MetadataType.TitleUnicode),
             'source_unicode': metadata.get(MetadataType.SourceUnicode),
             'has_video': any(ext in file_extensions for ext in bss.video_file_extensions),
+            'explicit': is_explicit,
             'language_id': (
                 detected_language.value
                 if beatmapset.language_id <= 1

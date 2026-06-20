@@ -199,6 +199,15 @@ def detect_genre_from_tags(tags: List[str]) -> BeatmapGenre:
 
     return BeatmapGenre.Unspecified
 
+def detect_explicit_from_tags(tags: List[str]) -> bool:
+    for tag in tags:
+        filtered_tag = tag.lower().strip(",").strip()
+
+        if filtered_tag == "explicit":
+            return True
+
+    return False
+
 @wrapper.session_wrapper
 def next_beatmapset_id(session: Session = ...) -> int:
     """Get the next availabe beatmapset id"""
