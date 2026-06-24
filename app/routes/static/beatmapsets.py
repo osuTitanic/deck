@@ -1,8 +1,7 @@
 
-from app.common.database.objects import DBBeatmap, DBBeatmapset
 from app.common.database import beatmapsets, beatmaps
+from app.common.database.objects import DBBeatmap
 from app.utils import sanitize_filename
-from requests import Response as HttpResponse
 
 from fastapi.responses import StreamingResponse
 from urllib.parse import quote
@@ -95,7 +94,12 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     # no_video can only be true if the beatmapset has videos
     no_video = no_video and beatmapset.has_video
 
-    if not (response := app.session.beatmaps.osz(set_id, no_video)):
+    response, size = app.session.beatmaps.osz(
+        set_id,
+        no_video
+    )
+
+    if not response:
         raise HTTPException(404)
 
     osz_filename = sanitize_filename(
@@ -108,7 +112,8 @@ def beatmap_osz(filename: str) -> StreamingResponse:
         media_type='application/octet-stream',
         headers={
             'Last-Modified': beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT'),
-            'Content-Disposition': f'attachment; filename="{osz_filename}"'
+            'Content-Disposition': f'attachment; filename="{osz_filename}"',
+            'Content-Length': str(size)
         }
     )
 
