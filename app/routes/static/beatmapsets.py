@@ -25,8 +25,14 @@ def beatmap_thumbnail(
     checksum: str | None = Query(None, alias='c')
 ) -> Response:
     key = filename.split('.', maxsplit=1)[0]
+    large = 'l' in key
 
-    if not (image := app.session.storage.get_background(key)):
+    set_id_string = key.removesuffix('l')
+
+    if not set_id_string.isdigit():
+        raise HTTPException(404)
+
+    if not (image := app.session.beatmaps.background(int(set_id_string), large)):
         raise HTTPException(404)
 
     # Cache beatmapsets, if a checksum is given
@@ -52,7 +58,7 @@ def beatmap_preview(
     if not key.isdigit():
         raise HTTPException(404)
 
-    if not (mp3 := app.session.storage.get_mp3(key)):
+    if not (mp3 := app.session.beatmaps.preview(int(key))):
         raise HTTPException(404)
 
     # Cache beatmapsets, if a checksum is given
@@ -89,7 +95,7 @@ def beatmap_osz(filename: str) -> StreamingResponse:
     # no_video can only be true if the beatmapset has videos
     no_video = no_video and beatmapset.has_video
 
-    if not (response := app.session.storage.api.osz(set_id, no_video)):
+    if not (response := app.session.beatmaps.api.osz_response(set_id, no_video)):
         raise HTTPException(404)
 
     estimated_size = (
@@ -120,7 +126,7 @@ def beatmap_file(query: str) -> Response:
     if not (beatmap := resolve_beatmap(query)):
         raise HTTPException(404)
 
-    if not (file := app.session.storage.get_beatmap(beatmap.id)):
+    if not (file := app.session.beatmaps.osu(beatmap.id)):
         raise HTTPException(404)
 
     return Response(

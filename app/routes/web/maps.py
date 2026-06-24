@@ -15,7 +15,7 @@ def beatmap_file(query: str) -> Response:
     if not (beatmap := resolve_beatmap(query)):
         raise HTTPException(404)
 
-    if not (file := app.session.storage.get_beatmap(beatmap.id)):
+    if not (file := app.session.beatmaps.osu(beatmap.id)):
         raise HTTPException(404)
 
     return Response(

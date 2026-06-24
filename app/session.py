@@ -1,5 +1,6 @@
 
 from .common.helpers.performance import ppv2, ppv2_rosu
+from .common.helpers.beatmaps import BeatmapResources
 from .common.cache.events import EventQueue
 from .common.database import Postgres
 from .common.storage import Storage
@@ -31,6 +32,7 @@ events = EventQueue(
 
 database = Postgres(config)
 storage = Storage(config)
+beatmaps = BeatmapResources(storage, redis)
 
 # Used for achievements checks
 achievement_executor = ThreadPoolExecutor(max_workers=5)
@@ -39,5 +41,5 @@ achievement_executor = ThreadPoolExecutor(max_workers=5)
 score_executor = ThreadPoolExecutor(max_workers=5)
 
 # Initialize ppv2 calculator
-instance = ppv2_rosu.RosuPerformanceCalculator(storage)
+instance = ppv2_rosu.RosuPerformanceCalculator(beatmaps)
 ppv2.initialize_calculator(instance)
