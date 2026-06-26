@@ -41,7 +41,7 @@ def get_osz2_file_info(
         app.session.logger.info(f"Failed to authenticate user '{username}'")
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
-    if not (osz2 := app.session.storage.get_osz2_internal(set_id)):
+    if not (osz2 := app.session.storage.get_osz2(set_id)):
         app.session.logger.warning(f"Could not find osz2 package for beatmapset: '{set_id}'")
         return error_response(5)
 
@@ -75,7 +75,7 @@ def get_osz2_header(
         app.session.logger.info(f"Failed to authenticate user '{username}'")
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
-    if not (osz2 := app.session.storage.get_osz2_internal(set_id)):
+    if not (osz2 := app.session.storage.get_osz2(set_id)):
         app.session.logger.warning(f"Could not find osz2 package for beatmapset: '{set_id}'")
         return error_response(5)
 
@@ -103,7 +103,7 @@ def get_osz2_file_contents(
     if not app.utils.check_password(password, player.bcrypt):
         return error_response(5, 'Authentication failed. Please check your login credentials.')
 
-    if not (osz2 := app.session.storage.get_osz2_internal(set_id)):
+    if not (osz2 := app.session.storage.get_osz2(set_id)):
         return error_response(5)
 
     try:

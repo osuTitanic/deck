@@ -311,7 +311,7 @@ def upload_beatmap(
 
     if not full_submit:
         # User uploaded a patch file
-        current_osz2_file = app.session.storage.get_osz2_internal(set_id)
+        current_osz2_file = app.session.storage.get_osz2(set_id)
 
         if not current_osz2_file:
             app.session.logger.warning(f'Failed to upload beatmap: Full submit requested but osz2 file is missing')
@@ -1277,7 +1277,7 @@ def is_full_submit(set_id: int, osz2_hash: str) -> bool:
         # Client has no osz2 it can patch
         return True
 
-    osz2_file = app.session.storage.get_osz2_internal(set_id)
+    osz2_file = app.session.storage.get_osz2(set_id)
 
     if not osz2_file:
         # We don't have an osz2 we can patch
@@ -2098,7 +2098,7 @@ def adjust_files_for_collaboration(
     return result_files
 
 def existing_files(beatmapset_id: int) -> List[File]:
-    previous_osz = app.session.storage.get_osz_internal(beatmapset_id)
+    previous_osz = app.session.storage.get_osz(beatmapset_id)
     previous_osz = previous_osz or utils.empty_zip_file()
     return bss.osz_to_files(previous_osz)
 
