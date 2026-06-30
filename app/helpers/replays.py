@@ -60,7 +60,7 @@ def validate(replay_bytes: bytes) -> tuple[bool, int, list[ReplayFrame]]:
             # This replay is highly likely to be malformed or malicious
             # Hopefully this doesn't lead to false-positivies
             officer.call(
-                f'Replay validation failed: Not enough replay frames ({len(frames)})'
+                f'Replay validation failed: Not enough replay frames ({len(raw_frames)})'
             )
             return False, 0, []
 
