@@ -74,6 +74,7 @@ class Score:
         self.replay = replay
         self.status_pp = ScoreStatus.Submitted
         self.status_score = ScoreStatus.Submitted
+        self.touchscreen = False
         self.is_legacy = True
         self.ppv1 = 0.0
         self.pp = 0.0
@@ -484,6 +485,7 @@ class Score:
             grade=self.grade.name,
             status_pp=self.status_pp.value,
             status_score=self.status_score.value,
+            touchscreen=self.touchscreen,
             failtime=self.failtime,
             submitted_at=datetime.now(),
             replay_md5=(

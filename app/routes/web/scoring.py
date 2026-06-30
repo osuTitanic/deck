@@ -345,12 +345,23 @@ def perform_score_validation(
                 file=(score.replay_filename, score.serialize_replay())
             )
 
-        if not replays.validate(score.replay):
+        is_valid, _, frames = replays.validate(score.replay)
+
+        if not is_valid:
             officer.call(
                 f'"{score.username}" submitted score with invalid replay.',
                 file=(score.replay_filename, score.serialize_replay())
             )
             return 'error: no'
+
+        is_touchscreen, touchscreen_score = replays.detect_touchscreen_usage(frames)
+
+        if is_touchscreen:
+            officer.call(
+                f'"{score.username}" submitted score with touchscreen (Score: {touchscreen_score:.2f}).',
+                file=(score.replay_filename, score.serialize_replay())
+            )
+            score.touchscreen = True
 
     if score.check_invalid_mods():
         officer.call(
