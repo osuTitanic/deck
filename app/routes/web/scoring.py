@@ -24,7 +24,7 @@ from app.helpers import achievements as AchievementManager
 from app.helpers.score import Score, ScoreStatus
 from app.helpers.enums import BadFlags
 from app.helpers.chart import Chart
-from app.helpers import highlights
+from app.helpers import highlights, replays
 
 from app.common.constants import GameMode, ButtonState, NotificationType, Mods
 from app.common.helpers.ip import resolve_ip_address_fastapi
@@ -230,55 +230,6 @@ async def parse_legacy_score_data(
         )
         raise HTTPException(400)
 
-def validate_replay(replay_bytes: bytes) -> bool:
-    """Validate the replay contents"""
-    app.session.logger.debug('Validating replay...')
-
-    try:
-        replay_bytes = utils.lzma_decompress(
-            replay_bytes,
-            memlimit=1024 * 1024 * 50,
-            max_length=1024 * 1024 * 50
-        )
-        replay = replay_bytes.decode()
-        frames = replay.split(',')
-
-        if len(frames) < 100:
-            # Hopefully this doesn't lead to false-positivies
-            officer.call(
-                f'Replay validation failed: Not enough replay frames ({len(frames)})'
-            )
-            return False
-
-        for frame in frames:
-            if not frame:
-                continue
-
-            frame_data = frame.split('|')
-
-            if len(frame_data) != 4:
-                officer.call(
-                    f'Replay validation failed: Invalid frame data ({frame_data})'
-                )
-                return False
-
-            if frame_data[0] == "-12345":
-                seed = int(frame_data[3])
-                continue
-
-            time = int(frame_data[0])
-            x = float(frame_data[1])
-            y = float(frame_data[2])
-            button_state = ButtonState(int(frame_data[3]))
-    except Exception as e:
-        officer.call(
-            f'Replay validation failed: {e}',
-            exc_info=e
-        )
-        return False
-
-    return True
-
 def perform_score_validation(
     score: Score,
     player: DBUser,
@@ -394,7 +345,7 @@ def perform_score_validation(
                 file=(score.replay_filename, score.serialize_replay())
             )
 
-        if not validate_replay(score.replay):
+        if not replays.validate(score.replay):
             officer.call(
                 f'"{score.username}" submitted score with invalid replay.',
                 file=(score.replay_filename, score.serialize_replay())
