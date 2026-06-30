@@ -1,5 +1,4 @@
 
-from app.common.constants import ButtonState
 from app.common import officer
 from app import utils
 
@@ -16,7 +15,7 @@ class ReplayFrame:
     time: int
     x: float
     y: float
-    button_state: ButtonState
+    button_state: int
 
 @dataclass(frozen=True, slots=True)
 class MovementSample:
@@ -33,8 +32,10 @@ class TouchscreenAnalysis:
     presses_after_teleport: int
 
 GAMEPLAY_BUTTONS = (
-    ButtonState.Left1 | ButtonState.Right1 |
-    ButtonState.Left2 | ButtonState.Right2
+    1 | # Left1
+    2 | # Right1
+    4 | # Left2
+    8   # Right2
 )
 
 def validate(replay_bytes: bytes) -> tuple[bool, int, list[ReplayFrame]]:
@@ -85,7 +86,7 @@ def validate(replay_bytes: bytes) -> tuple[bool, int, list[ReplayFrame]]:
             delta = int(frame_data[0])
             x = float(frame_data[1])
             y = float(frame_data[2])
-            button_state = ButtonState(int(frame_data[3]))
+            button_state = int(frame_data[3])
 
             # Convert delta time into absolute replay time
             current_time += delta
@@ -201,9 +202,9 @@ def is_teleport_movement(
         and sample.speed >= speed_threshold
     )
 
-def is_new_button_press(previous_buttons: ButtonState, current_buttons: ButtonState) -> bool:
-    previous_gameplay = int(previous_buttons & GAMEPLAY_BUTTONS)
-    current_gameplay = int(current_buttons & GAMEPLAY_BUTTONS)
+def is_new_button_press(previous_buttons: int, current_buttons: int) -> bool:
+    previous_gameplay = previous_buttons & GAMEPLAY_BUTTONS
+    current_gameplay = current_buttons & GAMEPLAY_BUTTONS
     return bool(current_gameplay & ~previous_gameplay)
 
 def calculate_touchscreen_score(
@@ -255,9 +256,6 @@ def is_press_after_teleport(
 
     time_since_teleport = press_time - last_teleport_time
     return 0 <= time_since_teleport <= press_window_ms
-
-from math import ceil, floor
-
 
 def calculate_percentile(values: list[float], percentile: float) -> float:
     if not values:
