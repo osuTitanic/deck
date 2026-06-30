@@ -4,9 +4,7 @@ from app import utils
 
 from math import hypot, ceil, floor
 from dataclasses import dataclass
-from statistics import median
 
-import statistics
 import itertools
 import app
 
@@ -158,11 +156,7 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
         press_count=press_count,
         presses_after_teleport=presses_after_teleport,
     )
-    stats = build_touchscreen_stats(frames, analysis)
-
-    teleport_ratio = stats["teleport_ratio"]
-    press_teleport_ratio = stats["press_teleport_ratio"]
-    p95_speed = stats["p95_speed"]
+    teleport_ratio, press_teleport_ratio, p95_speed = build_touchscreen_stats(frames, analysis)
 
     score = calculate_touchscreen_score(
         teleport_ratio=teleport_ratio,
@@ -217,31 +211,20 @@ def calculate_touchscreen_score(
     # TODO: figure out weighting for these factors, currently just a guess
     return teleport_score * 0.35 + press_score * 0.45 + speed_score * 0.20
 
-def build_touchscreen_stats(frames: list[ReplayFrame], analysis: TouchscreenAnalysis) -> dict[str, float]:
+def build_touchscreen_stats(frames: list[ReplayFrame], analysis: TouchscreenAnalysis) -> tuple[float, float, float]:
     movement_count = len(analysis.movement_samples)
     teleport_count = len(analysis.teleport_samples)
 
     speeds = [sample.speed for sample in analysis.movement_samples]
-    teleport_speeds = [sample.speed for sample in analysis.teleport_samples]
     teleport_ratio = teleport_count / movement_count
 
     press_teleport_ratio = (
         analysis.presses_after_teleport / analysis.press_count
         if analysis.press_count > 0 else 0.0
     )
-
-    max_teleport_speed = max(teleport_speeds) if teleport_speeds else 0.0
-    median_speed = median(speeds) if speeds else 0.0
     p95_speed = calculate_percentile(speeds, 0.95)
 
-    return {
-        "frame_count": len(frames),
-        "teleport_ratio": teleport_ratio,
-        "press_teleport_ratio": press_teleport_ratio,
-        "median_speed": median_speed,
-        "p95_speed": p95_speed,
-        "max_teleport_speed": max_teleport_speed,
-    }
+    return teleport_ratio, press_teleport_ratio, p95_speed
 
 def is_press_after_teleport(
     press_time: int,
