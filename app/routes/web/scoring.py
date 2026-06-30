@@ -354,14 +354,15 @@ def perform_score_validation(
             )
             return 'error: no'
 
-        is_touchscreen, touchscreen_score = replays.detect_touchscreen_usage(frames)
+        if score.mode == GameMode.Osu:
+            is_touchscreen, touchscreen_score = replays.detect_touchscreen_usage(frames)
 
-        if is_touchscreen:
-            officer.call(
-                f'"{score.username}" submitted score with touchscreen (Score: {touchscreen_score:.2f}).',
-                file=(score.replay_filename, score.serialize_replay())
-            )
-            score.touchscreen = True
+            if is_touchscreen:
+                officer.call(
+                    f'"{score.username}" submitted score with touchscreen (Score: {touchscreen_score:.2f}).',
+                    file=(score.replay_filename, score.serialize_replay())
+                )
+                score.touchscreen = True
 
     if score.check_invalid_mods():
         officer.call(
