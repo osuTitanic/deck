@@ -16,20 +16,6 @@ class ReplayFrame:
     y: float
     button_state: int
 
-@dataclass(frozen=True, slots=True)
-class MovementSample:
-    time: int
-    delta: int
-    distance: float
-    speed: float
-
-@dataclass(frozen=True, slots=True)
-class TouchscreenAnalysis:
-    movement_samples: list[MovementSample]
-    teleport_samples: list[MovementSample]
-    press_count: int
-    presses_after_teleport: int
-
 GAMEPLAY_BUTTONS = (
     1 | # Left1
     2 | # Right1
@@ -109,9 +95,9 @@ def validate(replay_bytes: bytes) -> tuple[bool, int, list[ReplayFrame]]:
 
 def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: float = 0.8) -> tuple[bool, float]:
     """Detect touchscreen usage from parsed replay frames"""
-    movement_samples: list[MovementSample] = []
-    teleport_samples: list[MovementSample] = []
+    speed_values: list[float] = []
 
+    teleport_count = 0
     press_count = 0
     presses_after_teleport = 0
     last_teleport_time: int | None = None
@@ -130,11 +116,12 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
         movement_sample = calculate_movement_sample(previous, current)
 
         if movement_sample is not None:
-            movement_samples.append(movement_sample)
+            speed, distance = movement_sample
+            speed_values.append(speed)
 
-            if is_teleport_movement(movement_sample):
-                teleport_samples.append(movement_sample)
-                last_teleport_time = movement_sample.time
+            if is_teleport_movement(speed, distance):
+                teleport_count += 1
+                last_teleport_time = current.time
 
         if is_new_button_press(previous.button_state, current.button_state):
             press_count += 1
@@ -142,7 +129,7 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
             if is_press_after_teleport(current.time, last_teleport_time):
                 presses_after_teleport += 1
 
-    if not movement_samples:
+    if not speed_values:
         # No usable movement samples were found, likely due to a malformed replay
         return False, 0.0
 
@@ -150,14 +137,13 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
         # Not enough button presses for replay analysis to be reliable
         return False, 0.0
 
-    analysis = TouchscreenAnalysis(
-        movement_samples=movement_samples,
-        teleport_samples=teleport_samples,
+    teleport_ratio, press_teleport_ratio, p95_speed = build_touchscreen_stats(
+        movement_count=len(speed_values),
+        teleport_count=teleport_count,
         press_count=press_count,
         presses_after_teleport=presses_after_teleport,
+        speeds=speed_values,
     )
-    teleport_ratio, press_teleport_ratio, p95_speed = build_touchscreen_stats(frames, analysis)
-
     score = calculate_touchscreen_score(
         teleport_ratio=teleport_ratio,
         press_teleport_ratio=press_teleport_ratio,
@@ -165,7 +151,7 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
     )
     return score >= decision_threshold, score
 
-def calculate_movement_sample(previous: ReplayFrame, current: ReplayFrame) -> MovementSample | None:
+def calculate_movement_sample(previous: ReplayFrame, current: ReplayFrame) -> tuple[float, float] | None:
     delta = current.time - previous.time
 
     if delta <= 0:
@@ -175,22 +161,17 @@ def calculate_movement_sample(previous: ReplayFrame, current: ReplayFrame) -> Mo
     # Then we just use some simple 5th grade physics to calculate speed = distance / time
     distance = hypot(current.x - previous.x, current.y - previous.y)
     speed = distance / delta
-
-    return MovementSample(
-        time=current.time,
-        delta=delta,
-        distance=distance,
-        speed=speed,
-    )
+    return speed, distance
 
 def is_teleport_movement(
-    sample: MovementSample,
+    speed: float,
+    distance: float,
     jump_distance_threshold: float = 80.0,
     speed_threshold: float = 5.0,
 ) -> bool:
     return (
-        sample.distance >= jump_distance_threshold
-        and sample.speed >= speed_threshold
+        distance >= jump_distance_threshold
+        and speed >= speed_threshold
     )
 
 def is_new_button_press(previous_buttons: int, current_buttons: int) -> bool:
@@ -211,16 +192,18 @@ def calculate_touchscreen_score(
     # TODO: figure out weighting for these factors, currently just a guess
     return teleport_score * 0.35 + press_score * 0.45 + speed_score * 0.20
 
-def build_touchscreen_stats(frames: list[ReplayFrame], analysis: TouchscreenAnalysis) -> tuple[float, float, float]:
-    movement_count = len(analysis.movement_samples)
-    teleport_count = len(analysis.teleport_samples)
-
-    speeds = [sample.speed for sample in analysis.movement_samples]
+def build_touchscreen_stats(
+    movement_count: int,
+    teleport_count: int,
+    press_count: int,
+    presses_after_teleport: int,
+    speeds: list[float],
+) -> tuple[float, float, float]:
     teleport_ratio = teleport_count / movement_count
 
     press_teleport_ratio = (
-        analysis.presses_after_teleport / analysis.press_count
-        if analysis.press_count > 0 else 0.0
+        presses_after_teleport / press_count
+        if press_count > 0 else 0.0
     )
     p95_speed = calculate_percentile(speeds, 0.95)
 
