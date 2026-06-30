@@ -10,7 +10,7 @@ from math import hypot
 import statistics
 import app
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ReplayFrame:
     delta: int
     time: int
@@ -18,14 +18,14 @@ class ReplayFrame:
     y: float
     button_state: ButtonState
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MovementSample:
     time: int
     delta: int
     distance: float
     speed: float
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TouchscreenAnalysis:
     movement_samples: list[MovementSample]
     teleport_samples: list[MovementSample]
