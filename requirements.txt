@@ -7,7 +7,7 @@ pillow==12.2.0
 zipstream-ng==1.9.2
 psycopg2-binary==2.9.12
 py3rijndael==0.3.3
-redis==8.0.0
+redis==8.0.1
 requests==2.34.2
 sendgrid==6.12.5
 sqlalchemy==2.0.51
