@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from statistics import median
 
 import statistics
+import itertools
 import app
 
 @dataclass(frozen=True, slots=True)
@@ -117,8 +118,6 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
     presses_after_teleport = 0
     last_teleport_time: int | None = None
 
-    previous = frames[0]
-
     # We check for 3 main signals for analysis:
     # 1. Large fast cursor jumps, i.e. a movement that is considered a "teleport"
     # 2. Presses shortly after a teleport, a sign of touchscreen usage
@@ -127,7 +126,7 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
     # This method of analysis can still produce false positives, but I think its a good starting point
     # especially when only checking for high decision thresholds (0.8 by default).
 
-    for current in frames[1:]:
+    for previous, current in itertools.pairwise(frames):
         # A movement sample represents a single movement between two
         # frames, which we can analyze for speed and distance
         movement_sample = calculate_movement_sample(previous, current)
@@ -144,8 +143,6 @@ def detect_touchscreen_usage(frames: list[ReplayFrame], decision_threshold: floa
 
             if is_press_after_teleport(current.time, last_teleport_time):
                 presses_after_teleport += 1
-
-        previous = current
 
     if not movement_samples:
         # No usable movement samples were found, likely due to a malformed replay
