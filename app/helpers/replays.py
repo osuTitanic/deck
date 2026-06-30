@@ -3,9 +3,9 @@ from app.common.constants import ButtonState
 from app.common import officer
 from app import utils
 
+from math import hypot, ceil, floor
 from dataclasses import dataclass
 from statistics import median
-from math import hypot
 
 import statistics
 import app
@@ -256,12 +256,29 @@ def is_press_after_teleport(
     time_since_teleport = press_time - last_teleport_time
     return 0 <= time_since_teleport <= press_window_ms
 
+from math import ceil, floor
+
+
 def calculate_percentile(values: list[float], percentile: float) -> float:
     if not values:
         return 0.0
 
-    # https://stackoverflow.com/questions/2374640/how-do-i-calculate-percentiles-with-python-numpy
-    # :)
-    quantiles = statistics.quantiles(values, n=100)
-    index = int(percentile * 100) - 1
-    return quantiles[index]
+    if len(values) == 1:
+        return values[0]
+
+    # https://code.activestate.com/recipes/511478-finding-the-percentile-of-the-values/
+    # this one seems to be better than using statistics.quantiles()
+
+    sorted_values = sorted(values)
+    position = (len(sorted_values) - 1) * percentile
+
+    lower_index = floor(position)
+    upper_index = ceil(position)
+
+    if lower_index == upper_index:
+        return sorted_values[lower_index]
+
+    lower_value = sorted_values[lower_index]
+    upper_value = sorted_values[upper_index]
+    weight = position - lower_index
+    return lower_value + (upper_value - lower_value) * weight
