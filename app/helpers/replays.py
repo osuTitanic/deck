@@ -202,9 +202,9 @@ def is_teleport_movement(
     )
 
 def is_new_button_press(previous_buttons: ButtonState, current_buttons: ButtonState) -> bool:
-    previous_pressed = is_gameplay_button_pressed(previous_buttons)
-    current_pressed = is_gameplay_button_pressed(current_buttons)
-    return current_pressed and not previous_pressed
+    previous_gameplay = int(previous_buttons & GAMEPLAY_BUTTONS)
+    current_gameplay = int(current_buttons & GAMEPLAY_BUTTONS)
+    return bool(current_gameplay & ~previous_gameplay)
 
 def calculate_touchscreen_score(
     teleport_ratio: float,
@@ -265,6 +265,3 @@ def calculate_percentile(values: list[float], percentile: float) -> float:
     quantiles = statistics.quantiles(values, n=100)
     index = int(percentile * 100) - 1
     return quantiles[index]
-
-def is_gameplay_button_pressed(buttons: ButtonState) -> bool:
-    return bool(buttons & GAMEPLAY_BUTTONS)
