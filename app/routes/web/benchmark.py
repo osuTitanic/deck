@@ -55,7 +55,9 @@ def validate_hardware_data(hardware: str) -> dict:
     optional_keys = {
         'resolution',
         'fullscreen',
-        'letterboxing'
+        'letterboxing',
+        'dotnet_version',
+        'client_architecture'
     }
     full_hardware_keys = {
         'cpu', 'cores', 'threads',
