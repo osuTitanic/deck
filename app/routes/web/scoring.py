@@ -363,6 +363,7 @@ def perform_score_validation(
                     file=(score.replay_filename, score.serialize_replay())
                 )
                 score.touchscreen = True
+                score.pp = score.calculate_ppv2()
 
     if score.check_invalid_mods():
         officer.call(
