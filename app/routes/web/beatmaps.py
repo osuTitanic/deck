@@ -344,15 +344,13 @@ def upload_beatmap(
         app.session.logger.error(f'Failed to upload beatmap: Failed to decrypt osz2 file')
         return error_response(5, 'Something went wrong while processing your beatmap. Please try again!')
 
-    current_files = existing_files(beatmapset.id)
-
     if beatmapset.creator_id != user.id:
         # User was invited for a beatmap collaboration
         # We want to make sure they can only update the
         # files that they are allowed to update
         osz2.files = adjust_files_for_collaboration(
             osz2.files,
-            current_files,
+            existing_files(beatmapset.id),
             allowed_beatmaps,
             can_update_resources
         )
