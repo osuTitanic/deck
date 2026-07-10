@@ -391,7 +391,8 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
         return error_response(5, 'Your beatmap is too short. Please try to make it longer and try again!')
 
-    package_filesize = bss.calculate_osz_size(osz2.files)
+    osz_package = bss.create_osz_package(osz2.files)
+    package_filesize = len(osz_package)
     size_limit = bss.calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit and not user.is_admin:
@@ -416,6 +417,7 @@ def upload_beatmap(
     update_beatmap_package(
         beatmapset.id,
         osz2.files,
+        osz_package,
         session
     )
 
@@ -776,7 +778,8 @@ def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Sess
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
         return "Your beatmap is too short. Please try to make it longer and try again!"
 
-    package_filesize = bss.calculate_osz_size(files)
+    osz_package = bss.create_osz_package(files)
+    package_filesize = len(osz_package)
     size_limit = bss.calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
@@ -824,6 +827,7 @@ def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Sess
     update_beatmap_package(
         beatmapset.id,
         files,
+        osz_package,
         session
     )
 
@@ -1044,7 +1048,8 @@ def upload_osz(
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap length is too short')
         return bancho_message("Your beatmap is too short. Please try to make it longer and try again!", user)
 
-    package_filesize = bss.calculate_osz_size(files)
+    osz_package = bss.create_osz_package(files)
+    package_filesize = len(osz_package)
     size_limit = bss.calculate_size_limit(max_beatmap_length)
 
     if package_filesize > size_limit:
@@ -1070,6 +1075,7 @@ def upload_osz(
     update_beatmap_package(
         set_id,
         files,
+        osz_package,
         session
     )
 
@@ -1620,11 +1626,11 @@ def update_beatmap_files(files: List[File], session: Session) -> None:
 def update_beatmap_package(
     set_id: int,
     files: List[File],
+    osz_package: bytes,
     session: Session
 ) -> None:
     app.session.logger.debug(f'Updating beatmap package...')
 
-    osz_package = bss.create_osz_package(files)
     osz_size = len(osz_package)
 
     app.session.storage.upload_osz(
