@@ -146,7 +146,7 @@ def create_osz_package(files: List[File]) -> bytes:
         zip_info.compress_type = zipfile.ZIP_DEFLATED
         zip_info.date_time = file.date_modified.timetuple()[:6]
         zip_info.external_attr = (stat.S_IFREG | 0o664) << 16
-        osz.writestr(zip_info, file.content)
+        osz.writestr(zip_info, file.content, compresslevel=1)
 
     osz.close()
     result = buffer.getvalue()
