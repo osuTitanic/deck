@@ -1825,7 +1825,11 @@ def remaining_beatmap_uploads(user: DBUser, session: Session) -> int:
 
     if 'Admins' in group_names:
         # Admins have unlimited uploads
-        return 10
+        return 69
+
+    if 'Beatmap Approval Team' in group_names:
+        # BATs have unlimited uploads
+        return 69
 
     unranked_beatmaps = beatmapsets.fetch_unranked_count(
         user.id,
