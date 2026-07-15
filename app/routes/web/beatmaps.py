@@ -393,7 +393,7 @@ def upload_beatmap(
     package_filesize = len(osz_package)
     size_limit = bss.calculate_size_limit(max_beatmap_length)
 
-    if package_filesize > size_limit and not user.is_admin:
+    if package_filesize > size_limit and not user.is_bat:
         app.session.logger.warning(
             f'Failed to upload beatmap: Beatmap package is too large '
             f'({package_filesize} / {size_limit} bytes)'
