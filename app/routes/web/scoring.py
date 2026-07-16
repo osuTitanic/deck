@@ -31,8 +31,8 @@ from app.common.helpers.ip import resolve_ip_address_fastapi
 from app.common.helpers.score import calculate_rx_score
 from app.common.database import DBStats, DBScore, DBUser
 from app.common.config import config_instance as config
+from app.common.helpers import performance, permissions
 from app.common.cache import leaderboards, status
-from app.common.helpers import performance
 from app.common.constants import regexes
 from app.common import officer
 from app import utils
@@ -817,6 +817,10 @@ def score_submission(
         app.session.logger.warning(f'Failed to submit score: Bot account')
         return 'error: no'
 
+    if not permissions.has_permission('scores.submit', player.id):
+        app.session.logger.warning(f'Failed to submit score: No permission')
+        return 'error: no'
+
     score.beatmap = beatmaps.fetch_by_checksum(
         score.file_checksum,
         session
@@ -1012,6 +1016,10 @@ def legacy_score_submission(
 
     if player.is_bot:
         app.session.logger.warning(f'Failed to submit score: Bot account')
+        return ""
+
+    if not permissions.has_permission('scores.submit', player.id):
+        app.session.logger.warning(f'Failed to submit score: No permission')
         return ""
 
     score.beatmap = beatmaps.fetch_by_checksum(
