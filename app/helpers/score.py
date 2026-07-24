@@ -79,10 +79,10 @@ class Score:
         self.ppv1 = 0.0
         self.pp = 0.0
 
-        self.personal_best_score: DBScore | None = None
-        self.personal_best_pp: DBScore | None = None
-        self.beatmap: DBBeatmap | None = None
-        self.user: DBUser | None = None
+        self.personal_best_score: DBScore
+        self.personal_best_pp: DBScore
+        self.beatmap: DBBeatmap
+        self.user: DBUser
 
         # Optional
         self.fun_spoiler: str | None = None
@@ -274,7 +274,7 @@ class Score:
             session.query(DBScore) \
                 .filter(DBScore.id == mods_pb.id) \
                 .update({'status_pp': ScoreStatus.Submitted.value})
-            session.commit()
+            session.flush()
             return ScoreStatus.Mods
 
         # New pb was set
@@ -288,7 +288,7 @@ class Score:
             .filter(DBScore.id == self.personal_best_pp.id) \
             .update(status)
 
-        session.commit()
+        session.flush()
         return ScoreStatus.Best
 
     def calculate_score_status(self, session: Session) -> ScoreStatus:
@@ -341,7 +341,7 @@ class Score:
             session.query(DBScore) \
                 .filter(DBScore.id == mods_pb.id) \
                 .update({'status_score': ScoreStatus.Submitted.value})
-            session.commit()
+            session.flush()
             return ScoreStatus.Mods
 
         # New pb was set
@@ -355,7 +355,7 @@ class Score:
             .filter(DBScore.id == self.personal_best_score.id) \
             .update(status)
 
-        session.commit()
+        session.flush()
         return ScoreStatus.Best
 
     def check_invalid_mods(self) -> bool:

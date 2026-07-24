@@ -342,7 +342,7 @@ def perform_score_validation(
         if any(flag in score.flags for flag in flags):
             officer.call(
                 f'"{score.username}" submitted score with bad flags: {score.flags.name}.',
-                file=(score.replay_filename, score.serialize_replay())
+                file=(score.replay_filename, score.serialize_replay() or b"")
             )
 
         is_valid, _, frames = replays.validate(score.replay)
@@ -350,7 +350,7 @@ def perform_score_validation(
         if not is_valid:
             officer.call(
                 f'"{score.username}" submitted score with invalid replay.',
-                file=(score.replay_filename, score.serialize_replay())
+                file=(score.replay_filename, score.serialize_replay() or b"")
             )
             return 'error: no'
 
@@ -360,7 +360,7 @@ def perform_score_validation(
             if is_touchscreen:
                 officer.call(
                     f'"{score.username}" submitted score with touchscreen (Score: {touchscreen_score:.2f}).',
-                    file=(score.replay_filename, score.serialize_replay())
+                    file=(score.replay_filename, score.serialize_replay() or b"")
                 )
                 score.touchscreen = True
                 score.pp = score.calculate_ppv2()
@@ -368,7 +368,7 @@ def perform_score_validation(
     if score.check_invalid_mods():
         officer.call(
             f'"{score.username}" submitted score with invalid mods: {score.enabled_mods.name}.',
-            file=(score.replay_filename, score.serialize_replay())
+            file=(score.replay_filename, score.serialize_replay() or b"")
         )
 
         if not player.is_verified:
@@ -386,7 +386,7 @@ def perform_score_validation(
     if score.beatmap.awards_pp and score.pp >= pp_cutoff:
         officer.call(
             f'"{score.username}" exceeded the pp limit ({score.pp}).',
-            file=(score.replay_filename, score.serialize_replay())
+            file=(score.replay_filename, score.serialize_replay() or b"")
         )
 
         if not player.is_verified:
@@ -657,13 +657,13 @@ def resolve_preferred_ranking(user: DBUser, mode: int) -> Tuple[int, int]:
 
     if user.preferred_ranking != 'ppv1':
         return (
-            preferred_rank,
-            leaderboards.performance(user.id, mode)
+            int(preferred_rank),
+            int(leaderboards.performance(user.id, mode))
         )
 
     return (
-        preferred_rank,
-        leaderboards.ppv1(user.id, mode)
+        int(preferred_rank),
+        int(leaderboards.ppv1(user.id, mode))
     )
 
 def response_charts(
@@ -769,13 +769,29 @@ def response_charts(
 
     return [beatmap_info, beatmap_ranking, overall_chart]
 
-def thread_callback(future: Future) -> None:
-    if not (e := future.exception()):
-        return
+def commit_score_submission(
+    score: Score,
+    player: DBUser,
+    session: Session,
+    score_object: DBScore | None = None
+) -> None:
+    """Commit a score submission before notifying other services"""
+    session.commit()
 
-    officer.call(
-        f'Failed to execute score submission task.',
-        exc_info=e
+    if score_object is not None:
+        # Replay upload uses a separate database session
+        # Score has to be committed before uploading the replay
+        app.session.score_executor.submit(
+            upload_replay,
+            score,
+            score_object.id
+        ).add_done_callback(thread_callback)
+
+    # Reload stats on bancho
+    app.session.events.submit(
+        'user_update',
+        user_id=player.id,
+        mode=score.mode.value
     )
 
 @router.post("/osu-submit-modular-selector.php")
@@ -876,6 +892,8 @@ def score_submission(
             score.beatmap
         )
 
+    score_object: DBScore | None = None
+
     if score.beatmap.is_ranked:
         score.personal_best_pp = scores.fetch_personal_best(
             score.beatmap.id,
@@ -903,37 +921,29 @@ def score_submission(
             ) \
             if score.personal_best_score else 0
 
-        # Submit to database
+        # Create the score object that will be committed to the database
         score_object = score.to_database()
-        score_object.client_hash = score.client_hash
 
         if not config.ALLOW_RELAX and score.relaxing:
             score_object.hidden = True
 
         session.add(score_object)
-        session.commit()
-
-        # Try to upload replay
-        app.session.score_executor.submit(
-            upload_replay,
-            score,
-            score_object.id
-        ).add_done_callback(thread_callback)
+        session.flush()
 
     new_stats, old_stats, ranking = update_stats(score, player, session)
 
-    # Commit all changes to the database
-    session.commit()
-
-    # Reload stats on bancho
-    app.session.events.submit(
-        'user_update',
-        user_id=player.id,
-        mode=score.mode.value
+    # Commit score to the database, upload the replay & reload stats on bancho
+    commit_score_submission(
+        score,
+        player,
+        session,
+        score_object
     )
 
     if not score.beatmap.is_ranked:
         return 'error: beatmap'
+
+    assert score_object is not None
 
     if not config.ALLOW_RELAX and score.relaxing:
         return 'error: no'
@@ -967,12 +977,14 @@ def score_submission(
         session
     )
 
+    if achievement_response:
+        # Commit achievements to the database
+        session.commit()
+
     app.session.logger.info(
         f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
         f' ({config.OSU_BASEURL}/scores/{score_object.id})'
     )
-
-    session.commit()
 
     # Send highlights on #announce
     if score.passed:
@@ -1080,6 +1092,8 @@ def legacy_score_submission(
         # Prevent "Taiko" mod plays from being submitted
         raise HTTPException(400)
 
+    score_object: DBScore | None = None
+
     if score.beatmap.is_ranked:
         score.personal_best_pp = scores.fetch_personal_best(
             score.beatmap.id,
@@ -1114,43 +1128,35 @@ def legacy_score_submission(
             score_object.hidden = True
 
         session.add(score_object)
-        session.commit()
-
-        # Try to upload replay
-        app.session.score_executor.submit(
-            upload_replay,
-            score,
-            score_object.id
-        ).add_done_callback(thread_callback)
+        session.flush()
 
     new_stats, old_stats, ranking = update_stats(score, player, session)
 
-    # Commit all changes to the database
-    session.commit()
-
-    # Reload stats on bancho
-    app.session.events.submit(
-        'user_update',
-        user_id=player.id,
-        mode=score.mode.value
+    # Commit score to the database, upload the replay & reload stats on bancho
+    commit_score_submission(
+        score,
+        player,
+        session,
+        score_object
     )
 
     if not score.beatmap.is_ranked:
         return ""
 
+    assert score_object is not None
+
     if not config.ALLOW_RELAX and score.relaxing:
         return ""
 
-    app.session.logger.info(
-        f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
-        f' ({config.OSU_BASEURL}/scores/{score_object.id})'
-    )
-
     if not score.passed:
+        app.session.logger.info(
+            f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+            f' ({config.OSU_BASEURL}/scores/{score_object.id})'
+        )
         return ""
 
     achievement_response: List[str] = []
-    response: List[Chart] = []
+    response: List[str] = []
 
     if not score.relaxing:
         achievement_response = unlock_achievements(
@@ -1167,7 +1173,14 @@ def legacy_score_submission(
         session=session
     )
 
-    session.commit()
+    if achievement_response:
+        # Commit achievements to the database
+        session.commit()
+
+    app.session.logger.info(
+        f'"{score.username}" submitted {"failed " if score.failtime else ""}score on {score.beatmap.full_name}'
+        f' ({config.OSU_BASEURL}/scores/{score_object.id})'
+    )
 
     if score.is_score_pb:
         response.append(str(beatmap_rank))
@@ -1193,3 +1206,12 @@ def legacy_score_submission(
         ).add_done_callback(thread_callback)
 
     return "\n".join(response)
+
+def thread_callback(future: Future) -> None:
+    if not (exception := future.exception()):
+        return
+
+    officer.call(
+        f'Failed to execute score submission task.',
+        exc_info=exception
+    )
