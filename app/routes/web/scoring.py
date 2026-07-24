@@ -31,6 +31,7 @@ from app.common.helpers.ip import resolve_ip_address_fastapi
 from app.common.helpers.score import calculate_rx_score
 from app.common.database import DBStats, DBScore, DBUser
 from app.common.config import config_instance as config
+from app.common.helpers import clients as client_utils
 from app.common.helpers import performance, permissions
 from app.common.cache import leaderboards, status
 from app.common.constants import regexes
@@ -45,6 +46,7 @@ from app.common.database.repositories import (
     scores,
     logins,
     plays,
+    releases,
     users,
     stats
 )
@@ -290,6 +292,13 @@ def perform_score_validation(
         )
         return 'error: no'
 
+    if not is_whitelisted_client(score, player, client_hash, session):
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with an invalid client: '
+            f'{score.version_string} ({client_hash})'
+        )
+        return 'error: no'
+
     if score.passed:
         # Replay must exist when the score is a pass
         if not score.replay:
@@ -397,6 +406,71 @@ def perform_score_validation(
                 reason=f'Exceeded pp limit ({round(score.pp)})'
             )
             return 'error: ban'
+
+def is_whitelisted_client(
+    score: Score,
+    player: DBUser,
+    client_hash: str | None,
+    session: Session
+) -> bool:
+    """Check the current client against the approved releases"""
+    if len(score.version_string) > 25:
+        return False
+
+    version_match = regexes.OSU_VERSION.match(score.version_string)
+
+    if version_match is None:
+        return False
+
+    bypass_check = (
+        # Either the verification is completely disabled or ...
+        config.DISABLE_CLIENT_VERIFICATION
+        # a special permission exists to bypass verification, e.g. for TMG
+        or permissions.has_permission(
+            'clients.validation.bypass',
+            player.id
+        )
+    )
+
+    if bypass_check:
+        return True
+
+    version = int(version_match.group('date'))
+
+    if config.BANCHO_CLIENT_CUTOFF and version > config.BANCHO_CLIENT_CUTOFF:
+        return False
+
+    if client_hash is None:
+        return False
+
+    executable_hash = client_hash.split(':', 1)[0]
+
+    if releases.official_file_exists(executable_hash, session=session):
+        return True
+
+    identifier = (
+        version_match.group('stream')
+        or version_match.group('name')
+        or 'stable'
+    )
+    valid_identifiers = {
+        'stable', 'test', 'tourney', 'cuttingedge', 'beta',
+        'ubertest', 'public_test', 'ce45', 'peppy', 'dev',
+        'arcade', 'noxna', 'fallback', 'a', 'b', 'c', 'd', 'e'
+    }
+
+    if identifier in valid_identifiers:
+        return client_utils.is_valid_client_hash(
+            version,
+            executable_hash,
+            session=session
+        )
+
+    return client_utils.is_valid_mod(
+        identifier,
+        executable_hash,
+        session=session
+    )
 
 def upload_replay(score: Score, score_id: int) -> None:
     if not score.passed or not score.replay:
