@@ -14,10 +14,10 @@ from fastapi import (
 )
 
 from py3rijndael import RijndaelCbc, Pkcs7Padding
-from datetime import datetime, timedelta
 from concurrent.futures import Future
 from sqlalchemy.orm import Session
 from typing import Tuple, List
+from datetime import datetime
 from copy import copy
 
 from app.helpers import achievements as AchievementManager
@@ -673,7 +673,7 @@ def resolve_preferred_ranking(user: DBUser, mode: int) -> Tuple[int, int]:
 
 def response_charts(
     score: Score,
-    score_id: int,
+    score_object: DBScore,
     ranking: dict,
     old_stats: DBStats,
     new_stats: DBStats,
@@ -712,7 +712,7 @@ def response_charts(
         round(new_stats.acc, 4) * (100 if not score.is_legacy else 1)
     )
 
-    overall_chart['onlineScoreId'] = score_id
+    overall_chart['onlineScoreId'] = score_object.id
     overall_chart['toNextRankUser'] = ''
     overall_chart['toNextRank'] = '0'
 
@@ -741,7 +741,7 @@ def response_charts(
     beatmap_ranking['chartUrl'] = f'{config.OSU_BASEURL}/b/{score.beatmap.id}'
 
     old_score = score.personal_best_score
-    new_score = score.to_database()
+    new_score = score_object
 
     if old_score:
         beatmap_ranking.entry('rank', old_rank, new_rank)
@@ -900,14 +900,10 @@ def score_submission(
     score_object: DBScore | None = None
 
     if score.beatmap.is_ranked:
-        score.personal_best_pp = scores.fetch_personal_best(
-            score.beatmap.id,
-            score.user.id,
-            score.mode.value,
-            session=session
-        )
-
-        score.personal_best_score = scores.fetch_personal_best_score(
+        (
+            score.personal_best_pp,
+            score.personal_best_score
+        ) = scores.fetch_personal_bests(
             score.beatmap.id,
             score.user.id,
             score.mode.value,
@@ -972,7 +968,7 @@ def score_submission(
 
     response = response_charts(
         score,
-        score_object.id,
+        score_object,
         ranking,
         old_stats,
         new_stats,
@@ -1100,14 +1096,10 @@ def legacy_score_submission(
     score_object: DBScore | None = None
 
     if score.beatmap.is_ranked:
-        score.personal_best_pp = scores.fetch_personal_best(
-            score.beatmap.id,
-            score.user.id,
-            score.mode.value,
-            session=session
-        )
-
-        score.personal_best_score = scores.fetch_personal_best_score(
+        (
+            score.personal_best_pp,
+            score.personal_best_score
+        ) = scores.fetch_personal_bests(
             score.beatmap.id,
             score.user.id,
             score.mode.value,
