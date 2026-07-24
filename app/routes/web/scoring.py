@@ -471,13 +471,18 @@ def update_stats(
     score.beatmap.passcount += 1 if score.passed else 0
     session.flush()
 
-    # Update user stats
-    user_stats = stats.fetch_by_mode(
-        score.user.id,
-        score.mode.value,
-        session
+    # Find the matching user stats
+    user_stats = next(
+        (
+            mode_stats
+            for mode_stats in player.stats
+            if mode_stats.mode == score.mode.value
+        ),
+        None
     )
+    assert user_stats is not None, f'Missing mode {score.mode.value} stats for user {player.id}'
 
+    # Update user stats
     old_stats = copy(user_stats)
     old_rank, old_pp = resolve_preferred_ranking(player, score.mode.value)
     new_rank, new_pp = old_rank, old_pp
