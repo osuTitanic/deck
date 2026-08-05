@@ -11,7 +11,7 @@ redis==8.1.0
 requests==2.34.2
 sendgrid==6.12.5
 sqlalchemy==2.0.51
-uvicorn==0.51.0
+uvicorn==0.52.0
 pydub==0.25.1
 rosu-pp-py==4.0.2
 python-multipart==0.0.32
