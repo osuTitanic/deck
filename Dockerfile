@@ -27,7 +27,10 @@ COPY requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel && \
     pip install --no-compile --root /install -r requirements.txt && \
-    pip install --no-compile --root /install granian[pname,uvloop]
+    pip install --no-compile --root /install granian[pname,uvloop] && \
+    native_dir=/install/usr/local/lib/python3.14/site-packages/osu_native_py/native/bin && \
+    test -f "$native_dir/linux-x64/osu.Native.so" && \
+    rm -rf "$native_dir/osx-arm64" "$native_dir/win-x64"
 
 FROM python:3.14-alpine
 
@@ -40,6 +43,8 @@ RUN apk add --no-cache \
     curl \
     ffmpeg \
     freetype \
+    gcompat \
+    icu-libs \
     lcms2 \
     libffi \
     libjpeg-turbo \
@@ -63,8 +68,10 @@ ENV WEB_THREADS_RUNTIME=${WEB_THREADS_RUNTIME}
 WORKDIR /deck
 COPY . .
 
-# Precompile python modules to lower start latency
-RUN python -m compileall -q /usr/local/lib/python3.14/site-packages app
+# Precompile python modules & verify osu-native is installed correctly
+RUN test -r /usr/local/lib/python3.14/site-packages/osu_native_py/native/bin/linux-x64/osu.Native.so && \
+    python -c 'from osu_native_py.native import LIB_PATH; assert LIB_PATH.is_file(), LIB_PATH' && \
+    python -m compileall -q /usr/local/lib/python3.14/site-packages app
 
 STOPSIGNAL SIGINT
 ENTRYPOINT ["/sbin/tini", "--"]

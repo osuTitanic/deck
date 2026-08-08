@@ -1,5 +1,5 @@
 
-from .common.helpers.performance import ppv2, ppv2_rosu
+from .common.helpers.performance import ppv2, ppv2_native
 from .common.helpers.beatmaps import BeatmapResources
 from .common.cache.events import EventQueue
 from .common.database import Postgres
@@ -41,5 +41,5 @@ achievement_executor = ThreadPoolExecutor(max_workers=5)
 score_executor = ThreadPoolExecutor(max_workers=5)
 
 # Initialize ppv2 calculator
-instance = ppv2_rosu.RosuPerformanceCalculator(beatmaps)
+instance = ppv2_native.NativePerformanceCalculator(beatmaps)
 ppv2.initialize_calculator(instance)
