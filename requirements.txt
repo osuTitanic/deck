@@ -11,13 +11,13 @@ redis==8.1.0
 requests==2.34.2
 sendgrid==6.12.5
 sqlalchemy==2.0.51
-uvicorn==0.52.0
+uvicorn==0.52.1
 pydub==0.25.1
-osu-native-py==0.0.3
+osu-native-py==0.1.0
 python-multipart==0.0.32
 audioop-lts==0.2.2; python_version >= "3.13"
 osz2==1.1.7
-pydantic-settings==2.14.2
+pydantic-settings==2.15.0
 numpy==2.5.1
 git+https://github.com/osuTitanic/slider@bb0fe9e59c27e380778dcb4779913c27cb3c0b8a
 git+https://github.com/mgeisler/pygob@ebef7bcd2f13cad4975a9a06e43f6fbdfcb8b3fe
