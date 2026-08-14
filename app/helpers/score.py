@@ -23,6 +23,7 @@ import re
 
 MAX_PROCESS_LINE_LENGTH = 2048 # Prevent processing long lines
 MAX_PROCESS_NUM_LINES = 1000 # Prevent processing too many lines
+MAX_PROCESS_LIST_SIZE = MAX_PROCESS_LINE_LENGTH * MAX_PROCESS_NUM_LINES
 PROCESS_LIST_LEFT_PATTERN = re.compile(r"^([a-fA-F0-9]{32})\s+(.*)") # checked for redos
 
 # <md5> <full_path> | <process_name> (<window_title>)
@@ -566,17 +567,31 @@ class Score:
         return False
 
     def validate_processes(self) -> bool:
-        if self.processes is None or len(self.process) == 0:
+        if self.processes is None or len(self.processes) == 0:
             return False
         
+        if len(self.processes) > MAX_PROCESS_LIST_SIZE:
+            return True # Skip, might need to warn
+        
+        if self.processes[:1000].count("\n\n") > 10:
+            return False # prevent "\n" abuse before we hit split
+
         ok = True
         num_osu_processes = 0
+        num_invalid = 0
 
         process_lines = self.processes.split("\n")
         if len(process_lines) > MAX_PROCESS_NUM_LINES:
             return True # Skip, might need to warn elsewhere or return a different value
         
         for line in process_lines:
+            if len(line) < 7: # smallest size is " |  ()" meaning no process name, no window title, no md5.
+                num_invalid += 1
+                continue
+            
+            if num_invalid > 10: # prevent "\n" abuse
+                return False
+            
             process = ScoreProcess.from_line(line)
             
             if process is None:
