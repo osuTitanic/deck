@@ -65,7 +65,7 @@ def check_rank(
             is_announcement=True
         )
 
-    if stats.rank >= 10 and stats.rank != 1:
+    if stats.rank <= 10 and stats.rank != 1:
         # Player has risen to the top 10 or above
         activity.submit(
             player.id,
