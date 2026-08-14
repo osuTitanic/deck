@@ -565,6 +565,35 @@ class Score:
 
         return False
 
+    def validate_processes(self) -> bool:
+        if self.processes is None or len(self.process) == 0:
+            return False
+        
+        ok = True
+        num_osu_processes = 0
+
+        process_lines = self.processes.split("\n")
+        for line in process_lines:
+            process = ScoreProcess.from_line(line)
+            
+            if process is None:
+                continue
+            
+            if process.process_name == "osu!":
+                num_osu_processes += 1
+                if self.md5 is None or len(self.md5) < 32 or (self.client_hash is not None and self.client_hash.startswith(self.md5) == False):
+                    self.BadFlags |= BadFlags.OsuExecutableChecksum
+                    ok = False
+
+        if num_osu_processes == 0:
+            self.BadFlags |= BadFlags.MissingProcessesInList
+            ok = False
+        elif num_osu_processes > 1:
+            self.BadFlags |= BadFlags.MultipleOsuClients
+            ok = False
+        
+        return ok
+
     def serialize_replay(self) -> bytes | None:
         """Serialize the replay of this score into an .osr format"""
         if not self.replay:
