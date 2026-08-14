@@ -573,6 +573,9 @@ class Score:
         num_osu_processes = 0
 
         process_lines = self.processes.split("\n")
+        if len(process_lines) > MAX_PROCESS_NUM_LINES:
+            return True # Skip, might need to warn elsewhere or return a different value
+        
         for line in process_lines:
             process = ScoreProcess.from_line(line)
             
