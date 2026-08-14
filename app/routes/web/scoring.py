@@ -444,8 +444,10 @@ def is_whitelisted_client(
         return False
 
     executable_hash = client_hash.split(':', 1)[0]
-
-    if releases.official_file_exists(executable_hash, session=session):
+    matched_release = releases.fetch_official_file_by_checksum(executable_hash, session=session)
+    if matched_release is not None:
+        if matched_release.version != version:
+            return False
         return True
 
     identifier = (
