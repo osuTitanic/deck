@@ -112,7 +112,7 @@ def beatmap_osz(filename: str) -> StreamingResponse:
         media_type='application/octet-stream',
         headers={
             'Last-Modified': beatmapset.last_update.strftime('%a, %d %b %Y %H:%M:%S GMT'),
-            'Content-Disposition': f'attachment; filename="{osz_filename}"',
+            'Content-Disposition': f'attachment; filename="{quote(osz_filename)}"',
             'Content-Length': str(size)
         }
     )
