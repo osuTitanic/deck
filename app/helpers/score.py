@@ -19,6 +19,85 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 import hashlib
+import re
+
+MAX_PROCESS_LINE_LENGTH = 2048 # Prevent processing long lines
+MAX_PROCESS_NUM_LINES = 1000 # Prevent processing too many lines
+PROCESS_LIST_LEFT_PATTERN = re.compile(r"^([a-fA-F0-9]{32})\s+(.*)") # checked for redos
+
+class ScoreProcess:
+    def __init__(
+        self,
+        full_line: str,
+        md5: str | None,
+        full_path: str | None,
+        process_name: str | None,
+        window_title: str | None
+    ) -> None:
+        self.full_line = full_line
+        self.md5 = md5
+        self.full_path = full_path
+        self.process_name = process_name
+        self.window_title = window_title
+
+    @classmethod
+    def from_line(cls, line: str) -> ScoreProcess | None:
+        if line is None:
+            return None
+
+        if len(line) > MAX_PROCESS_LINE_LENGTH:
+            return cls(
+                full_line=line, 
+                md5=None, 
+                full_path=None, 
+                process_name=None, 
+                window_title=None)
+
+        # <md5> <full_path> | <process_name> (<window_title>)
+        line = line.strip()
+
+        # using a full regex here is prone to a ReDoS because of | and ( character backtracks
+        # to avoid headaches just using simpler methods
+
+        if " | " not in line:
+            return cls(
+                full_line=line,
+                md5=None, 
+                full_path=None, 
+                process_name=None, 
+                window_title=None
+            )
+
+        md5 = None
+        full_path = None
+        process_name = None
+        window_title = None
+
+        left, right = line.split(" | ", 1)
+        match_left = PROCESS_LIST_LEFT_PATTERN.match(left)
+        
+        if match_left:
+            md5 = match_left.group(1)
+            full_path = match_left.group(2)
+        else:
+            full_path = left
+
+        if " (" in right:
+            process_name, _, window_title = right.partition(" (")
+
+            if window_title and window_title.endswith(")"):
+                window_title = window_title[:-1]
+            
+        else:
+            process_name = right
+        
+        return cls(
+            full_line=line,
+            md5=md5, 
+            full_path=full_path, 
+            process_name=process_name,
+            window_title=window_title
+        )
 
 class Score:
     def __init__(
