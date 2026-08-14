@@ -298,6 +298,13 @@ def perform_score_validation(
             f'{score.version_string} ({client_hash})'
         )
         return 'error: no'
+    
+    if not score.validate_processes():
+        app.session.logger.warning(
+            f'"{score.username}" submitted score with a failed process list: '
+            f'{score.version_string} ({client_hash}) ({score.BadFlags})'
+        )
+        return 'error: no'
 
     if score.passed:
         # Replay must exist when the score is a pass
@@ -445,6 +452,7 @@ def is_whitelisted_client(
 
     executable_hash = client_hash.split(':', 1)[0]
     matched_release = releases.fetch_official_file_by_checksum(executable_hash, session=session)
+
     if matched_release is not None:
         if matched_release.version != version:
             return False
@@ -455,6 +463,7 @@ def is_whitelisted_client(
         or version_match.group('name')
         or 'stable'
     )
+
     valid_identifiers = {
         'stable', 'test', 'tourney', 'cuttingedge', 'beta',
         'ubertest', 'public_test', 'ce45', 'peppy', 'dev',
