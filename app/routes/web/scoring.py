@@ -313,7 +313,7 @@ def perform_score_validation(
             if hash_parsed.network_adapters is not None and hash_parsed.network_adapters_md5 is not None:
                 if not hash_parsed.validate_adapters():
                     app.session.logger.warning(
-                        f'"{score.username}" submitted score with a invalid network adapter hash: '
+                        f'"{score.username}" submitted score with an invalid network adapter hash: '
                         f'{score.version_string} ({client_hash}) ({score.BadFlags})'
                     )
                     return 'error: no'
