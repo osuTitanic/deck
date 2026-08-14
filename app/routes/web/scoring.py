@@ -305,6 +305,18 @@ def perform_score_validation(
             f'{score.version_string} ({client_hash}) ({score.BadFlags})'
         )
         return 'error: no'
+    
+    if score.client_hash is not None:
+        hash_parsed = ScoreSecurityHash.from_string(score.client_hash)
+        if hash_parsed is not None: # sanity check
+            # Validate network adapter hash
+            if hash_parsed.network_adapters is not None and hash_parsed.network_adapters_md5 is not None:
+                if not hash_parsed.validate_adapters():
+                    app.session.logger.warning(
+                        f'"{score.username}" submitted score with a invalid network adapter hash: '
+                        f'{score.version_string} ({client_hash}) ({score.BadFlags})'
+                    )
+                    return 'error: no'
 
     if score.passed:
         # Replay must exist when the score is a pass
