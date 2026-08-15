@@ -7,8 +7,9 @@ MAX_PROCESS_NUM_LINES = 1000 # Prevent processing too many lines
 MAX_PROCESS_LIST_SIZE = MAX_PROCESS_LINE_LENGTH * MAX_PROCESS_NUM_LINES
 PROCESS_LIST_LEFT_PATTERN = re.compile(r"^([a-fA-F0-9]{32})\s+(.*)") # checked for redos
 
-# <md5> <full_path> | <process_name> (<window_title>)
 class ScoreProcess:
+    """<md5> <full_path> | <process_name> (<window_title>)"""
+
     def __init__(
         self,
         full_line: str,
@@ -34,7 +35,8 @@ class ScoreProcess:
                 md5=None,
                 full_path=None,
                 process_name=None,
-                window_title=None)
+                window_title=None
+            )
 
         line = line.strip()
 
@@ -50,28 +52,23 @@ class ScoreProcess:
                 window_title=None
             )
 
-        md5 = None
-        full_path = None
-        process_name = None
-        window_title = None
-
         left, right = line.split(" | ", 1)
         match_left = PROCESS_LIST_LEFT_PATTERN.match(left)
+
+        md5 = None
+        full_path = left
+        process_name = right
+        window_title = None
 
         if match_left:
             md5 = match_left.group(1)
             full_path = match_left.group(2)
-        else:
-            full_path = left
 
         if " (" in right:
             process_name, _, window_title = right.partition(" (")
 
             if window_title and window_title.endswith(")"):
                 window_title = window_title[:-1]
-
-        else:
-            process_name = right
 
         return cls(
             full_line=line,
@@ -81,8 +78,9 @@ class ScoreProcess:
             window_title=window_title
         )
 
-# AABBCCDDEEFF.AABBCCDDEEFF.AABBCCDDEEFF.. (empty is fine, but normally 6 bytes uppercase)
 class ScoreNetworkAdapter:
+    """AABBCCDDEEFF.AABBCCDDEEFF.AABBCCDDEEFF.. (empty is fine, but normally 6 bytes uppercase)"""
+
     def __init__(
         self,
         physical_address: str | None
@@ -96,8 +94,9 @@ class ScoreNetworkAdapter:
 
         return [cls(physical_address=addr) for addr in part.split(".")]
 
-# <osu!.exe md5>:<MAC Address[0].MAC Address[1]>:<MAC Address combined md5>:<UniqueId md5>:<UniqueId2 md5>:
 class ScoreSecurityHash:
+    """<osu!.exe md5>:<MAC Address[0].MAC Address[1]>:<MAC Address combined md5>:<UniqueId md5>:<UniqueId2 md5>:"""
+
     def __init__(
         self,
         osu_exe_md5: str | None,
