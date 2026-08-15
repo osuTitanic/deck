@@ -1,5 +1,6 @@
 
 from app.helpers.enums import BadFlags
+from app.helpers.score_security import ScoreProcess, MAX_PROCESS_LIST_SIZE, MAX_PROCESS_NUM_LINES
 from app.common.config import config_instance as config
 from app.common.database.repositories import scores
 from app.common.helpers import performance, replays
@@ -406,10 +407,10 @@ class Score:
     def validate_processes(self) -> bool:
         if self.processes is None or len(self.processes) == 0:
             return False
-        
+
         if len(self.processes) > MAX_PROCESS_LIST_SIZE:
             return True # Skip, might need to warn
-        
+
         if self.processes[:1000].count("\n\n") > 10:
             return False # prevent "\n" abuse before we hit split
 
@@ -420,20 +421,20 @@ class Score:
         process_lines = self.processes.split("\n")
         if len(process_lines) > MAX_PROCESS_NUM_LINES:
             return True # Skip, might need to warn elsewhere or return a different value
-        
+
         for line in process_lines:
             if len(line) < 7: # smallest size is " |  ()" meaning no process name, no window title, no md5.
                 num_invalid += 1
                 continue
-            
+
             if num_invalid > 10: # prevent "\n" abuse
                 return False
-            
+
             process = ScoreProcess.from_line(line)
-            
+
             if process is None:
                 continue
-            
+
             if process.process_name == "osu!":
                 num_osu_processes += 1
                 if self.md5 is None or len(self.md5) < 32 or (self.client_hash is not None and self.client_hash.startswith(self.md5) == False):
@@ -446,7 +447,7 @@ class Score:
         elif num_osu_processes > 1:
             self.BadFlags |= BadFlags.MultipleOsuClients
             ok = False
-        
+
         return ok
 
     def serialize_replay(self) -> bytes | None:
