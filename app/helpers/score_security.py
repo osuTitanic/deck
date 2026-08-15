@@ -115,7 +115,7 @@ class ScoreSecurityHash:
     @staticmethod
     def validate_adapters_unprocessed(network_adapters_str: str, network_adapters_md5: str) -> bool:
         """Checks if md5(network_adapters_str) == network_adapters_md5"""
-        return hashlib.md5(network_adapters_md5).hexdigest() == network_adapters_md5 # we can expect the network_adapters_md5 to be lowercase coming from the client
+        return hashlib.md5(network_adapters_str).hexdigest() == network_adapters_md5 # we can expect the network_adapters_md5 to be lowercase coming from the client
 
     def validate_adapters (self) -> bool:
         """Runs a check to make sure network_adapters_md5 is a real md5 of the network_adapters"""
