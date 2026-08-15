@@ -303,7 +303,7 @@ def perform_score_validation(
     if not score.validate_processes():
         app.session.logger.warning(
             f'"{score.username}" submitted score with a failed process list: '
-            f'{score.version_string} ({client_hash}) ({score.BadFlags})'
+            f'{score.version_string} ({client_hash}) ({score.flags})'
         )
         return 'error: no'
     
@@ -315,7 +315,7 @@ def perform_score_validation(
                 if not hash_parsed.validate_adapters():
                     app.session.logger.warning(
                         f'"{score.username}" submitted score with an invalid network adapter hash: '
-                        f'{score.version_string} ({client_hash}) ({score.BadFlags})'
+                        f'{score.version_string} ({client_hash}) ({score.flags})'
                     )
                     return 'error: no'
 

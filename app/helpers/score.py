@@ -437,15 +437,15 @@ class Score:
 
             if process.process_name == "osu!":
                 num_osu_processes += 1
-                if process.md5 is None or len(process.md5) < 32 or (self.client_hash is not None and self.client_hash.startswith(self.md5) == False):
-                    self.BadFlags |= BadFlags.OsuExecutableChecksum
+                if process.md5 is None or len(process.md5) < 32 or (self.client_hash is not None and self.client_hash.startswith(process.md5) == False):
+                    self.flags |= BadFlags.OsuExecutableChecksum
                     ok = False
 
         if num_osu_processes == 0:
-            self.BadFlags |= BadFlags.MissingProcessesInList
+            self.flags |= BadFlags.MissingProcessesInList
             ok = False
         elif num_osu_processes > 1:
-            self.BadFlags |= BadFlags.MultipleOsuClients
+            self.flags |= BadFlags.MultipleOsuClients
             ok = False
 
         return ok
