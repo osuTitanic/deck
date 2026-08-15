@@ -30,10 +30,10 @@ class ScoreProcess:
 
         if len(line) > MAX_PROCESS_LINE_LENGTH:
             return cls(
-                full_line=line, 
-                md5=None, 
-                full_path=None, 
-                process_name=None, 
+                full_line=line,
+                md5=None,
+                full_path=None,
+                process_name=None,
                 window_title=None)
 
         line = line.strip()
@@ -44,9 +44,9 @@ class ScoreProcess:
         if " | " not in line:
             return cls(
                 full_line=line,
-                md5=None, 
-                full_path=None, 
-                process_name=None, 
+                md5=None,
+                full_path=None,
+                process_name=None,
                 window_title=None
             )
 
@@ -69,14 +69,14 @@ class ScoreProcess:
 
             if window_title and window_title.endswith(")"):
                 window_title = window_title[:-1]
-            
+
         else:
             process_name = right
-        
+
         return cls(
             full_line=line,
-            md5=md5, 
-            full_path=full_path, 
+            md5=md5,
+            full_path=full_path,
             process_name=process_name,
             window_title=window_title
         )
@@ -93,7 +93,7 @@ class ScoreNetworkAdapter:
     def from_adapter_list (cls, part: str | None) -> list[ScoreNetworkAdapter] | None:
         if part is None:
             return None
-        
+
         return [cls(physical_address=addr) for addr in part.split(".")]
 
 # <osu!.exe md5>:<MAC Address[0].MAC Address[1]>:<MAC Address combined md5>:<UniqueId md5>:<UniqueId2 md5>:
@@ -115,29 +115,32 @@ class ScoreSecurityHash:
     @staticmethod
     def validate_adapters_unprocessed(network_adapters_str: str, network_adapters_md5: str) -> bool:
         """Checks if md5(network_adapters_str) == network_adapters_md5"""
-        return hashlib.md5(network_adapters_str).hexdigest() == network_adapters_md5 # we can expect the network_adapters_md5 to be lowercase coming from the client
+        return hashlib.md5(network_adapters_str.encode()).hexdigest() == network_adapters_md5 # we can expect the network_adapters_md5 to be lowercase coming from the client
 
-    def validate_adapters (self) -> bool:
+    def validate_adapters(self) -> bool:
         """Runs a check to make sure network_adapters_md5 is a real md5 of the network_adapters"""
-        if network_adapters is None:
+        if self.network_adapters is None:
             return True
-        
-        if len(network_adapters) == 0:
+
+        if self.network_adapters_md5 is None:
             return True
-        
+
+        if len(self.network_adapters) == 0:
+            return True
+
         # We do an early check here because when we reconstruct the adapters using this value
         # we would get "runningunderwine." instead of "runningunderwine", causing the md5 to mismatch anyway.
-        if network_adapters[0] == "runningunderwine": 
+        if self.network_adapters[0] == "runningunderwine":
             return True
 
-        network_adapter_str = "".join(f"{network_adapter.physical_address  or ''}." for adapter in self.network_adapters)
+        network_adapter_str = "".join(f"{adapter.physical_address  or ''}." for adapter in self.network_adapters)
         return ScoreSecurityHash.validate_adapters_unprocessed(network_adapter_str, self.network_adapters_md5)
 
     @classmethod
-    def from_string (cls, security_hash_str: str | None) -> ScoreSecurityHash | None:
-        if part is None:
+    def from_string(cls, security_hash_str: str | None) -> ScoreSecurityHash | None:
+        if security_hash_str is None:
             return None
-        
+
         osu_exe_md5 = None
         network_adapters = None
         network_adapters_md5 = None
@@ -156,7 +159,7 @@ class ScoreSecurityHash:
                 unique_id_md5 = part
             elif i == 4:
                 unique_id2_md5 = part
-        
+
         return cls(
             osu_exe_md5=osu_exe_md5,
             network_adapters=network_adapters,
