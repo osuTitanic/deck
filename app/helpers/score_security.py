@@ -111,6 +111,10 @@ class ScoreSecurityHash:
         self.unique_id_md5 = unique_id_md5
         self.unique_id2_md5 = unique_id2_md5
 
+    @property
+    def has_adapters(self) -> bool:
+        return self.network_adapters is not None and self.network_adapters_md5 is not None
+
     @staticmethod
     def validate_adapters_unprocessed(network_adapters_str: str, network_adapters_md5: str) -> bool:
         """Checks if md5(network_adapters_str) == network_adapters_md5"""
@@ -136,10 +140,7 @@ class ScoreSecurityHash:
         return ScoreSecurityHash.validate_adapters_unprocessed(network_adapter_str, self.network_adapters_md5)
 
     @classmethod
-    def from_string(cls, security_hash_str: str | None) -> ScoreSecurityHash | None:
-        if security_hash_str is None:
-            return None
-
+    def from_string(cls, security_hash_str: str) -> ScoreSecurityHash:
         osu_exe_md5 = None
         network_adapters = None
         network_adapters_md5 = None
