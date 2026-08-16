@@ -342,8 +342,9 @@ def upload_beatmap(
     update_beatmap_audio(beatmapset, osz2.beatmaps, osz2.files)
     update_beatmap_files(osz2.files, session=session)
 
-    # Upload the osz2 file to storage
-    app.session.storage.upload_osz2(set_id, osz2_file)
+    if config.BEATMAP_SUBMISSION_STORE_OSZ2:
+        # Upload the osz2 file to storage
+        app.session.storage.upload_osz2(set_id, osz2_file)
 
     # Update osz2 hashes
     update_osz2_hashes(set_id, osz2, session)
@@ -1207,6 +1208,10 @@ def bancho_message(message: str, user: DBUser) -> Response:
 
 def is_full_submit(set_id: int, osz2_hash: str) -> bool:
     """Determine if the client should upload the full osz2 or a patch file"""
+    if not config.BEATMAP_SUBMISSION_STORE_OSZ2:
+        # We don't store osz2 files, so the client should always upload the full osz2
+        return True
+
     if not osz2_hash:
         # Client has no osz2 it can patch
         return True
