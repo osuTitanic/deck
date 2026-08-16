@@ -20,7 +20,7 @@ class UploadRequest:
     osz_ticket: str
     has_video: bool
     has_storyboard: bool
-    metadata: Dict[MetadataType, str] = field(default_factory=dict)
+    metadata: Dict[MetadataType, str | float | None] = field(default_factory=dict)
     is_update: bool = False
     tickets: List[UploadTicket] = field(default_factory=list)
 

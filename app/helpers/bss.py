@@ -10,6 +10,10 @@ from sqlalchemy import func
 from slider import Beatmap
 from osz2 import *
 
+from .bss_decorators import *
+from .bss_tickets import *
+from .bss_osz2 import *
+
 from app.common.helpers import activity, performance, permissions as permissions_helper
 from app.common.constants import UserActivity, BeatmapGenre, BeatmapLanguage
 from app.common.database.repositories import *
@@ -19,10 +23,6 @@ from app.common.cache import status
 from app.common import officer
 from app.helpers import bss
 from app import utils
-
-from .bss_decorators import *
-from .bss_tickets import *
-from .bss_osz2 import *
 
 import urllib.parse
 import statistics

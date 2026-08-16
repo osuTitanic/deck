@@ -7,7 +7,7 @@ from osz2 import File
 
 from app.helpers import bss
 from app.helpers.bss_decorators import integer_boolean_query, integer_boolean_form, catch_bss_errors
-from app.common.database.objects import DBUser
+from app.common.database.objects import DBUser, DBForumPost
 from app.common.database.repositories import (
     beatmapsets,
     beatmaps,
@@ -510,8 +510,9 @@ def handle_common_upload(
         user.id,
         upload_request
     )
+    post: DBForumPost
 
-    if beatmapset:
+    if beatmapset and beatmapset.topic_id:
         post = posts.fetch_initial_post(
             beatmapset.topic_id,
             session=session
@@ -526,7 +527,8 @@ def handle_common_upload(
     response.append(f'{upload_ticket.ticket}')
     response.append(f'{upload_request.osz_filename}')
 
-    if response[0] != "new":
+    if beatmapset and response[0] != "new":
+        assert post is not None # sanity check for the type checker
         is_approved = beatmapset.status > 0
         response.append(f'{beatmapset.topic_id or -1}')
         response.append(f'{int(is_approved)}')
