@@ -73,7 +73,7 @@ def get_upload_request(user_id: int) -> UploadRequest | None:
     return request
 
 def upload_request_exists(user_id: int) -> bool:
-    return app.session.redis.exists(f'beatmap_upload:{user_id}')
+    return bool(app.session.redis.exists(f'beatmap_upload:{user_id}'))
 
 def remove_upload_request(user_id: int) -> None:
     app.session.redis.delete(f'beatmap_upload:{user_id}')

@@ -236,11 +236,20 @@ def upload_osz(
             app.session.logger.warning(f'Failed to upload osz file: Beatmap hash mismatch')
             return bss.bancho_message("An error occurred while processing your beatmap. Please try again!", user)
 
-    beatmap_data = {
-        file.filename: bss.parse_beatmap(file.content)
-        for file in files
-        if file.is_beatmap
-    }
+    beatmap_data: dict[str, Beatmap] = {}
+
+    for beatmap_file in files:
+        if not beatmap_file.is_beatmap:
+            continue
+
+        parsed_beatmap = bss.parse_beatmap(beatmap_file.content)
+
+        if not parsed_beatmap:
+            app.session.logger.warning(f'Failed to upload osz file: Failed to parse beatmap file "{beatmap_file.filename}"')
+            return bss.bancho_message("An error occurred while processing your beatmap. Please try again!", user)
+
+        beatmap_data[beatmap_file.filename] = parsed_beatmap
+
     max_beatmap_length = bss.maximum_beatmap_length(beatmap_data.values())
 
     if max_beatmap_length <= 1:
@@ -585,11 +594,16 @@ def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Sess
         )
 
     files = list(file_map.values())
+    beatmap_data: dict[str, Beatmap] = {}
 
-    beatmap_data = {
-        ticket.filename: bss.parse_beatmap(ticket.file)
-        for ticket in request.tickets
-    }
+    for ticket in request.tickets:
+        parsed_beatmap = bss.parse_beatmap(ticket.file)
+
+        if not parsed_beatmap:
+            app.session.logger.warning(f'Failed to process upload request: Failed to parse beatmap file "{ticket.filename}"')
+            return "An error occurred while processing your beatmap. Please try again!"
+
+        beatmap_data[ticket.filename] = parsed_beatmap
 
     allowed_usernames = {
         beatmapset.creator_user.name,

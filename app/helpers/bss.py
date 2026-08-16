@@ -191,7 +191,7 @@ def resolve_primary_mode(beatmaps: List[DBBeatmap]) -> int:
 def update_beatmap_metadata(
     beatmapset: DBBeatmapset,
     files: List[File],
-    metadata: Dict[MetadataType, str],
+    metadata: Dict[MetadataType, str | float | None],
     beatmap_data: Dict[str, Beatmap],
     session: Session
 ) -> None:
@@ -206,7 +206,7 @@ def update_beatmap_metadata(
     status = (-1 if beatmapset.status <= -1 else 0)
 
     # Try to detect genre & language from tags
-    tags = metadata.get(MetadataType.Tags, '').split()
+    tags = metadata.get(MetadataType.Tags, '').split() # type: ignore this shit
     detected_language = bss.detect_language_from_tags(tags)
     detected_genre = bss.detect_genre_from_tags(tags)
     is_explicit = bss.detect_explicit_from_tags(tags) or beatmapset.explicit
@@ -306,6 +306,8 @@ def update_beatmap_metadata(
         count_normal = len(beatmap.hit_objects(circles=True, sliders=False, spinners=False))
         count_slider = len(beatmap.hit_objects(sliders=True, circles=False, spinners=False))
         count_spinner = len(beatmap.hit_objects(spinners=True, circles=False, sliders=False))
+
+        assert beatmap.beatmap_id is not None, "Beatmap ID is None" # should never happen, we pre-assigned all IDs above
 
         beatmaps.update(
             beatmap.beatmap_id,
@@ -532,11 +534,12 @@ def duplicate_beatmap_files(
     return False
 
 def validate_beatmap_owner(
-    metadata: Dict[MetadataType, str],
+    metadata: Dict[MetadataType, str | float | None],
     beatmaps: Dict[str, Beatmap],
     allowed_usernames: Iterable[str]
 ) -> bool:
     creator = metadata.get(MetadataType.Creator)
+    assert isinstance(creator, str) or creator is None
 
     if creator and creator not in allowed_usernames:
         return False
@@ -570,6 +573,9 @@ def resolve_beatmap_id(
 
 def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
     """Check if a beatmap has the 'bubble' icon on the forums"""
+    if not beatmapset.topic_id:
+        return False
+
     topic = topics.fetch_one(
         beatmapset.topic_id,
         session=session
@@ -583,6 +589,9 @@ def is_bubbled(beatmapset: DBBeatmapset, session: Session) -> bool:
 
 def pop_bubble(beatmapset: DBBeatmapset, session: Session) -> None:
     """Change the forum icon of the beatmap and increase its star priority by 5"""
+    if not beatmapset.topic_id:
+        return
+
     topic = topics.fetch_one(
         beatmapset.topic_id,
         session=session
@@ -651,6 +660,9 @@ def delete_inactive_beatmaps(user: DBUser, session: Session) -> None:
 
         # Hide beatmap topic
         for set in inactive_sets:
+            if set.topic_id is None:
+                continue
+
             topics.update(
                 set.topic_id,
                 {
