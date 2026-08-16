@@ -48,6 +48,10 @@ import app
 
 router = APIRouter()
 
+"""
+osz2 beatmap submission endpoints
+"""
+
 @router.get('/osu-osz2-bmsubmit-getid.php')
 @catch_bss_errors("A server error occurred. Please try again!")
 def validate_upload_request(
@@ -58,6 +62,10 @@ def validate_upload_request(
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='s')
 ) -> Response:
+    """
+    Prepare a beatmap submission & (re)assign server-side beatmap IDs.
+    This is called before uploading the actual osz2 package to let the client know if the submission can proceed.
+    """
     if not config.BEATMAP_SUBMISSION_ENABLED:
         app.session.logger.warning('The beatmap submission system is currently disabled. Aborting...')
         return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
@@ -172,6 +180,11 @@ def upload_beatmap(
     password: str = Depends(query_or_form('h')),
     set_id: int = Depends(query_or_form('s'))
 ):
+    """
+    Upload and apply an osz2 beatmap submission.
+    This is called after the client receives IDs from the submission preparation endpoint.
+    The beatmap metadata, .osz package, .osu files, and other resources will be updated on the server.
+    """
     if not config.BEATMAP_SUBMISSION_ENABLED:
         app.session.logger.warning('The beatmap submission system is currently disabled. Aborting...')
         return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
@@ -371,6 +384,10 @@ def forum_post(
     complete: bool = Depends(integer_boolean_form('complete')),
     notify: bool = Depends(integer_boolean_form('notify'))
 ) -> Response:
+    """
+    Create or update a beatmap's forum topic. This is called after clicking the "Submit" button on the submission form.
+    It also updates the beatmapset's description and status based on the "complete" flag (WIP / Pending).
+    """
     error, user = authenticate_user(
         username,
         password,
@@ -470,6 +487,10 @@ def topic_contents(
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='s')
 ):
+    """
+    Get an existing beatmap's forum topic contents.
+    The client will use this to display the beatmap's description, which the user can update accordingly.
+    """
     error, user = authenticate_user(
         username,
         password,
@@ -496,6 +517,10 @@ def topic_contents(
         f'{topic.title}',
         f'{first_post.content if first_post else ""}',
     ])
+
+"""
+pre-osz2 / legacy beatmap submission endpoints
+"""
 
 def create_ticket_hash(
     filename: str,
