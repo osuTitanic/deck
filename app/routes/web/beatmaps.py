@@ -1,5 +1,4 @@
 
-from starlette.datastructures import UploadFile as StarletteUploadFile
 from typing import Dict, List, Callable, Tuple, Any, Iterable
 from slider.events import EventType
 from sqlalchemy.orm import Session
@@ -18,6 +17,16 @@ from app.common.database import *
 from app.common import officer
 from app.helpers import bss
 from app import utils
+
+from app.helpers.bss_decorators import (
+    integer_boolean_query,
+    integer_boolean_form,
+    catch_bss_errors,
+    integer_boolean,
+    query_or_form,
+    comma_list,
+    file
+)
 
 from fastapi import (
     File as FastAPIFile,
@@ -38,104 +47,6 @@ import time
 import app
 
 router = APIRouter()
-
-def comma_list(parameter: str, cast=str) -> Callable:
-    async def wrapper(request: Request) -> List[Any]:
-        try:
-            query = request.query_params.get(parameter, '')
-            return [cast(value) for value in query.split(',')]
-        except ValueError:
-            raise HTTPException(400, 'Invalid query parameter')
-    return wrapper
-
-def integer_boolean_query(parameter: str) -> Callable:
-    async def wrapper(request: Request) -> bool:
-        query = request.query_params.get(parameter, '0')
-        return query == '1'
-    return wrapper
-
-def integer_boolean_form(parameter: str) -> Callable:
-    async def wrapper(request: Request) -> bool:
-        form = await request.form()
-        query = form.get(parameter, '0')
-        return query == '1'
-    return wrapper
-
-def integer_boolean(parameter: str) -> Callable:
-    async def wrapper(request: Request) -> bool:
-        query = request.query_params.get(parameter)
-
-        if query is not None:
-            return query == '1'
-
-        # Try to use form data as a backup
-        form = await request.form()
-        query = form.get(parameter)
-        return query == '1'
-    return wrapper
-
-def query_or_form(alias: str) -> Callable:
-    async def wrapper(request: Request) -> StarletteUploadFile | str:
-        query = request.query_params.get(alias)
-
-        if query is not None:
-            return query
-
-        form = await request.form()
-
-        if alias not in form:
-            raise HTTPException(
-                status_code=400,
-                detail=f'Missing required parameter: {alias}'
-            )
-
-        return form[alias]
-    return wrapper
-
-def file(*aliases) -> Callable:
-    async def wrapper(request: Request) -> StarletteUploadFile | str:
-        form = await request.form()
-
-        for alias in aliases:
-            if alias in form:
-                return form[alias]
-
-        raise HTTPException(
-            status_code=400,
-            detail=f'Missing required file parameter: {", ".join(aliases)}'
-        )
-    return wrapper
-
-def catch_bss_errors(
-    message: str = "A server error occurred. Please try again!",
-    legacy: bool = False
-) -> Callable:
-    def decorator(func) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs) -> Response:
-            try:
-                return func(*args, **kwargs)
-            except AssertionError as e:
-                assertion_msg = str(e)
-                response_msg = f"Your beatmapset could not be updated: {assertion_msg}"
-                officer.call(f"Failed to process bss request: {assertion_msg}")
-
-                if session := kwargs.get('session'):
-                    session.rollback()
-
-                return error_response(5, response_msg, legacy=legacy)
-            except Exception as e:
-                officer.call(
-                    f'Failed to execute {func.__name__}.',
-                    exc_info=e
-                )
-
-                if session := kwargs.get('session'):
-                    session.rollback()
-
-                return error_response(5, message, legacy=legacy)
-        return wrapper
-    return decorator
 
 @router.get('/osu-osz2-bmsubmit-getid.php')
 @catch_bss_errors("A server error occurred. Please try again!")
