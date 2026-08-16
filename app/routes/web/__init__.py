@@ -7,6 +7,8 @@ from . import checktweets
 from . import beatmapinfo
 from . import markasread
 from . import favourites
+from . import bss_legacy
+from . import bss_osz2
 from . import benchmark
 from . import comments
 from . import seasonal
@@ -25,7 +27,6 @@ from . import login
 from . import coins
 from . import maps
 from . import osz2
-from . import bss
 
 router = APIRouter()
 router.include_router(leaderboards.router)
@@ -35,6 +36,8 @@ router.include_router(beatmapinfo.router)
 router.include_router(markasread.router)
 router.include_router(favourites.router)
 router.include_router(benchmark.router)
+router.include_router(bss_legacy.router)
+router.include_router(bss_osz2.router)
 router.include_router(comments.router)
 router.include_router(seasonal.router)
 router.include_router(updates.router)
@@ -52,4 +55,3 @@ router.include_router(login.router)
 router.include_router(coins.router)
 router.include_router(maps.router)
 router.include_router(osz2.router)
-router.include_router(bss.router)

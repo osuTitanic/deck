@@ -5,7 +5,7 @@ from typing import Callable, List, Any
 from app.common import officer
 from functools import wraps
 
-def comma_list(parameter: str, cast=str) -> Callable:
+def comma_list(parameter: str, cast: Callable = str) -> Callable:
     async def wrapper(request: Request) -> List[Any]:
         try:
             query = request.query_params.get(parameter, '')

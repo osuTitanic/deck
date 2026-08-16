@@ -1,8 +1,8 @@
 
 from fastapi import HTTPException, APIRouter, Response, Query, Depends
-from app.routes.web.beatmaps import error_response
 from app.common.database import beatmapsets, users
 from app.common.helpers.replays import get_ticks
+from app.helpers.bss import error_response
 from sqlalchemy.orm import Session
 from osz2 import Osz2Package
 
@@ -16,6 +16,12 @@ def get_osz2_hashes(
     set_id: int = Query(..., alias="s")
 ) -> str:
     if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
+        return "0"
+
+    if not beatmapset.body_hash is None:
+        return "0"
+
+    if not beatmapset.meta_hash is None:
         return "0"
 
     return "|".join(
