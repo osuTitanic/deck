@@ -1,4 +1,5 @@
 
+from app.common.database.repositories.wrapper import SessionProvider
 from app.common.constants import BeatmapGenre, BeatmapLanguage
 from app.common.database import DBBeatmapset, DBBeatmap
 from app.common.database.repositories import wrapper
@@ -7,11 +8,11 @@ from app.helpers.bss_osz2 import *
 
 from zipfile import ZipFile, ZipInfo
 from sqlalchemy.orm import Session
+from typing import List, Iterable
 from sqlalchemy import func
 from datetime import datetime
 from slider import Beatmap
 from enum import IntEnum
-from typing import List
 from osz2 import *
 
 import statistics
@@ -69,7 +70,7 @@ min_break_duration = 650
 # The minimum required duration of a gap between two objects such that a break can be placed between them.
 minimum_gap = gap_before_break + min_break_duration + gap_after_break
 
-def calculate_beatmap_total_length(beatmap: Beatmap) -> int:
+def calculate_beatmap_total_length(beatmap: Beatmap) -> int | float:
     """Calculate the total length of a beatmap from its hit objects"""
     hit_objects = beatmap.hit_objects()
 
@@ -80,7 +81,7 @@ def calculate_beatmap_total_length(beatmap: Beatmap) -> int:
     last_object = hit_objects[-1].time.total_seconds() * 1000
     return max(last_object - first_object, 0)
 
-def calculate_beatmap_drain_length(beatmap: Beatmap) -> int:
+def calculate_beatmap_drain_length(beatmap: Beatmap) -> int | float:
     """Calculate the drain length of a beatmap from its hit objects"""
     hit_objects = beatmap.hit_objects()
 
@@ -117,7 +118,7 @@ def calculate_beatmap_median_bpm(beatmap: Beatmap) -> float:
 
     return statistics.median(bpm_values)
 
-def maximum_beatmap_length(beatmaps: List[Beatmap]) -> int:
+def maximum_beatmap_length(beatmaps: Iterable[Beatmap]) -> int | float:
     """Retrieve the maximum total length of all beatmaps in milliseconds"""
     if not beatmaps:
         return 0
@@ -127,7 +128,7 @@ def maximum_beatmap_length(beatmaps: List[Beatmap]) -> int:
         for beatmap in beatmaps
     )
 
-def calculate_size_limit(beatmap_length: int) -> int:
+def calculate_size_limit(beatmap_length: int | float) -> int | float:
     # The file size limit is 10MB plus an additional 10MB for
     # every minute of beatmap length, and it caps at 100MB.
     return min(
@@ -209,7 +210,7 @@ def detect_explicit_from_tags(tags: List[str]) -> bool:
     return False
 
 @wrapper.session_wrapper
-def next_beatmapset_id(session: Session = ...) -> int:
+def next_beatmapset_id(session: Session = SessionProvider) -> int:
     """Get the next availabe beatmapset id"""
     while True:
         database_id = session.query(
@@ -226,7 +227,7 @@ def next_beatmapset_id(session: Session = ...) -> int:
         return database_id
 
 @wrapper.session_wrapper
-def next_beatmap_id(session: Session = ...) -> int:
+def next_beatmap_id(session: Session = SessionProvider) -> int:
     """Get the next availabe beatmap id"""
     while True:
         database_id = session.query(

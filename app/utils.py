@@ -104,9 +104,9 @@ def resize_and_crop_image(
 
 def extract_audio_snippet(
     audio: bytes,
-    offset_ms: int,
-    duration_ms: int = 10000,
-    bitrate: int = '64k'
+    offset_ms: int | float,
+    duration_ms: int | float = 10000,
+    bitrate: str = '64k'
 ) -> bytes:
     # Load audio and extract snippet
     audio = AudioSegment.from_file(io.BytesIO(audio))

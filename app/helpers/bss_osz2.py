@@ -3,24 +3,29 @@ from app.common.database.repositories import wrapper
 from app.helpers.bss_tickets import *
 from app.common import officer
 
-from io import BufferedReader
+from io import BufferedReader, BytesIO
+from typing import Dict, BinaryIO
 from slider import Beatmap
-from typing import Dict
 from osz2 import *
 
 class InternalOsz2(Osz2Package):
     """An extension of the osz2 package that implements beatmap parsing with slider"""
     def __init__(
         self,
-        reader: BufferedReader,
+        reader: BinaryIO,
         metadata_only=False,
         key_type=KeyType.OSZ2
     ) -> None:
         super().__init__(reader, metadata_only, key_type)
         self.beatmaps: Dict[str, Beatmap] = {}
-        
+
         if not metadata_only:
             self.populate_beatmaps()
+
+    @classmethod
+    def from_bytes(cls, data: bytes, metadata_only=False, key_type=KeyType.OSZ2) -> "InternalOsz2":
+        with BytesIO(data) as f:
+            return cls(f, metadata_only, key_type)
 
     def populate_beatmaps(self) -> None:
         for file in self.beatmap_files:
@@ -45,7 +50,7 @@ def parse_beatmap(osu_file: bytes) -> Beatmap | None:
     return Beatmap.parse(osu_file.decode(encoding='utf-8-sig', errors='ignore'))
 
 @wrapper.exception_wrapper(process_on_fail)
-def osz2_metadata_from_beatmap(beatmap: Beatmap) -> Dict[MetadataType, str]:
+def osz2_metadata_from_beatmap(beatmap: Beatmap) -> Dict[MetadataType, str | float | None]:
     return {
         MetadataType.Title: beatmap.title,
         MetadataType.TitleUnicode: beatmap.title_unicode,

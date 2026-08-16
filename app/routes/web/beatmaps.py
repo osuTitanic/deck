@@ -1,5 +1,6 @@
 
-from typing import Dict, List, Callable, Tuple, Any
+from starlette.datastructures import UploadFile as StarletteUploadFile
+from typing import Dict, List, Callable, Tuple, Any, Iterable
 from slider.events import EventType
 from sqlalchemy.orm import Session
 from collections import Counter
@@ -74,7 +75,7 @@ def integer_boolean(parameter: str) -> Callable:
     return wrapper
 
 def query_or_form(alias: str) -> Callable:
-    async def wrapper(request: Request) -> str:
+    async def wrapper(request: Request) -> StarletteUploadFile | str:
         query = request.query_params.get(alias)
 
         if query is not None:
@@ -92,7 +93,7 @@ def query_or_form(alias: str) -> Callable:
     return wrapper
 
 def file(*aliases) -> Callable:
-    async def wrapper(request: Request) -> UploadFile:
+    async def wrapper(request: Request) -> StarletteUploadFile | str:
         form = await request.form()
 
         for alias in aliases:
@@ -160,6 +161,9 @@ def validate_upload_request(
         # Failed to authenticate user
         return error
 
+    if not user:
+        return error_response(5, 'Authentication failed. Please check your username and password and try again!')
+
     # Delete any inactive beatmaps
     delete_inactive_beatmaps(user, session=session)
 
@@ -168,7 +172,7 @@ def validate_upload_request(
 
     if beatmapset := resolve_beatmapset(set_id, beatmap_ids, session):
         # User wants to update an existing beatmapset
-        set_id = beatmapset.id
+        resolved_set_id = beatmapset.id
 
         allowed_beatmaps, can_update_resources = beatmap_update_permissions(
             user,
@@ -197,14 +201,14 @@ def validate_upload_request(
             return error_response(5, 'You are not allowed to add additional beatmaps to this beatmapset.')
 
         # Create/Remove new beatmaps if necessary
-        beatmap_ids = update_beatmaps(
+        updated_beatmap_ids = update_beatmaps(
             user,
             beatmap_ids,
             beatmapset,
             session=session
         )
 
-        if beatmap_ids is None:
+        if updated_beatmap_ids is None:
             return error_response(5, 'Please ask the owner of this beatmapset to delete your beatmap.')
 
         # Get "bubbled" status
@@ -213,7 +217,7 @@ def validate_upload_request(
             session
         )
 
-        app.session.logger.info(f'{user.name} wants to update a beatmapset ({set_id})')
+        app.session.logger.info(f'{user.name} wants to update a beatmapset ({resolved_set_id})')
 
     else:
         # User wants to upload a new beatmapset
@@ -222,25 +226,25 @@ def validate_upload_request(
             return error_response(5, "You have reached your maximum amount of beatmaps you can upload.")
 
         # Create a new empty beatmapset inside the database
-        set_id, beatmap_ids = create_beatmapset(
+        resolved_set_id, updated_beatmap_ids = create_beatmapset(
             user,
             beatmap_ids,
             session=session
         )
 
-        if set_id is None:
+        if resolved_set_id is None:
             return error_response(5, "An error occurred while creating the beatmapset.")
 
-        app.session.logger.info(f'{user.name} wants to create a new beatmapset ({set_id})')
+        app.session.logger.info(f'{user.name} wants to create a new beatmapset ({resolved_set_id})')
 
     # Either we don't have the osz2 file or the client has no osz2 file
     # If full-submit is true, the client will submit a patch file
-    full_submit = is_full_submit(set_id, osz2_hash)
+    full_submit = is_full_submit(resolved_set_id, osz2_hash)
 
     return Response('\n'.join([
         '0',
-        f'{set_id}',
-        ','.join(map(str, beatmap_ids)),
+        f'{resolved_set_id}',
+        ','.join(map(str, updated_beatmap_ids)),
         f'{int(full_submit)}',
         f'{remaining_beatmaps}',
         f'{int(bubbled)}'
@@ -256,7 +260,7 @@ def upload_beatmap(
     username: str = Depends(query_or_form('u')),
     password: str = Depends(query_or_form('h')),
     set_id: int = Depends(query_or_form('s'))
-) -> Response:
+):
     if not config.BEATMAP_SUBMISSION_ENABLED:
         app.session.logger.warning('The beatmap submission system is currently disabled. Aborting...')
         return error_response(5, 'The beatmap submission system is currently disabled. Please try again later!')
@@ -270,6 +274,9 @@ def upload_beatmap(
     if error:
         # Failed to authenticate user
         return error
+
+    if not user:
+        return error_response(5, 'Authentication failed. Please check your username and password and try again!')
 
     beatmapset = beatmapsets.fetch_one(set_id, session)
 
@@ -360,7 +367,7 @@ def upload_beatmap(
         app.session.logger.warning(f'Failed to upload beatmap: Duplicate beatmap files')
         return error_response(5, 'It seems like one of your beatmaps was already uploaded by someone else. Please try again!')
 
-    allowed_usernames = {
+    allowed_usernames: set[str] = {
         beatmapset.creator_user.name,
         user.name
     }
@@ -458,7 +465,7 @@ def forum_post(
         session=session
     )
 
-    if error:
+    if error or not user:
         # Failed to authenticate user
         return Response(status_code=403)
 
@@ -550,7 +557,7 @@ def topic_contents(
     username: str = Query(..., alias='u'),
     password: str = Query(..., alias='h'),
     set_id: int = Query(..., alias='s')
-) -> Response:
+):
     error, user = authenticate_user(
         username,
         password,
@@ -631,7 +638,7 @@ def handle_initial_upload(
     bss.register_upload_request(user.id, request)
 
 def handle_common_upload(
-    upload_request: bss.UploadRequest | None,
+    upload_request: bss.UploadRequest,
     beatmap_data: bytes,
     beatmap_filename: str,
     user: DBUser,
@@ -658,14 +665,16 @@ def handle_common_upload(
         response = ["new"]
 
         # Create a new empty beatmapset inside the database
-        upload_request.set_id, _ = create_beatmapset(
+        set_id, _ = create_beatmapset(
             user, [],
             session=session
         )
 
-        if upload_request.set_id is None:
+        if set_id is None:
             app.session.logger.warning(f'Failed to create beatmapset: set_id is None')
             return "An error occurred while creating the beatmapset."
+
+        upload_request.set_id = set_id
 
     # Update upload request
     bss.register_upload_request(
@@ -697,7 +706,7 @@ def handle_common_upload(
 
     return '\n'.join(response)
 
-def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Session) -> str | None:
+def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Session) -> Response | str | None:
     remaining_beatmaps = remaining_beatmap_uploads(user, session)
     beatmapset = beatmapsets.fetch_one(request.set_id, session)
 
@@ -870,7 +879,7 @@ def update_beatmap_files_endpoint(
     has_storyboard: bool = Depends(integer_boolean_query('sb')),
     beatmap_file: UploadFile = FastAPIFile(..., alias='osu'),
     session: Session = Depends(app.session.database.yield_session)
-) -> Response:
+):
     error, user = authenticate_user(
         username,
         password,
@@ -882,6 +891,9 @@ def update_beatmap_files_endpoint(
         # Failed to authenticate user
         return error
 
+    if not user:
+        return "Authentication failed. Please check your username and password and try again!"
+
     if beatmap_file.size and beatmap_file.size > 15_000_000: # 15 MB
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap file is too large ({beatmap_file.size} bytes)')
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
@@ -892,6 +904,10 @@ def update_beatmap_files_endpoint(
     if len(beatmap_file_contents) > 15_000_000: # 15 MB
         app.session.logger.warning(f'Failed to upload beatmap: Beatmap file is too large ({len(beatmap_file_contents)} bytes)')
         return "Your beatmap is too big. Try to reduce its filesize and try again!"
+
+    if not beatmap_filename:
+        app.session.logger.warning(f'Failed to upload beatmap: Beatmap filename is empty')
+        return "Your beatmap filename is empty. Please try again!"
 
     # Parse beatmap file
     parsed_beatmap = bss.parse_beatmap(beatmap_file_contents)
@@ -956,7 +972,7 @@ def upload_osz(
     set_id: int | None = Query(None, alias='s'),
     is_first: bool = Depends(integer_boolean_query('r')),
     session: Session = Depends(app.session.database.yield_session)
-) -> Response:
+):
     error, user = authenticate_user(
         username,
         password,
@@ -967,6 +983,9 @@ def upload_osz(
     if error:
         # Failed to authenticate user
         return Response(error.body, 403)
+
+    if user is None:
+        return Response("", 403)
 
     if not (upload_request := bss.get_upload_request(user.id)):
         app.session.logger.warning(f'Failed to upload osz file: Upload request not found')
@@ -1119,7 +1138,7 @@ def legacy_forum_post(
         legacy=True
     )
 
-    if error:
+    if error or not user:
         return Response(status_code=403)
 
     # Remove upload request
@@ -1236,7 +1255,7 @@ def authenticate_user(
     password: str,
     session: Session,
     legacy: bool = False
-) -> Tuple[Response, DBUser]:
+) -> Tuple[Response | None, DBUser | None]:
     """Authenticate the user with the given username and password"""
     player = users.fetch_by_name(username, session=session)
 
@@ -1447,7 +1466,7 @@ def update_beatmap_metadata(
     for filename, beatmap in beatmap_data.items():
         difficulty_attributes = performance.calculate_difficulty(
             beatmap_files[filename].content,
-            beatmap.mode
+            beatmap.mode # type: ignore
         )
         assert difficulty_attributes is not None, "Failed to calculate beatmap difficulty"
 
@@ -1683,7 +1702,7 @@ def duplicate_beatmap_files(
 def validate_beatmap_owner(
     metadata: Dict[MetadataType, str],
     beatmaps: Dict[str, Beatmap],
-    allowed_usernames: List[str]
+    allowed_usernames: Iterable[str]
 ) -> bool:
     if metadata.get(MetadataType.Creator) not in allowed_usernames:
         return False
