@@ -151,6 +151,9 @@ class ScoreSecurityHash:
         unique_id_md5 = None
         unique_id2_md5 = None
 
+        if security_hash_str.endswith(":"):
+            security_hash_str = security_hash_str.removesuffix(":") # (osu! will send ":" after each element, causing split to have an extra item)
+        
         parts = security_hash_str.split(":")
         for i, part in enumerate(parts[:5]): # we can't expect it to be uniform since there are hints that this was smaller (3 parts) at one point.
             if i == 0:
@@ -266,6 +269,23 @@ class TestScoreSecurityHash(unittest.TestCase):
         self.assertEqual(from_str.network_adapters_md5, adapters_md5)
         self.assertEqual(from_str.unique_id_md5, unique_id_1)
         self.assertEqual(from_str.unique_id2_md5, unique_id_2)
+
+        test_string_smaller = (
+            f"{osu_exe_md5}:"
+            f"{adapters}:"
+            f"{adapters_md5}:"
+        )
+        from_str = ScoreSecurityHash.from_string(test_string_smaller)
+        self.assertEqual(from_str.osu_exe_md5, osu_exe_md5)
+        self.assertEqual(isinstance(from_str.network_adapters, list), True)
+        self.assertEqual(all(
+            isinstance(network_adapter, ScoreNetworkAdapter) 
+            for network_adapter in from_str.network_adapters),
+            True
+        )
+        self.assertEqual(from_str.network_adapters_md5, adapters_md5)
+        self.assertEqual(from_str.unique_id_md5, None)
+        self.assertEqual(from_str.unique_id2_md5, None)
 
     def test_validate_adapters(self):
         osu_exe_md5 = "a"
