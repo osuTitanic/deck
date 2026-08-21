@@ -11,7 +11,7 @@ redis==8.1.0
 requests==2.34.2
 sendgrid==6.12.5
 sqlalchemy==2.0.51
-uvicorn==0.52.1
+uvicorn==0.52.3
 pydub==0.25.1
 osu-native-py==0.1.0
 python-multipart==0.0.32
