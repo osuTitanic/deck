@@ -4,7 +4,7 @@ boto3-type-annotations-with-docs==0.3.1
 fastapi==0.141.1
 geoip2==5.3.0
 pillow==12.3.0
-zipstream-ng==1.9.2
+zipstream-ng==1.9.3
 psycopg2-binary==2.9.12
 py3rijndael==0.3.3
 redis==8.1.0
