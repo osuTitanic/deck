@@ -366,7 +366,7 @@ def legacy_forum_post(
         topic_id = bss.create_beatmap_topic(
             set_id, user.id,
             subject, message,
-            not complete, bumprequest,
+            not complete, notify,
             session=session
         )
         return Response(f'{topic_id}')
@@ -375,7 +375,7 @@ def legacy_forum_post(
         topic_id = bss.create_beatmap_topic(
             set_id, user.id,
             subject, message,
-            not complete, bumprequest,
+            not complete, notify,
             session=session
         )
         return Response(f'{topic_id}')
@@ -521,11 +521,12 @@ def handle_common_upload(
     )
     post: DBForumPost | None = None
 
-    if beatmapset and beatmapset.topic_id:
-        post = posts.fetch_initial_post(
-            beatmapset.topic_id,
-            session=session
-        )
+    if beatmapset:
+        if beatmapset.topic_id:
+            post = posts.fetch_initial_post(
+                beatmapset.topic_id,
+                session=session
+            )
 
         if not post:
             response = ["new"]
@@ -536,8 +537,7 @@ def handle_common_upload(
     response.append(f'{upload_ticket.ticket}')
     response.append(f'{upload_request.osz_filename}')
 
-    if beatmapset and response[0] != "new":
-        assert post is not None # sanity check for the type checker
+    if beatmapset and post:
         is_approved = beatmapset.status > 0
         response.append(f'{beatmapset.topic_id or -1}')
         response.append(f'{int(is_approved)}')
@@ -661,7 +661,10 @@ def handle_upload_finish(request: bss.UploadRequest, user: DBUser, session: Sess
     )
 
     if beatmap_ids is None:
-        return bss.error_response(5, 'Please ask the owner of this beatmapset to delete your beatmap.')
+        return bss.error_response(
+            5, 'Please ask the owner of this beatmapset to delete your beatmap.',
+            legacy=True
+        )
 
     # Update relationships
     session.refresh(beatmapset)
