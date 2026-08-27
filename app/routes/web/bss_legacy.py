@@ -519,7 +519,7 @@ def handle_common_upload(
         user.id,
         upload_request
     )
-    post: DBForumPost
+    post: DBForumPost | None = None
 
     if beatmapset and beatmapset.topic_id:
         post = posts.fetch_initial_post(
