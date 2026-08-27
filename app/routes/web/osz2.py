@@ -18,17 +18,17 @@ def get_osz2_hashes(
     if not (beatmapset := beatmapsets.fetch_one(set_id, session)):
         return "0"
 
-    if not beatmapset.body_hash is None:
+    if beatmapset.body_hash is None:
         return "0"
 
-    if not beatmapset.meta_hash is None:
+    if beatmapset.meta_hash is None:
         return "0"
 
-    return "|".join(
+    return "|".join([
         "1",
         beatmapset.body_hash.upper(),
         beatmapset.meta_hash.upper()
-    )
+    ])
 
 @router.get("/osu-osz2-getfileinfo.php")
 def get_osz2_file_info(
@@ -88,12 +88,12 @@ def get_osz2_header(
     try:
         package = Osz2Package.from_bytes(osz2)
     except Exception as e:
-        app.logger.warning(f"Failed to read osz2 package: {e}")
+        app.session.logger.warning(f"Failed to read osz2 package: {e}")
         return error_response(5)
 
     return Response(osz2[0 : package.data_offset])
 
-@router.get("osu-osz2-getfilecontents.php")
+@router.get("/osu-osz2-getfilecontents.php")
 def get_osz2_file_contents(
     session: Session = Depends(app.session.database.yield_session),
     username: str = Query(..., alias="u"),
@@ -115,7 +115,7 @@ def get_osz2_file_contents(
     try:
         package = Osz2Package.from_bytes(osz2)
     except Exception as e:
-        app.logger.warning(f"Failed to read osz2 package: {e}")
+        app.session.logger.warning(f"Failed to read osz2 package: {e}")
         return error_response(5)
 
     if not (file := package.find_file_by_name(filename)):
