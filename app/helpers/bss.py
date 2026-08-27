@@ -1050,7 +1050,8 @@ def create_beatmap_topic(
             'Needs modding'
             if wip else
             'Waiting for BAT approval'
-        )
+        ),
+        session=session
     )
 
     posts.create(
