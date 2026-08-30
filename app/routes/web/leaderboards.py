@@ -106,7 +106,7 @@ def score_string(score: DBScore, index: int, send_nc: bool = True, request_versi
         str(score.nMiss),
         str(score.nKatu),
         str(score.nGeki),
-        str(score.perfect),
+        str(int(score.perfect)),
         str(resolve_mods(score, send_nc)),
         str(score.user_id),
         str(index),
@@ -131,7 +131,7 @@ def score_string_legacy(score: DBScore, seperator: str = '|') -> str:
         str(score.nMiss),
         str(score.nKatu),
         str(score.nGeki),
-        str(score.perfect),
+        str(int(score.perfect)),
         str(resolve_mods(score, False)), # All clients using legacy score string don't support NC
         str(score.user_id),
         str(score.user.avatar_filename),
