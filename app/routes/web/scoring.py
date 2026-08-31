@@ -1033,12 +1033,21 @@ def score_submission(
             session
         )
 
-    new_rank = scores.fetch_score_index_by_id(
-        score_object.id,
-        score.beatmap.id,
-        mode=score.mode.value,
-        session=session
-    )
+    if score.is_score_pb:
+        new_rank = scores.fetch_score_index_by_id(
+            score_object.id,
+            score.beatmap.id,
+            mode=score.mode.value,
+            session=session
+        )
+    else:
+        new_rank = scores.fetch_score_index_by_tscore(
+            score_object.total_score,
+            score_object.submitted_at,
+            score.beatmap.id,
+            score.mode.value,
+            session=session
+        )
 
     response = response_charts(
         score,
