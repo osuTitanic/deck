@@ -1033,8 +1033,8 @@ def score_submission(
             session
         )
 
-    new_rank = scores.fetch_score_index_by_tscore(
-        score_object.total_score,
+    new_rank = scores.fetch_score_index_by_id(
+        score_object.id,
         score.beatmap.id,
         mode=score.mode.value,
         session=session
