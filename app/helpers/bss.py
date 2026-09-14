@@ -596,6 +596,10 @@ def pop_bubble(beatmapset: DBBeatmapset, session: Session) -> None:
         beatmapset.topic_id,
         session=session
     )
+    deleted_nominations = nominations.delete_all(
+        beatmapset.id,
+        session=session
+    )
 
     if topic:
         # Set icon to "bubblepop"
@@ -605,15 +609,12 @@ def pop_bubble(beatmapset: DBBeatmapset, session: Session) -> None:
             session=session
         )
 
-    beatmapsets.update(
-        beatmapset.id,
-        {'star_priority': DBBeatmapset.star_priority + 5},
-        session=session
-    )
-    nominations.delete_all(
-        beatmapset.id,
-        session=session
-    )
+    if deleted_nominations > 0:
+        beatmapsets.update(
+            beatmapset.id,
+            {'star_priority': (DBBeatmapset.star_priority + 5)},
+            session=session
+        )
 
     app.session.logger.debug('Beatmap bubble was popped')
 
