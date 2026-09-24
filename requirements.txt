@@ -11,7 +11,7 @@ py3rijndael==0.3.3
 redis==8.1.0
 requests==2.34.2
 sendgrid==6.12.5
-sqlalchemy==2.0.52
+sqlalchemy==2.0.54
 uvicorn==0.53.0
 pydub==0.25.1
 osu-native-py==0.1.1
